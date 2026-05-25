@@ -10,7 +10,7 @@
     href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
     rel="stylesheet"
   />
-  <link rel="stylesheet" href="index.css" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='index.css') }}" />
 </head>
 <body>
   <div class="page-shell">
@@ -89,102 +89,11 @@
             </form>
           </div>
 
-          <p class="switch-text">
-            Don’t have an account?
-            <button type="button" id="openRegister" class="text-btn">Registration now</button>
-          </p>
-        </div>
 
-        <div id="registerView" class="panel-view hidden">
-          <div class="form-scroll">
-            <form id="registerForm" class="form">
-              <label for="regUsername">Username</label>
-              <div class="input-wrap">
-                <span class="icon">👤</span>
-                <input
-                  type="text"
-                  id="regUsername"
-                  placeholder="Enter username"
-                />
-              </div>
-
-              <label for="regMobile">Mobile Number</label>
-              <div class="input-wrap">
-                <span class="icon">📱</span>
-                <input
-                  type="text"
-                  id="regMobile"
-                  maxlength="10"
-                  placeholder="Enter 10-digit mobile number"
-                />
-              </div>
-
-              <label for="regPassword">Password</label>
-              <div class="input-wrap">
-                <span class="icon">🔒</span>
-                <input
-                  type="password"
-                  id="regPassword"
-                  placeholder="Enter password"
-                />
-              </div>
-
-              <label for="regConfirmPassword">Confirm Password</label>
-              <div class="input-wrap">
-                <span class="icon">🔐</span>
-                <input
-                  type="password"
-                  id="regConfirmPassword"
-                  placeholder="Confirm password"
-                />
-              </div>
-
-              <label for="regMpin">MPIN</label>
-              <div class="input-wrap">
-                <span class="icon">#️⃣</span>
-                <input
-                  type="password"
-                  id="regMpin"
-                  maxlength="4"
-                  placeholder="Enter 4-digit MPIN"
-                />
-              </div>
-
-              <label for="regConfirmMpin">Confirm MPIN</label>
-              <div class="input-wrap">
-                <span class="icon">✅</span>
-                <input
-                  type="password"
-                  id="regConfirmMpin"
-                  maxlength="4"
-                  placeholder="Confirm 4-digit MPIN"
-                />
-              </div>
-
-              <label for="regRole">Role</label>
-              <div class="input-wrap">
-                <span class="icon">🧩</span>
-                <select id="regRole" class="form-select">
-                  <option value="">Select role</option>
-                  <option value="1">Admin</option>
-                  <option value="2">Operations</option>
-                  <option value="3">Crew</option>
-                </select>
-              </div>
-
-              <button type="submit" class="primary-btn">Register</button>
-            </form>
-          </div>
-
-          <p class="switch-text">
-            Already have an account?
-            <button type="button" id="backToLogin" class="text-btn">Back to login</button>
-          </p>
-        </div>
       </section>
 
       <section class="visual-card">
-        <img src="Right_img.jpeg" alt="AOS Airline" class="hero-image" />
+        <img src="{{ url_for('static', filename='Right_img.jpeg') }}" alt="AOS Airline" class="hero-image" />
 
         <div class="image-overlay"></div>
 
@@ -205,6 +114,6 @@
     </div>
   </div>
 
-  <script src="index.js"></script>
+  <script src="{{ url_for('static', filename='index.js') }}" defer></script>
 </body>
 </html>

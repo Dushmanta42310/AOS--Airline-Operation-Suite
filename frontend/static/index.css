@@ -433,4 +433,31 @@ label {
     bottom: 18px;
     max-width: none;
   }
+
+  .message {
+  width: 100%;
+  margin: 0 0 16px 0;
+  padding: 12px 14px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.message.success {
+  background: #e8f7ee;
+  color: #18794e;
+  border: 1px solid #b7ebc6;
+}
+
+.message.error {
+  background: #fff1f2;
+  color: #c62828;
+  border: 1px solid #f3b5b5;
+}
+
+.hidden {
+  display: none !important;
+}
+
 }

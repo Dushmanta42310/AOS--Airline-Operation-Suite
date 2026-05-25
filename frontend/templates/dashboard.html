@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AOS Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}">
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Sidebar -->
+<aside class="sidebar">
+    <div class="brand">
+        <div class="logo-box">✈</div>
+        <div class="brand-text">
+            <h3>AOS</h3>
+            <p>Portal</p>
+        </div>
+    </div>
+
+    <ul class="nav-links" id="navLinks">
+        <!-- Menus will be loaded directly from /api/me -->
+    </ul>
+
+</aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="top-nav">
+                <div class="search-bar">
+                    <span class="icon">🔍</span>
+                    <input type="text" placeholder="Search flights, crew, etc...">
+                </div>
+
+                <div class="user-profile">
+                    <span class="notifications">🔔<span class="dot"></span></span>
+                    <img id="profileAvatar"
+                         src="https://ui-avatars.com/api/?name=User&background=0D8ABC&color=fff"
+                         alt="Profile"
+                         class="avatar">
+                    <span id="profileName" class="username">Welcome, User</span>
+                    <button id="logoutBtn" class="logout-btn" type="button">
+                        <span class="icon">🚪</span>
+                        <span>Logout</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Dashboard Content -->
+            <div class="content">
+                <div class="welcome-banner">
+                    <div class="banner-text">
+                        <h1>Welcome back to AOS 👋</h1>
+                        <p>Your airline operations are flying smoothly today. You have 3 active flights and 12 crew members on duty.</p>
+                    </div>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="icon-circle blue">✈️</div>
+                        <div class="stat-info">
+                            <h3>Active Flights</h3>
+                            <h2>24</h2>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="icon-circle green">✅</div>
+                        <div class="stat-info">
+                            <h3>On-Time Performance</h3>
+                            <h2>98.5%</h2>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="icon-circle orange">👥</div>
+                        <div class="stat-info">
+                            <h3>Active Crew</h3>
+                            <h2>142</h2>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="icon-circle red">⚠️</div>
+                        <div class="stat-info">
+                            <h3>Alerts</h3>
+                            <h2>0</h2>
+                         </div>
+                    </div>
+               </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='dashboard.js') }}"></script>
+</body>
+</html>
