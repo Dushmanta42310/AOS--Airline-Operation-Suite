@@ -69,7 +69,7 @@ sendOtpBtn.addEventListener("click", async () => {
     const data = await res.json();
     if (!res.ok) throw new Error(data.message || "Unable to send OTP.");
 
-    showMessage("success", `${data.message} OTP: ${data.otp}`);
+    showMessage("success", data.otp ? `${data.message} OTP: ${data.otp}` : data.message);
   } catch (error) {
     showMessage("error", error.message);
   } finally {
@@ -137,3 +137,182 @@ userForm.addEventListener("submit", async (e) => {
     showMessage("error", error.message);
   }
 });
+
+// ===================================================
+// CHANGE PASSWORD MODAL INTERACTION
+// ===================================================
+const openModalBtn = document.getElementById("openChangePasswordModalBtn");
+const modalOverlay = document.getElementById("changePasswordModal");
+const closeModalBtn = document.getElementById("closeChangePasswordModalBtn");
+const modalOldPassTab = document.getElementById("modalOldPassTab");
+const modalOtpTab = document.getElementById("modalOtpTab");
+const modalOldPassForm = document.getElementById("modalOldPassForm");
+const modalOtpForm = document.getElementById("modalOtpForm");
+const modalMessageBox = document.getElementById("modalMessageBox");
+const modalSendOtpBtn = document.getElementById("modalSendOtpBtn");
+
+function showModalMessage(type, text) {
+  modalMessageBox.className = `message ${type}`;
+  modalMessageBox.textContent = text;
+}
+
+function clearModalMessage() {
+  modalMessageBox.className = "message hidden";
+  modalMessageBox.textContent = "";
+}
+
+function switchModalTab(mode) {
+  clearModalMessage();
+  if (mode === "oldpass") {
+    modalOldPassTab.classList.add("active");
+    modalOtpTab.classList.remove("active");
+    modalOldPassForm.classList.remove("hidden");
+    modalOtpForm.classList.add("hidden");
+  } else {
+    modalOtpTab.classList.add("active");
+    modalOldPassTab.classList.remove("active");
+    modalOtpForm.classList.remove("hidden");
+    modalOldPassForm.classList.add("hidden");
+  }
+}
+
+if (openModalBtn) {
+  openModalBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    modalOverlay.classList.remove("hidden");
+    clearModalMessage();
+    switchModalTab("oldpass");
+  });
+}
+
+if (closeModalBtn) {
+  closeModalBtn.addEventListener("click", () => {
+    modalOverlay.classList.add("hidden");
+  });
+}
+
+if (modalOverlay) {
+  modalOverlay.addEventListener("click", (e) => {
+    if (e.target === modalOverlay) {
+      modalOverlay.classList.add("hidden");
+    }
+  });
+}
+
+if (modalOldPassTab) {
+  modalOldPassTab.addEventListener("click", () => switchModalTab("oldpass"));
+}
+if (modalOtpTab) {
+  modalOtpTab.addEventListener("click", () => switchModalTab("otp"));
+}
+
+const modalMobileNo = document.getElementById("modalMobileNo");
+if (modalMobileNo) {
+  modalMobileNo.addEventListener("input", (e) => {
+    e.target.value = e.target.value.replace(/\D/g, "");
+  });
+}
+
+const modalOtp = document.getElementById("modalOtp");
+if (modalOtp) {
+  modalOtp.addEventListener("input", (e) => {
+    e.target.value = e.target.value.replace(/\D/g, "");
+  });
+}
+
+if (modalSendOtpBtn) {
+  modalSendOtpBtn.addEventListener("click", async () => {
+    const mobileNo = modalMobileNo.value.trim();
+    if (mobileNo.length !== 10) {
+      showModalMessage("error", "Enter a valid 10-digit mobile number.");
+      return;
+    }
+
+    try {
+      modalSendOtpBtn.disabled = true;
+      modalSendOtpBtn.textContent = "Sending...";
+
+      const res = await fetch(`${API_BASE}/send-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mobileNo })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Unable to send OTP.");
+
+      showModalMessage("success", data.otp ? `${data.message} OTP: ${data.otp}` : data.message);
+    } catch (error) {
+      showModalMessage("error", error.message);
+    } finally {
+      modalSendOtpBtn.disabled = false;
+      modalSendOtpBtn.textContent = "Send OTP";
+    }
+  });
+}
+
+if (modalOldPassForm) {
+  modalOldPassForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const username = document.getElementById("modalUsername").value.trim();
+    const oldPassword = document.getElementById("modalOldPassword").value.trim();
+    const newPassword = document.getElementById("modalNewPassword").value.trim();
+
+    try {
+      const res = await fetch(`${API_BASE}/change-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "Old Password",
+          username,
+          oldPassword,
+          newPassword
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed to change password.");
+
+      showModalMessage("success", "✅ Password changed successfully! Closing...");
+      setTimeout(() => {
+        modalOverlay.classList.add("hidden");
+        modalOldPassForm.reset();
+      }, 1500);
+    } catch (error) {
+      showModalMessage("error", error.message);
+    }
+  });
+}
+
+if (modalOtpForm) {
+  modalOtpForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const username = modalMobileNo.value.trim();
+    const otp = modalOtp.value.trim();
+    const newPassword = document.getElementById("modalOtpNewPassword").value.trim();
+
+    try {
+      const res = await fetch(`${API_BASE}/change-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "OTP",
+          username,
+          otp,
+          newPassword
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed to change password.");
+
+      showModalMessage("success", "✅ Password changed successfully! Closing...");
+      setTimeout(() => {
+        modalOverlay.classList.add("hidden");
+        modalOtpForm.reset();
+      }, 1500);
+    } catch (error) {
+      showModalMessage("error", error.message);
+    }
+  });
+}

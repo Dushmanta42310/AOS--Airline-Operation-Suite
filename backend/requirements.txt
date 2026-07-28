@@ -1,0 +1,11 @@
+flask
+oracledb
+python-dotenv
+beautifulsoup4
+requests
+google-genai
+langchain-community
+langchain-huggingface
+chromadb
+sentence-transformers
+waitress

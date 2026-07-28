@@ -19,3 +19,6 @@ tempCodeRunnerFile.py
 # User uploads and media
 frontend/static/passport/
 
+# Scraped training data
+training_data/
+

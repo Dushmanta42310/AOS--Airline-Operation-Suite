@@ -10,20 +10,26 @@
 <body>
     <div class="dashboard-container">
         <!-- Sidebar -->
-<aside class="sidebar">
-    <div class="brand">
-        <div class="logo-box">✈</div>
-        <div class="brand-text">
-            <h3>AOS</h3>
-            <p>Portal</p>
-        </div>
-    </div>
+        <aside class="sidebar">
+            <div class="sidebar-header-banner"></div>
+            <div class="sidebar-profile">
+                <div class="profile-avatar-wrap">
+                    <img id="sidebarAvatar"
+                         src="https://ui-avatars.com/api/?name=User&background=0D8ABC&color=fff"
+                         alt="Profile Photo"
+                         class="sidebar-avatar">
+                </div>
+                <h2 id="sidebarName" class="sidebar-name">User Name</h2>
+                <p id="sidebarRole" class="sidebar-role">Role: --</p>
+                <p id="sidebarLastLogin" class="sidebar-last-login">Last Login: --</p>
+            </div>
+            
+            <hr class="sidebar-divider">
 
-    <ul class="nav-links" id="navLinks">
-        <!-- Menus will be loaded directly from /api/me -->
-    </ul>
-
-</aside>
+            <ul class="nav-links" id="navLinks">
+                <!-- Menus will be loaded directly from /api/me -->
+            </ul>
+        </aside>
 
         <!-- Main Content -->
         <main class="main-content">
@@ -78,7 +84,7 @@
                         <div class="icon-circle orange">👥</div>
                         <div class="stat-info">
                             <h3>Active Crew</h3>
-                            <h2>142</h2>
+                            <h2 id="activeCrewCount">0</h2>
                         </div>
                     </div>
 
@@ -92,6 +98,45 @@
                </div>
             </div>
         </main>
+    </div>
+
+    <!-- Floating Chatbot FAB -->
+    <div id="chatbotFab" class="chatbot-fab" title="Chat with AOS Assistant">
+        🤖
+    </div>
+
+    <!-- Chatbot Window -->
+    <div id="chatbotWindow" class="chatbot-window hidden">
+        <div class="chatbot-header">
+            <div class="chatbot-header-info">
+                <span class="chatbot-status-dot"></span>
+                <h4>AOS Robo-Assistant</h4>
+            </div>
+            <div class="chatbot-header-actions">
+                <button id="chatbotSettingsToggle" class="chatbot-header-btn" title="API Settings">⚙️</button>
+                <button id="chatbotClose" class="chatbot-close-btn" title="Close Chat">&times;</button>
+            </div>
+        </div>
+
+        <!-- Chatbot Settings Panel -->
+        <div id="chatbotSettingsPanel" class="chatbot-settings-panel hidden">
+            <div class="chatbot-settings-title">Gemini API Settings</div>
+            <div class="chatbot-settings-row">
+                <input type="password" id="chatbotApiKeyInput" placeholder="Enter API Key (AIzaSy...)">
+                <button id="chatbotSaveSettingsBtn">Save</button>
+            </div>
+            <div class="chatbot-settings-help">The API key is saved locally in your browser.</div>
+        </div>
+
+        <div id="chatbotMessages" class="chatbot-messages">
+            <div class="message bot">
+                Hello! I am your AOS Robo-Assistant. How can I help you manage your airline operations today? ✈️
+            </div>
+        </div>
+        <div class="chatbot-input-area">
+            <input type="text" id="chatbotInput" placeholder="Ask about flights, crew, etc..." autocomplete="off">
+            <button id="chatbotSend" class="chatbot-send-btn">Send</button>
+        </div>
     </div>
 
     <script src="{{ url_for('static', filename='dashboard.js') }}"></script>
