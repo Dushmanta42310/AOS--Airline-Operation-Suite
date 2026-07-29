@@ -68,7 +68,7 @@
                         <div class="icon-circle blue">✈️</div>
                         <div class="stat-info">
                             <h3>Active Flights</h3>
-                            <h2>24</h2>
+                            <h2 id="activeFlightsCount">0</h2>
                         </div>
                     </div>
 
@@ -95,6 +95,16 @@
                             <h2>0</h2>
                          </div>
                     </div>
+               </div>
+
+               <!-- Registered System Users / Crew Cards Section -->
+               <div class="user-cards-section" style="margin-top: 28px;">
+                   <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                       <h3 style="font-size: 16px; font-weight: 700; color: var(--text-main); margin: 0;">Registered System Users / Crew 👥</h3>
+                   </div>
+                   <div id="usersGrid" class="users-grid">
+                       <!-- User glass cards loaded dynamically -->
+                   </div>
                </div>
             </div>
         </main>

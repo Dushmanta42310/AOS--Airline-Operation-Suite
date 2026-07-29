@@ -529,6 +529,98 @@ def me():
             conn.close()
 
 
+@app.route("/api/dashboard-stats")
+def get_dashboard_stats():
+    user_id = session.get("user_id")
+    if not user_id:
+        return jsonify(message="Not logged in"), 401
+
+    conn = None
+    cur = None
+    try:
+        conn = get_conn()
+        cur = conn.cursor()
+
+        try:
+            sp_sql = """
+            CREATE OR REPLACE PROCEDURE AIRLINE_GET_DASHBOARD_STATS_USP (
+                P_ACTIVE_FLIGHTS OUT NUMBER,
+                P_ACTIVE_CREW    OUT NUMBER,
+                P_FLIGHT_CURSOR  OUT SYS_REFCURSOR,
+                P_DATA           OUT VARCHAR2
+            )
+            IS
+            BEGIN
+                SELECT COUNT(*) INTO P_ACTIVE_FLIGHTS 
+                FROM AIRLINE_FLIGHT_MSTR_TBL 
+                WHERE IS_ACTIVE = 'Y' OR IS_ACTIVE IS NULL;
+
+                SELECT COUNT(*) INTO P_ACTIVE_CREW 
+                FROM AIRLINE_USER_MSTR_TBL 
+                WHERE IS_ACTIVE = 'Y' OR IS_ACTIVE IS NULL;
+
+                OPEN P_FLIGHT_CURSOR FOR
+                    SELECT F.FLIGHT_ID, F.FLIGHT_NO, F.COMPANY_ID, C.COMPANY_NAME, F.FLIGHT_NAME, F.IS_ACTIVE
+                    FROM AIRLINE_FLIGHT_MSTR_TBL F
+                    LEFT JOIN AIRLINE_FLIGHT_COMPANY_MSTR_TBL C ON F.COMPANY_ID = C.COMPANY_ID
+                    WHERE F.IS_ACTIVE = 'Y' OR F.IS_ACTIVE IS NULL
+                    ORDER BY F.FLIGHT_ID DESC;
+
+                P_DATA := 'DASHBOARD STATS AND FLIGHT DETAILS FETCHED SUCCESSFULLY';
+            EXCEPTION
+                WHEN OTHERS THEN
+                    P_ACTIVE_FLIGHTS := 0;
+                    P_ACTIVE_CREW    := 0;
+                    P_DATA := SQLERRM;
+            END AIRLINE_GET_DASHBOARD_STATS_USP;
+            """
+            cur.execute(sp_sql)
+        except Exception as sp_err:
+            print(f"[WARNING setup_dashboard_sp] {sp_err}")
+
+        p_active_flights = cur.var(int)
+        p_active_crew = cur.var(int)
+        p_flight_cursor = cur.var(oracledb.CURSOR)
+        p_data = cur.var(str)
+
+        cur.callproc("AIRLINE_GET_DASHBOARD_STATS_USP", [
+            p_active_flights,
+            p_active_crew,
+            p_flight_cursor,
+            p_data
+        ])
+
+        active_flights_count = p_active_flights.getvalue() or 0
+        active_crew_count = p_active_crew.getvalue() or 0
+
+        flights = []
+        cursor_val = p_flight_cursor.getvalue()
+        if cursor_val:
+            for r in cursor_val.fetchall():
+                flights.append({
+                    "flightId": r[0],
+                    "flightNo": r[1],
+                    "companyId": r[2],
+                    "companyName": r[3] or f"Company #{r[2]}",
+                    "flightName": r[4] or "",
+                    "isActive": r[5] or "Y"
+                })
+
+        return jsonify({
+            "activeFlights": active_flights_count,
+            "activeCrew": active_crew_count,
+            "flights": flights,
+            "message": p_data.getvalue() or "Success"
+        }), 200
+
+    except Exception as e:
+        print("[DASHBOARD STATS ERROR]", str(e))
+        return jsonify(message=str(e)), 500
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
 @app.route("/api/users")
 def get_all_users():
     user_id = session.get("user_id")
@@ -541,15 +633,50 @@ def get_all_users():
         conn = get_conn()
         cur = conn.cursor()
 
-        query = """
-            SELECT u.USER_ID, u.USERNAME, u.MOBILENO, u.PASSPORT_IMG, u.IS_ACTIVE, r.ROLE_NAME
-            FROM AIRLINE_USER_MSTR_TBL u
-            LEFT JOIN AIRLINE_USER_ROLE_MAP_TBL urm ON u.USER_ID = urm.USER_ID AND urm.IS_ACTIVE = 'Y'
-            LEFT JOIN AIRLINE_ROLE_MSTR_TBL r ON urm.ROLE_ID = r.ROLE_ID AND r.IS_ACTIVE = 'Y'
-            ORDER BY u.USER_ID
-        """
-        cur.execute(query)
-        rows = cur.fetchall()
+        rows = []
+        # Try running Stored Procedure first
+        try:
+            sp_sql = """
+            CREATE OR REPLACE PROCEDURE AIRLINE_GET_ALL_USERS_USP (
+                P_CURSOR OUT SYS_REFCURSOR,
+                P_DATA   OUT VARCHAR2
+            )
+            IS
+            BEGIN
+                OPEN P_CURSOR FOR
+                    SELECT U.USER_ID, U.USERNAME, U.MOBILENO, U.PASSPORT_IMG, U.IS_ACTIVE, NVL(R.ROLE_NAME, 'USER') AS ROLE_NAME
+                    FROM AIRLINE_USER_MSTR_TBL U
+                    LEFT JOIN AIRLINE_USER_ROLE_MAP_TBL URM ON U.USER_ID = URM.USER_ID AND URM.IS_ACTIVE = 'Y'
+                    LEFT JOIN AIRLINE_ROLE_MSTR_TBL R ON URM.ROLE_ID = R.ROLE_ID AND R.IS_ACTIVE = 'Y'
+                    ORDER BY U.USER_ID;
+
+                P_DATA := 'USERS FETCHED SUCCESSFULLY';
+            EXCEPTION
+                WHEN OTHERS THEN
+                    P_DATA := SQLERRM;
+            END AIRLINE_GET_ALL_USERS_USP;
+            """
+            cur.execute(sp_sql)
+
+            p_cursor = cur.var(oracledb.CURSOR)
+            p_data = cur.var(str)
+            cur.callproc("AIRLINE_GET_ALL_USERS_USP", [p_cursor, p_data])
+
+            cursor_val = p_cursor.getvalue()
+            if cursor_val:
+                rows = cursor_val.fetchall()
+        except Exception as sp_err:
+            print(f"[WARNING get_users_sp failed, using direct query fallback]: {sp_err}")
+            # Direct SQL fallback query
+            query = """
+                SELECT u.USER_ID, u.USERNAME, u.MOBILENO, u.PASSPORT_IMG, u.IS_ACTIVE, NVL(r.ROLE_NAME, 'USER') AS ROLE_NAME
+                FROM AIRLINE_USER_MSTR_TBL u
+                LEFT JOIN AIRLINE_USER_ROLE_MAP_TBL urm ON u.USER_ID = urm.USER_ID AND urm.IS_ACTIVE = 'Y'
+                LEFT JOIN AIRLINE_ROLE_MSTR_TBL r ON urm.ROLE_ID = r.ROLE_ID AND r.IS_ACTIVE = 'Y'
+                ORDER BY u.USER_ID
+            """
+            cur.execute(query)
+            rows = cur.fetchall()
 
         users_list = []
         for row in rows:
@@ -569,11 +696,14 @@ def get_all_users():
             users_list.append({
                 "userId": db_uid,
                 "username": username or "",
+                "userName": username or "",
                 "fullName": full_name,
                 "mobileNo": mobile or "",
+                "passportImg": passport_img or "",
                 "photoUrl": photo_url,
                 "isActive": is_active or "Y",
-                "role": (role_name or "USER").strip()
+                "role": (role_name or "USER").strip(),
+                "roleName": (role_name or "USER").strip()
             })
 
         return jsonify(users_list), 200

@@ -1936,6 +1936,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     flightNoInput.value = "";
                     flightNameInput.value = "";
                     loadFlightData();
+                    loadDashboardStats();
                 } else {
                     msgDiv.textContent = "⚠️ " + (result.message || "Creation failed");
                     msgDiv.className = "form-message error";
@@ -2052,6 +2053,170 @@ document.addEventListener("DOMContentLoaded", async () => {
                 msgDiv.className = "form-message error";
             }
         };
+    }
+
+    async function loadUserCards() {
+        const grid = document.getElementById("usersGrid");
+        if (!grid) return;
+
+        try {
+            const res = await fetch("/api/users", { credentials: "same-origin" });
+            if (!res.ok) {
+                grid.innerHTML = `<div class="empty-search-state"><span>⚠️</span><p>Unable to load system users (HTTP ${res.status}).</p></div>`;
+                return;
+            }
+            const data = await res.json();
+            const users = data.users || data;
+
+            if (Array.isArray(users) && users.length > 0) {
+                allUsers = users;
+                grid.innerHTML = users.map(u => {
+                    const dbUserId = u.userId || u.USER_ID || u[0];
+                    const username = u.username || u.userName || u.USERNAME || u[1] || '';
+                    const mobile = u.mobileNo || u.MOBILENO || u[2] || 'N/A';
+                    const passportImg = u.passportImg || u.PASSPORT_IMG || u[3];
+                    const photoUrl = u.photoUrl;
+                    const isActive = (u.isActive || u.IS_ACTIVE || u[4] || 'Y') === 'Y';
+                    const roleName = (u.role || u.roleName || u.ROLE_NAME || u[5] || 'USER').toUpperCase();
+
+                    let cleanName = u.fullName;
+                    if (!cleanName || cleanName === 'User') {
+                        if (username) {
+                            cleanName = username.split('@')[0].replace(/[\._]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                        } else {
+                            cleanName = 'User ' + String(dbUserId).slice(-4);
+                        }
+                    }
+
+                    const avatarSrc = photoUrl ? photoUrl : (passportImg ? `/api/passport-photo?id=${dbUserId}` : `https://ui-avatars.com/api/?name=${encodeURIComponent(cleanName)}&background=0D8ABC&color=fff`);
+
+                    let roleClass = 'user';
+                    if (roleName.includes('ADMIN')) roleClass = 'admin';
+                    else if (roleName.includes('OPERATOR')) roleClass = 'operator';
+
+                    return `
+                        <div class="user-glass-card ${currentUser && (currentUser.dbUserId == dbUserId || currentUser.userId == dbUserId) ? 'my-profile-card' : ''}">
+                            <div class="user-card-header">
+                                <div class="user-avatar-container">
+                                    <img src="${avatarSrc}" 
+                                         alt="${cleanName}" 
+                                         class="user-avatar-circle"
+                                         onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(cleanName)}&background=0D8ABC&color=fff'">
+                                    <span class="status-badge-dot ${isActive ? 'active' : 'inactive'}" title="${isActive ? 'Active User' : 'Inactive User'}"></span>
+                                </div>
+                                <div class="user-name-role">
+                                    <h4>${cleanName}</h4>
+                                    <span class="user-role-badge ${roleClass}">${roleName}</span>
+                                </div>
+                            </div>
+                            <div class="user-card-details">
+                                <div class="detail-field">
+                                    <span class="detail-label">User ID</span>
+                                    <span class="detail-value">#${dbUserId}</span>
+                                </div>
+                                <div class="detail-field">
+                                    <span class="detail-label">Username / Email</span>
+                                    <span class="detail-value" title="${username || cleanName}">${username || cleanName}</span>
+                                </div>
+                                <div class="detail-field">
+                                    <span class="detail-label">Mobile Number</span>
+                                    <span class="detail-value">${mobile}</span>
+                                </div>
+                                <div class="detail-field">
+                                    <span class="detail-label">Account Status</span>
+                                    <span class="detail-value">${isActive ? 'Active' : 'Inactive'}</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join("");
+            } else {
+                grid.innerHTML = `<div class="empty-search-state"><span>👥</span><p>No registered system users found.</p></div>`;
+            }
+        } catch (err) {
+            console.error("Failed to load user cards:", err);
+            grid.innerHTML = `<div class="empty-search-state"><span>⚠️</span><p>Error connecting to server to load users.</p></div>`;
+        }
+    }
+
+    async function loadDashboardStats() {
+        try {
+            const res = await fetch("/api/dashboard-stats", { credentials: "same-origin" });
+            if (res.ok) {
+                const data = await res.json();
+                const activeFlightsCountEl = document.getElementById("activeFlightsCount");
+                const activeCrewCountEl = document.getElementById("activeCrewCount");
+
+                if (activeFlightsCountEl && data.activeFlights !== undefined) {
+                    activeFlightsCountEl.textContent = data.activeFlights;
+                }
+                if (activeCrewCountEl && data.activeCrew !== undefined) {
+                    activeCrewCountEl.textContent = data.activeCrew;
+                }
+            }
+        } catch (err) {
+            console.error("Error loading dashboard stats:", err);
+        }
+    }
+
+    function renderHomeDashboard() {
+        if (!mainContent) return;
+
+        mainContent.innerHTML = `
+            <div class="welcome-banner">
+                <div class="banner-text">
+                    <h1>Welcome back to AOS 👋</h1>
+                    <p>Your airline operations are flying smoothly today.</p>
+                </div>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="icon-circle blue">✈️</div>
+                    <div class="stat-info">
+                        <h3>Active Flights</h3>
+                        <h2 id="activeFlightsCount">0</h2>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="icon-circle green">✅</div>
+                    <div class="stat-info">
+                        <h3>On-Time Performance</h3>
+                        <h2>98.5%</h2>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="icon-circle orange">👥</div>
+                    <div class="stat-info">
+                        <h3>Active Crew</h3>
+                        <h2 id="activeCrewCount">0</h2>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="icon-circle red">⚠️</div>
+                    <div class="stat-info">
+                        <h3>Alerts</h3>
+                        <h2>0</h2>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Registered System Users / Crew Cards Section -->
+            <div class="user-cards-section" style="margin-top: 28px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <h3 style="font-size: 16px; font-weight: 700; color: var(--text-main); margin: 0;">Registered System Users / Crew 👥</h3>
+                </div>
+                <div id="usersGrid" class="users-grid">
+                    <div style="grid-column: 1 / -1; text-align: center; padding: 30px; color: var(--text-muted);">Loading system users...</div>
+                </div>
+            </div>
+        `;
+
+        loadDashboardStats();
+        loadUserCards();
     }
 
     function renderPlaceholderPage(menu) {
