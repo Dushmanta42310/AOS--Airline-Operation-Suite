@@ -1752,6 +1752,202 @@ document.addEventListener("DOMContentLoaded", async () => {
         };
     }
 
+    function renderCreateFlightForm() {
+        if (!mainContent) return;
+
+        mainContent.innerHTML = `
+            <div class="welcome-banner">
+                <h1>Create New Flight ✈️</h1>
+                <p>Register a new flight using stored procedure <code>airline_flight_create_usp</code>.</p>
+            </div>
+
+            <div class="form-container macOS-card">
+                <form id="createFlightForm" class="mac-form">
+                    <div class="form-grid">
+                        <div class="input-group">
+                            <label>Flight Number</label>
+                            <input type="text" id="flightNoInput" name="flightNo" placeholder="e.g. AI-101" required>
+                        </div>
+
+                        <div class="input-group">
+                            <label>Flight Company</label>
+                            <select id="companySelect" name="companyId" required>
+                                <option value="" disabled selected>Loading companies...</option>
+                            </select>
+                        </div>
+
+                        <div class="input-group full-width">
+                            <label>Flight Name / Aircraft</label>
+                            <input type="text" id="flightNameInput" name="flightName" placeholder="e.g. Airbus A320 Neo">
+                        </div>
+                    </div>
+
+                    <div class="form-footer">
+                        <button type="submit" class="submit-btn">Create Flight</button>
+                    </div>
+                </form>
+
+                <div id="flightFormMessage" class="form-message"></div>
+            </div>
+
+            <div class="existing-cities-container macOS-card" style="margin-top: 24px; padding: 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
+                    <div>
+                        <h3 style="font-weight: 600; font-size: 16px; margin: 0;">Registered Flights Table ✈️</h3>
+                        <p style="font-size: 12px; color: var(--text-muted); margin: 2px 0 0 0;">Overview of all airline flights stored in database</p>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <input type="text" id="flightSearchInput" placeholder="🔍 Search flight, company..." style="padding: 8px 14px; border-radius: 8px; border: 1px solid var(--border-color); font-size: 13px; outline: none; background: rgba(255,255,255,0.6); min-width: 200px;">
+                        <span id="flightCountBadge" class="badge blue" style="font-size: 12px;">0 Flights</span>
+                    </div>
+                </div>
+
+                <div class="table-responsive" style="overflow-x: auto;">
+                    <table class="data-table mac-table" style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="background: rgba(0, 122, 255, 0.05); text-align: left;">
+                                <th style="padding: 12px 16px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Flight ID</th>
+                                <th style="padding: 12px 16px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Flight No</th>
+                                <th style="padding: 12px 16px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Company Name</th>
+                                <th style="padding: 12px 16px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Aircraft / Flight Name</th>
+                                <th style="padding: 12px 16px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="flightsTableBody">
+                            <tr>
+                                <td colspan="5" style="text-align: center; padding: 24px; color: var(--text-muted);">Loading flights data...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+
+        const form = document.getElementById("createFlightForm");
+        const flightNoInput = document.getElementById("flightNoInput");
+        const companySelect = document.getElementById("companySelect");
+        const flightNameInput = document.getElementById("flightNameInput");
+        const msgDiv = document.getElementById("flightFormMessage");
+        const tableBody = document.getElementById("flightsTableBody");
+        const flightSearchInput = document.getElementById("flightSearchInput");
+        const flightCountBadge = document.getElementById("flightCountBadge");
+
+        let allRegisteredFlights = [];
+
+        function renderFlightRows(flightsList) {
+            flightCountBadge.textContent = `${flightsList.length} Flight${flightsList.length === 1 ? '' : 's'}`;
+
+            if (flightsList && flightsList.length > 0) {
+                tableBody.innerHTML = flightsList.map(f => `
+                    <tr style="border-bottom: 1px solid rgba(0,0,0,0.05);">
+                        <td style="padding: 12px 16px;"><strong>#${f.flightId}</strong></td>
+                        <td style="padding: 12px 16px;"><span class="badge blue" style="font-weight: 600;">${f.flightNo}</span></td>
+                        <td style="padding: 12px 16px; font-weight: 500;">${f.companyName}</td>
+                        <td style="padding: 12px 16px; color: var(--text-muted);">${f.flightName || '—'}</td>
+                        <td style="padding: 12px 16px;"><span class="badge green">${f.isActive === 'Y' ? 'ACTIVE' : 'INACTIVE'}</span></td>
+                    </tr>
+                `).join("");
+            } else {
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="5" style="text-align: center; padding: 24px; color: var(--text-muted);">No matching flights found.</td>
+                    </tr>
+                `;
+            }
+        }
+
+        if (flightSearchInput) {
+            flightSearchInput.addEventListener("input", (e) => {
+                const query = e.target.value.toLowerCase().trim();
+                const filtered = allRegisteredFlights.filter(f =>
+                    String(f.flightId).includes(query) ||
+                    (f.flightNo || '').toLowerCase().includes(query) ||
+                    (f.companyName || '').toLowerCase().includes(query) ||
+                    (f.flightName || '').toLowerCase().includes(query)
+                );
+                renderFlightRows(filtered);
+            });
+        }
+
+        async function loadFlightData() {
+            try {
+                const res = await fetch("/api/admin/create-flight", {
+                    method: "GET",
+                    credentials: "same-origin"
+                });
+                const data = await res.json();
+
+                if (res.ok) {
+                    if (data.companies && data.companies.length > 0) {
+                        companySelect.innerHTML = '<option value="" disabled selected>Select Flight Company</option>' +
+                            data.companies.map(c => `<option value="${c.companyId}">${c.companyName} (${c.companyCode || c.companyId})</option>`).join("");
+                    } else {
+                        companySelect.innerHTML = '<option value="" disabled>No companies found</option>';
+                    }
+
+                    allRegisteredFlights = data.flights || [];
+                    renderFlightRows(allRegisteredFlights);
+                }
+            } catch (err) {
+                console.error("Error loading flight data:", err);
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="5" style="text-align: center; padding: 24px; color: #FF3B30;">Failed to load flights data.</td>
+                    </tr>
+                `;
+            }
+        }
+
+        loadFlightData();
+
+        form.onsubmit = async (e) => {
+            e.preventDefault();
+            const flightNo = flightNoInput.value.trim();
+            const companyId = companySelect.value;
+            const flightName = flightNameInput.value.trim();
+
+            if (!flightNo || !companyId) {
+                msgDiv.textContent = "❌ Flight Number and Company are required.";
+                msgDiv.className = "form-message error";
+                return;
+            }
+
+            msgDiv.textContent = "Calling stored procedure airline_flight_create_usp...";
+            msgDiv.className = "form-message info";
+
+            try {
+                const res = await fetch("/api/admin/create-flight", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        flightId: 0,
+                        flightNo: flightNo,
+                        companyId: parseInt(companyId),
+                        flightName: flightName
+                    }),
+                    credentials: "same-origin"
+                });
+
+                const result = await res.json();
+
+                if (res.ok) {
+                    msgDiv.textContent = "✅ " + (result.message || "Data Inserted Sucessfully");
+                    msgDiv.className = "form-message success";
+                    flightNoInput.value = "";
+                    flightNameInput.value = "";
+                    loadFlightData();
+                } else {
+                    msgDiv.textContent = "⚠️ " + (result.message || "Creation failed");
+                    msgDiv.className = "form-message error";
+                }
+            } catch (err) {
+                console.error("Create flight error:", err);
+                msgDiv.textContent = "❌ Network error. Please try again.";
+                msgDiv.className = "form-message error";
+            }
+        };
+    }
+
     function renderPassengerRegistrationForm() {
         if (!mainContent) return;
 
@@ -1910,6 +2106,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
             else if (label.includes("create flight company") || label.includes("flight company")) {
                 renderCreateFlightCompanyForm();
+            }
+            else if (label.includes("create flight") || label.includes("flight")) {
+                renderCreateFlightForm();
             }
             else if (label.includes("register customer") || label.includes("register passenger") || label.includes("customer registration") || label.includes("passenger registration") || label.includes("customer")) {
                 renderPassengerRegistrationForm();

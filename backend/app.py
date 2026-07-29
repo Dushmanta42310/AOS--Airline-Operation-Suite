@@ -1412,6 +1412,176 @@ def admin_create_flight_company():
         if conn:
             conn.close()
 
+
+@app.route("/api/admin/create-flight", methods=["GET", "POST"])
+def admin_create_flight():
+    role_val = session.get("role")
+    current_role = (role_val or "").strip()
+    if current_role != "ADMIN":
+        return jsonify({"message": "Unauthorized"}), 403
+
+    conn = None
+    cur = None
+    try:
+        conn = get_conn()
+        cur = conn.cursor()
+
+        # Auto-ensure stored procedure airline_flight_create_usp & menu mapping exist
+        try:
+            sp_sql = """
+            CREATE OR REPLACE PROCEDURE airline_flight_create_usp(
+                p_flight_id   IN NUMBER,
+                p_flight_no   IN VARCHAR2,
+                p_company_id  IN NUMBER,
+                p_flight_name IN VARCHAR2,
+                p_data        OUT VARCHAR2
+            )
+            IS 
+                v_count NUMBER;
+            BEGIN
+                SELECT COUNT(*) INTO v_count FROM airline_flight_mstr_tbl
+                WHERE FLIGHT_ID = P_FLIGHT_ID
+                  AND UPPER(FLIGHT_NO) = UPPER(P_FLIGHT_NO);
+
+                IF v_count > 0 THEN 
+                    p_data := 'The Flight Already Exists';
+                ELSE 
+                    INSERT INTO AIRLINE_FLIGHT_MSTR_TBL (
+                        FLIGHT_ID, FLIGHT_NO, COMPANY_ID, FLIGHT_NAME, CREATED_BY, CREATED_IP
+                    ) VALUES (
+                        AIRLINE_FLIGHT_MSTR_TBL_SEQ.NEXTVAL, p_flight_no, p_company_id, p_flight_name, 'Dushmabnta', '1001.1001.5'
+                    );
+                    p_data := 'Data Inserted Sucessfully';
+                    COMMIT;
+                END IF;
+
+            EXCEPTION 
+                WHEN OTHERS THEN
+                    ROLLBACK;
+                    p_data := SQLERRM;
+            END airline_flight_create_usp;
+            """
+            cur.execute(sp_sql)
+
+            # Ensure CREATE FLIGHT menu is seeded in database
+            cur.execute("SELECT MENU_ID FROM AIRLINE_MENU_MSTR_TBL WHERE UPPER(MENU_NAME) = 'CREATE FLIGHT'")
+            menu_row = cur.fetchone()
+            if not menu_row:
+                cur.execute("SELECT AIRLINE_MENU_MSTR_SEQ.NEXTVAL FROM DUAL")
+                menu_id = cur.fetchone()[0]
+                cur.execute(
+                    "INSERT INTO AIRLINE_MENU_MSTR_TBL (MENU_ID, MENU_NAME, CREATED_BY, CREATED_IP) VALUES (:1, :2, :3, :4)",
+                    [menu_id, "CREATE FLIGHT", "DUSHMANTA", "127.0.0.1"]
+                )
+                conn.commit()
+
+                cur.execute("SELECT ROLE_ID FROM AIRLINE_ROLE_MSTR_TBL")
+                roles = [r[0] for r in cur.fetchall()]
+                for r_id in roles:
+                    cur.execute(
+                        "INSERT INTO AIRLINE_ROLE_MENU_MAP_TBL (ROLE_ID, MENU_ID, CREATED_BY, CREATED_IP) VALUES (:1, :2, :3, :4)",
+                        [r_id, menu_id, "DUSHMANTA", "127.0.0.1"]
+                    )
+                conn.commit()
+        except Exception as init_e:
+            print(f"[WARNING setup_flight_sp] {init_e}")
+
+        # --- Handle GET: Return flight company list, next suggested flight ID, and existing flights ---
+        if request.method == "GET":
+            companies = []
+            try:
+                cur.execute("SELECT COMPANY_ID, COMPANY_NAME, COMPANY_CODE FROM AIRLINE_FLIGHT_COMPANY_MSTR_TBL WHERE IS_ACTIVE = 'Y' OR IS_ACTIVE IS NULL ORDER BY COMPANY_NAME")
+                for r in cur.fetchall():
+                    companies.append({
+                        "companyId": r[0],
+                        "companyName": r[1],
+                        "companyCode": r[2]
+                    })
+            except Exception:
+                pass
+
+            next_flight_id = 18000001
+            try:
+                cur.execute("SELECT NVL(MAX(FLIGHT_ID), 18000000) + 1 FROM AIRLINE_FLIGHT_MSTR_TBL")
+                max_id = cur.fetchone()[0]
+                if max_id:
+                    next_flight_id = max_id
+            except Exception:
+                pass
+
+            flights = []
+            try:
+                cur.execute("""
+                    SELECT f.FLIGHT_ID, f.FLIGHT_NO, f.COMPANY_ID, c.COMPANY_NAME, f.FLIGHT_NAME, f.IS_ACTIVE
+                    FROM AIRLINE_FLIGHT_MSTR_TBL f
+                    LEFT JOIN AIRLINE_FLIGHT_COMPANY_MSTR_TBL c ON f.COMPANY_ID = c.COMPANY_ID
+                    ORDER BY f.FLIGHT_ID DESC
+                """)
+                for r in cur.fetchall():
+                    flights.append({
+                        "flightId": r[0],
+                        "flightNo": r[1],
+                        "companyId": r[2],
+                        "companyName": r[3] or f"Company #{r[2]}",
+                        "flightName": r[4] or "",
+                        "isActive": r[5] or "Y"
+                    })
+            except Exception:
+                pass
+
+            return jsonify({
+                "companies": companies,
+                "nextFlightId": next_flight_id,
+                "flights": flights,
+                "message": "Data loaded successfully"
+            }), 200
+
+        # --- Handle POST: Create flight using procedure airline_flight_create_usp ---
+        data = request.get_json() or {}
+        flight_id = data.get("flightId", 0) or 0
+        flight_no = data.get("flightNo")
+        company_id = data.get("companyId")
+        flight_name = data.get("flightName", "")
+
+        if not flight_no or not company_id:
+            return jsonify({
+                "message": "Flight Number and Company are required."
+            }), 400
+
+        p_data = cur.var(str)
+
+        cur.callproc("AIRLINE_FLIGHT_CREATE_USP", [
+            int(flight_id),
+            str(flight_no).strip(),
+            int(company_id),
+            str(flight_name).strip() if flight_name else None,
+            p_data
+        ])
+
+        status_message = p_data.getvalue()
+
+        if status_message and ("Sucessfully" in status_message or "Successfully" in status_message):
+            conn.commit()
+            return jsonify({"message": status_message}), 200
+        elif status_message and "Exists" in status_message:
+            return jsonify({"message": status_message}), 400
+        else:
+            conn.commit()
+            return jsonify({"message": status_message or "Flight created successfully"}), 200
+
+    except Exception as e:
+        print(f"[ERROR create_flight] {str(e)}")
+        if conn:
+            conn.rollback()
+        return jsonify({"message": f"Database Error: {str(e)}"}), 500
+
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
+
 # =====================================================================
 # CHATBOT CUSTOM DATABASE INTEGRATION ROUTE (UPDATED)
 # =====================================================================

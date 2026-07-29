@@ -22,3 +22,7 @@ frontend/static/passport/
 # Scraped training data
 training_data/
 
+
+backend/chroma_db1/
+
+backend/chroma_db1/

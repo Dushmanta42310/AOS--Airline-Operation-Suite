@@ -1170,3 +1170,36 @@ EXCEPTION
         P_DATA := SQLERRM;
 END AIRLINE_CUSTOMER_REGD_USP;
 /
+
+CREATE OR REPLACE PROCEDURE airline_flight_create_usp(
+p_flight_id IN NUMBER,
+p_flight_no IN VARCHAR2,
+p_company_id  IN NUMBER,
+p_flight_name IN VARCHAR2,
+p_data OUT VARCHAR2)
+IS v_count NUMBER;
+BEGIN
+SELECT COUNT(*) INTO v_count FROM airline_flight_mstr_tbl
+where FLIGHT_ID = P_FLIGHT_ID
+  AND UPPER(FLIGHT_NO) = UPPER(P_FLIGHT_NO);
+
+IF v_count > 0 
+ THEN p_data := 'The Flight Already Exists';
+ 
+ELSE 
+ INSERT INTO AIRLINE_FLIGHT_MSTR_TBL (FLIGHT_ID, FLIGHT_NO, COMPANY_ID,FLIGHT_NAME,CREATED_BY,CREATED_IP) VALUES
+ (AIRLINE_FLIGHT_MSTR_TBL_SEQ.NEXTVAL ,p_flight_no ,p_company_id ,p_flight_name,'Dushmabnta','1001.1001.5');
+ p_data:= 'Data Inserted Sucessfully';
+ 
+ COMMIT;
+
+END IF;
+
+EXCEPTION 
+ WHEN OTHERS THEN
+ ROLLBACK;
+ p_data := SQLERRM ;
+END airline_flight_create_usp;
+/
+
+
