@@ -1022,32 +1022,48 @@ body {
 /* ==========================================
    FLOATING ROBO-CHATBOT AND GLASS INTERFACE
    ========================================== */
+@keyframes fabWiggle {
+    0% { transform: translateY(-6px) scale(1.15) rotate(0deg); }
+    25% { transform: translateY(-6px) scale(1.15) rotate(-7deg); }
+    75% { transform: translateY(-6px) scale(1.15) rotate(7deg); }
+    100% { transform: translateY(-6px) scale(1.15) rotate(0deg); }
+}
+
 .chatbot-fab {
     position: fixed;
     bottom: 30px;
     left: 30px;
     width: 60px;
     height: 60px;
-    background: linear-gradient(135deg, #007AFF, #0051A8);
+    background: linear-gradient(135deg, rgba(0, 122, 255, 0.75), rgba(0, 81, 168, 0.7));
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.35);
     border-radius: 50%;
-    box-shadow: 0 4px 16px rgba(0, 122, 255, 0.4);
+    box-shadow: 0 6px 18px rgba(0, 122, 255, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.4);
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 28px;
     cursor: pointer;
     z-index: 9999;
-    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    opacity: 0.7;
+    transition: all 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     user-select: none;
 }
 
 .chatbot-fab:hover {
-    transform: scale(1.15) rotate(5deg);
-    box-shadow: 0 6px 24px rgba(0, 122, 255, 0.6);
+    opacity: 1;
+    background: linear-gradient(135deg, #007AFF, #0051A8);
+    border-color: rgba(255, 255, 255, 0.8);
+    box-shadow: 0 12px 30px rgba(0, 122, 255, 0.55), 0 0 20px rgba(0, 122, 255, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+    animation: fabWiggle 1.4s ease-in-out infinite;
 }
 
 .chatbot-fab:active {
     transform: scale(0.95);
+    box-shadow: 0 4px 12px rgba(0, 122, 255, 0.4);
+    animation: none;
 }
 
 .chatbot-window {
