@@ -2055,6 +2055,288 @@ document.addEventListener("DOMContentLoaded", async () => {
         };
     }
 
+    function renderCreateDynamicPriceForm() {
+        if (!mainContent) return;
+
+        const todayStr = new Date().toISOString().split('T')[0];
+        const nowStr = new Date().toISOString().slice(0, 16);
+
+        mainContent.innerHTML = `
+            <div class="welcome-banner">
+                <h1>Flight Dynamic Pricing Management 💸</h1>
+                <p>Configure dynamic pricing rules, seat capacities, departure & arrival times using procedure <code>AIRLINE_FLIGHT_DYNAMIC_PRICE_CREATE_USP</code>.</p>
+            </div>
+
+            <div class="form-container macOS-card">
+                <form id="createDynamicPriceForm" class="mac-form">
+                    <div class="form-grid">
+                        <div class="input-group">
+                            <label>Select Flight</label>
+                            <select id="dpFlightSelect" required>
+                                <option value="" disabled selected>Loading flights...</option>
+                            </select>
+                        </div>
+
+                        <div class="input-group">
+                            <label>Source Airport</label>
+                            <select id="dpSourceAirportSelect" required>
+                                <option value="" disabled selected>Loading airports...</option>
+                            </select>
+                        </div>
+
+                        <div class="input-group">
+                            <label>Destination Airport</label>
+                            <select id="dpDestAirportSelect" required>
+                                <option value="" disabled selected>Loading airports...</option>
+                            </select>
+                        </div>
+
+                        <div class="input-group">
+                            <label>Flight Date</label>
+                            <input type="date" id="dpFlightDate" value="${todayStr}" required>
+                        </div>
+
+                        <div class="input-group">
+                            <label>Departure Time</label>
+                            <input type="datetime-local" id="dpDepartureTime" value="${nowStr}" required>
+                        </div>
+
+                        <div class="input-group">
+                            <label>Arrival Time</label>
+                            <input type="datetime-local" id="dpArrivalTime" value="${nowStr}" required>
+                        </div>
+
+                        <div class="input-group">
+                            <label>Total Seats</label>
+                            <input type="number" id="dpTotalSeats" value="180" min="1" max="1000" required>
+                        </div>
+
+                        <div class="input-group">
+                            <label>Available Seats</label>
+                            <input type="number" id="dpAvailableSeats" value="180" min="0" max="1000" required>
+                        </div>
+
+                        <div class="input-group full-width">
+                            <label>Current Ticket Price (₹)</label>
+                            <input type="number" id="dpCurrentPrice" step="0.01" value="4500.00" placeholder="e.g. 4500.00" required>
+                        </div>
+                    </div>
+
+                    <div class="form-footer" style="margin-top: 15px;">
+                        <button type="submit" class="submit-btn">Save Dynamic Price</button>
+                    </div>
+                </form>
+
+                <div id="dpFormMessage" class="form-message"></div>
+            </div>
+
+            <div class="existing-cities-container macOS-card" style="margin-top: 24px; padding: 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
+                    <div>
+                        <h3 style="font-weight: 600; font-size: 16px; margin: 0;">Dynamic Pricing Master Records 🏷️</h3>
+                        <p style="font-size: 12px; color: var(--text-muted); margin: 2px 0 0 0;">Overview of active dynamic flight rates & seat availability</p>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <input type="text" id="dpSearchInput" placeholder="🔍 Search flight, airport, city..." style="padding: 8px 14px; border-radius: 8px; border: 1px solid var(--border-color); font-size: 13px; outline: none; background: rgba(255,255,255,0.6); min-width: 220px;">
+                        <span id="dpCountBadge" class="badge blue" style="font-size: 12px;">0 Records</span>
+                    </div>
+                </div>
+
+                <div class="table-responsive" style="overflow-x: auto;">
+                    <table class="data-table mac-table" style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="background: rgba(0, 122, 255, 0.05); text-align: left;">
+                                <th style="padding: 12px 14px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">ID</th>
+                                <th style="padding: 12px 14px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Flight</th>
+                                <th style="padding: 12px 14px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Airline Company</th>
+                                <th style="padding: 12px 14px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Source Route</th>
+                                <th style="padding: 12px 14px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Destination Route</th>
+                                <th style="padding: 12px 14px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Flight Date</th>
+                                <th style="padding: 12px 14px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Seats (Avail/Total)</th>
+                                <th style="padding: 12px 14px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Price (₹)</th>
+                                <th style="padding: 12px 14px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dpTableBody">
+                            <tr>
+                                <td colspan="9" style="text-align: center; padding: 24px; color: var(--text-muted);">Loading dynamic pricing records...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+
+        const form = document.getElementById("createDynamicPriceForm");
+        const flightSelect = document.getElementById("dpFlightSelect");
+        const sourceSelect = document.getElementById("dpSourceAirportSelect");
+        const destSelect = document.getElementById("dpDestAirportSelect");
+        const flightDateInput = document.getElementById("dpFlightDate");
+        const depTimeInput = document.getElementById("dpDepartureTime");
+        const arrTimeInput = document.getElementById("dpArrivalTime");
+        const totalSeatsInput = document.getElementById("dpTotalSeats");
+        const availSeatsInput = document.getElementById("dpAvailableSeats");
+        const currentPriceInput = document.getElementById("dpCurrentPrice");
+        const msgDiv = document.getElementById("dpFormMessage");
+        const tableBody = document.getElementById("dpTableBody");
+        const searchInput = document.getElementById("dpSearchInput");
+        const countBadge = document.getElementById("dpCountBadge");
+
+        let allDynamicPrices = [];
+
+        function renderRows(records) {
+            countBadge.textContent = `${records.length} Record${records.length === 1 ? '' : 's'}`;
+
+            if (records && records.length > 0) {
+                tableBody.innerHTML = records.map(r => `
+                    <tr style="border-bottom: 1px solid rgba(0,0,0,0.05);">
+                        <td style="padding: 12px 14px;"><strong>#${r.dynamicPriceId}</strong></td>
+                        <td style="padding: 12px 14px;"><span class="badge blue" style="font-weight: 600;">${r.flightNo}</span><br><span style="font-size: 11px; color: var(--text-muted);">${r.flightName || ''}</span></td>
+                        <td style="padding: 12px 14px; font-weight: 500;">${r.companyName || '—'}</td>
+                        <td style="padding: 12px 14px;"><span style="font-weight: 600; color: #0D8ABC;">${r.sourceAirportCode || r.sourceAirportId}</span><br><span style="font-size: 11px; color: var(--text-muted);">${r.sourceCityName || r.sourceAirportName || ''}</span></td>
+                        <td style="padding: 12px 14px;"><span style="font-weight: 600; color: #FF9500;">${r.destAirportCode || r.destAirportId}</span><br><span style="font-size: 11px; color: var(--text-muted);">${r.destCityName || r.destAirportName || ''}</span></td>
+                        <td style="padding: 12px 14px; font-size: 12px; white-space: nowrap;">📅 ${r.flightDate || ''}</td>
+                        <td style="padding: 12px 14px;"><span class="badge green">${r.availableSeats} / ${r.totalSeats}</span></td>
+                        <td style="padding: 12px 14px; font-weight: 700; color: #34C759;">₹${Number(r.currentPrice).toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
+                        <td style="padding: 12px 14px;"><span class="badge green">${r.isActive === 'Y' ? 'ACTIVE' : 'INACTIVE'}</span></td>
+                    </tr>
+                `).join("");
+            } else {
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="9" style="text-align: center; padding: 24px; color: var(--text-muted);">No dynamic pricing records found.</td>
+                    </tr>
+                `;
+            }
+        }
+
+        if (searchInput) {
+            searchInput.addEventListener("input", (e) => {
+                const query = e.target.value.toLowerCase().trim();
+                const filtered = allDynamicPrices.filter(r =>
+                    String(r.dynamicPriceId).includes(query) ||
+                    (r.flightNo || '').toLowerCase().includes(query) ||
+                    (r.companyName || '').toLowerCase().includes(query) ||
+                    (r.sourceAirportCode || '').toLowerCase().includes(query) ||
+                    (r.sourceCityName || '').toLowerCase().includes(query) ||
+                    (r.destAirportCode || '').toLowerCase().includes(query) ||
+                    (r.destCityName || '').toLowerCase().includes(query) ||
+                    (r.flightDate || '').toLowerCase().includes(query)
+                );
+                renderRows(filtered);
+            });
+        }
+
+        async function loadDynamicPriceData() {
+            try {
+                const res = await fetch("/api/admin/create-dynamic-price", {
+                    method: "GET",
+                    credentials: "same-origin"
+                });
+                const data = await res.json();
+
+                if (res.ok) {
+                    if (data.flights && data.flights.length > 0) {
+                        flightSelect.innerHTML = '<option value="" disabled selected>Select Flight</option>' +
+                            data.flights.map(f => `<option value="${f.flightId}">${f.flightNo} - ${f.flightName || 'Flight'}</option>`).join("");
+                    } else {
+                        flightSelect.innerHTML = '<option value="" disabled>No flights found</option>';
+                    }
+
+                    if (data.airports && data.airports.length > 0) {
+                        const airportOptions = '<option value="" disabled selected>Select Airport</option>' +
+                            data.airports.map(a => `<option value="${a.airportId}">${a.airportCode} (${a.airportName} - ${a.cityName})</option>`).join("");
+                        sourceSelect.innerHTML = airportOptions;
+                        destSelect.innerHTML = airportOptions;
+                    } else {
+                        sourceSelect.innerHTML = '<option value="" disabled>No airports found</option>';
+                        destSelect.innerHTML = '<option value="" disabled>No airports found</option>';
+                    }
+
+                    allDynamicPrices = data.dynamicPrices || [];
+                    renderRows(allDynamicPrices);
+                }
+            } catch (err) {
+                console.error("Error loading dynamic price data:", err);
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="9" style="text-align: center; padding: 24px; color: #FF3B30;">Failed to load dynamic price records.</td>
+                    </tr>
+                `;
+            }
+        }
+
+        loadDynamicPriceData();
+
+        form.onsubmit = async (e) => {
+            e.preventDefault();
+
+            const flightId = flightSelect.value;
+            const sourceAirportId = sourceSelect.value;
+            const destAirportId = destSelect.value;
+            const flightDate = flightDateInput.value;
+            const departureTime = depTimeInput.value;
+            const arrivalTime = arrTimeInput.value;
+            const totalSeats = totalSeatsInput.value;
+            const availableSeats = availSeatsInput.value;
+            const currentPrice = currentPriceInput.value;
+
+            if (!flightId || !sourceAirportId || !destAirportId || !flightDate || !departureTime || !arrivalTime) {
+                msgDiv.textContent = "❌ Please fill in all required fields.";
+                msgDiv.className = "form-message error";
+                return;
+            }
+
+            if (sourceAirportId === destAirportId) {
+                msgDiv.textContent = "❌ Source and Destination airports cannot be the same.";
+                msgDiv.className = "form-message error";
+                return;
+            }
+
+            msgDiv.textContent = "Calling stored procedure AIRLINE_FLIGHT_DYNAMIC_PRICE_CREATE_USP...";
+            msgDiv.className = "form-message info";
+
+            try {
+                const res = await fetch("/api/admin/create-dynamic-price", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        flightId: parseInt(flightId),
+                        sourceAirportId: parseInt(sourceAirportId),
+                        destAirportId: parseInt(destAirportId),
+                        flightDate: flightDate,
+                        departureTime: departureTime,
+                        arrivalTime: arrivalTime,
+                        totalSeats: parseInt(totalSeats),
+                        availableSeats: parseInt(availableSeats),
+                        currentPrice: parseFloat(currentPrice)
+                    }),
+                    credentials: "same-origin"
+                });
+
+                const result = await res.json();
+
+                if (res.ok) {
+                    msgDiv.textContent = "✅ " + (result.message || "Dynamic Price Saved Successfully!");
+                    msgDiv.className = "form-message success";
+                    if (result.dynamicPrices) {
+                        allDynamicPrices = result.dynamicPrices;
+                        renderRows(allDynamicPrices);
+                    } else {
+                        loadDynamicPriceData();
+                    }
+                } else {
+                    msgDiv.textContent = "⚠️ " + (result.message || "Failed to save dynamic price");
+                    msgDiv.className = "form-message error";
+                }
+            } catch (err) {
+                console.error("Save dynamic price error:", err);
+                msgDiv.textContent = "❌ Server or connection error.";
+                msgDiv.className = "form-message error";
+            }
+        };
+    }
+
     async function loadUserCards() {
         const grid = document.getElementById("usersGrid");
         if (!grid) return;
@@ -2269,6 +2551,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             else if (label.includes("create airport")) {
                 renderCreateAirportForm();
             }
+            else if (label.includes("create dynamic price") || label.includes("dynamic price") || label.includes("price")) {
+                renderCreateDynamicPriceForm();
+            }
             else if (label.includes("create flight company") || label.includes("flight company")) {
                 renderCreateFlightCompanyForm();
             }
@@ -2309,6 +2594,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 let icon = "📄";
                 const upperMenu = menu.toUpperCase().trim();
                 if (upperMenu.includes("DASHBOARD")) icon = "📊";
+                else if (upperMenu.includes("PRICE") || upperMenu.includes("DYNAMIC")) icon = "💸";
                 else if (upperMenu.includes("CUSTOMER") || upperMenu.includes("PASSENGER")) icon = "🎫";
                 else if (upperMenu.includes("CREATE USER")) icon = "👤";
                 else if (upperMenu.includes("FLIGHT") || upperMenu.includes("AIRCRAFT")) icon = "✈️";

@@ -1258,6 +1258,117 @@ EXCEPTION
 END AIRLINE_GET_ALL_USERS_USP;
 /
 
+CREATE OR REPLACE PROCEDURE AIRLINE_FLIGHT_DYNAMIC_PRICE_CREATE_USP (
+    P_FLIGHT_ID          IN NUMBER,
+    P_SOURCE_AIRPORT_ID  IN NUMBER,
+    P_DEST_AIRPORT_ID    IN NUMBER,
+    P_FLIGHT_DATE        IN DATE,
+    P_DEPARTURE_TIME     IN TIMESTAMP,
+    P_ARRIVAL_TIME       IN TIMESTAMP,
+    P_TOTAL_SEATS        IN NUMBER,
+    P_AVAILABLE_SEATS    IN NUMBER,
+    P_CURRENT_PRICE      IN NUMBER,
+    P_CURSOR             OUT SYS_REFCURSOR,
+    P_DATA               OUT VARCHAR2
+)
+IS
+    V_COUNT NUMBER;
+BEGIN 
+    -- Check if record already exists for the given flight date & route
+    SELECT COUNT(*) INTO V_COUNT 
+    FROM AIRLINE_FLIGHT_DYNAMIC_PRICE_MSTR_TBL 
+    WHERE FLIGHT_ID = P_FLIGHT_ID 
+      AND SOURCE_AIRPORT_ID = P_SOURCE_AIRPORT_ID
+      AND DEST_AIRPORT_ID = P_DEST_AIRPORT_ID
+      AND TRUNC(FLIGHT_DATE) = TRUNC(P_FLIGHT_DATE);
+
+    IF V_COUNT > 0 THEN 
+        P_DATA := 'The data already exists';
+    ELSE 
+        -- Insert new dynamic pricing record
+        INSERT INTO AIRLINE_FLIGHT_DYNAMIC_PRICE_MSTR_TBL (
+            DYNAMIC_PRICE_ID,
+            FLIGHT_ID,
+            SOURCE_AIRPORT_ID,
+            DEST_AIRPORT_ID,
+            FLIGHT_DATE,
+            DEPARTURE_TIME,
+            ARRIVAL_TIME,
+            TOTAL_SEATS,
+            AVAILABLE_SEATS,
+            CURRENT_PRICE,
+            IS_ACTIVE,
+            CREATED_TIME,
+            CREATED_BY,
+            CREATED_IP
+        ) VALUES (
+            AIRLINE_FLIGHT_DYNAMIC_PRICE_MSTR_SEQ.NEXTVAL,
+            P_FLIGHT_ID,
+            P_SOURCE_AIRPORT_ID,
+            P_DEST_AIRPORT_ID,
+            P_FLIGHT_DATE,
+            P_DEPARTURE_TIME,
+            P_ARRIVAL_TIME,
+            P_TOTAL_SEATS,
+            P_AVAILABLE_SEATS,
+            P_CURRENT_PRICE,
+            'Y',
+            SYSTIMESTAMP,
+            'DUSHMANTA',
+            '100.125.49.24'
+        );
+
+        COMMIT;
+        P_DATA := 'Dynamic price created successfully';
+    END IF;
+
+    -- Fetch dynamic pricing data along with parent table details
+    OPEN P_CURSOR FOR 
+        SELECT 
+            DP.DYNAMIC_PRICE_ID,
+            DP.FLIGHT_ID,
+            F.FLIGHT_NO,
+            F.FLIGHT_NAME,
+            C.COMPANY_NAME,
+            C.COMPANY_CODE,
+            DP.SOURCE_AIRPORT_ID,
+            SA.AIRPORT_NAME  AS SOURCE_AIRPORT_NAME,
+            SA.AIRPORT_CODE  AS SOURCE_AIRPORT_CODE,
+            SC.CITY_NAME     AS SOURCE_CITY_NAME,
+            DP.DEST_AIRPORT_ID,
+            DA.AIRPORT_NAME  AS DEST_AIRPORT_NAME,
+            DA.AIRPORT_CODE  AS DEST_AIRPORT_CODE,
+            DC.CITY_NAME     AS DEST_CITY_NAME,
+            DP.FLIGHT_DATE,
+            DP.DEPARTURE_TIME,
+            DP.ARRIVAL_TIME,
+            DP.TOTAL_SEATS,
+            DP.AVAILABLE_SEATS,
+            DP.CURRENT_PRICE,
+            DP.IS_ACTIVE
+        FROM AIRLINE_FLIGHT_DYNAMIC_PRICE_MSTR_TBL DP
+        LEFT JOIN AIRLINE_FLIGHT_MSTR_TBL F 
+               ON DP.FLIGHT_ID = F.FLIGHT_ID
+        LEFT JOIN AIRLINE_FLIGHT_COMPANY_MSTR_TBL C 
+               ON F.COMPANY_ID = C.COMPANY_ID
+        LEFT JOIN AIRLINE_AIRPORT_MSTR_TBL SA 
+               ON DP.SOURCE_AIRPORT_ID = SA.AIRPORT_ID
+        LEFT JOIN AIRLINE_CITY_MSTR_TBL SC 
+               ON SA.CITY_ID = SC.CITY_ID
+        LEFT JOIN AIRLINE_AIRPORT_MSTR_TBL DA 
+               ON DP.DEST_AIRPORT_ID = DA.AIRPORT_ID
+        LEFT JOIN AIRLINE_CITY_MSTR_TBL DC 
+               ON DA.CITY_ID = DC.CITY_ID
+        WHERE DP.IS_ACTIVE = 'Y'
+        ORDER BY DP.DYNAMIC_PRICE_ID DESC;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        ROLLBACK;
+        P_DATA := SQLERRM;
+END AIRLINE_FLIGHT_DYNAMIC_PRICE_CREATE_USP;
+/
+
 -- =============================================================================
 -- MONTHLY DYNAMIC PRICE UPDATE PROCEDURE & SCHEDULER JOB
 -- =============================================================================

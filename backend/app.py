@@ -1712,6 +1712,241 @@ def admin_create_flight():
             conn.close()
 
 
+@app.route("/api/admin/create-dynamic-price", methods=["GET", "POST"])
+def admin_create_dynamic_price():
+    role_val = session.get("role")
+    current_role = (role_val or "").strip()
+    if current_role != "ADMIN":
+        return jsonify({"message": "Unauthorized"}), 403
+
+    conn = None
+    cur = None
+    try:
+        conn = get_conn()
+        cur = conn.cursor()
+
+        # Seed 'CREATE DYNAMIC PRICE' menu if not exists
+        try:
+            cur.execute("SELECT MENU_ID FROM AIRLINE_MENU_MSTR_TBL WHERE UPPER(MENU_NAME) = 'CREATE DYNAMIC PRICE'")
+            menu_row = cur.fetchone()
+            if not menu_row:
+                cur.execute("SELECT AIRLINE_MENU_MSTR_SEQ.NEXTVAL FROM DUAL")
+                menu_id = cur.fetchone()[0]
+                cur.execute(
+                    "INSERT INTO AIRLINE_MENU_MSTR_TBL (MENU_ID, MENU_NAME, CREATED_BY, CREATED_IP) VALUES (:1, :2, :3, :4)",
+                    [menu_id, "CREATE DYNAMIC PRICE", "DUSHMANTA", "127.0.0.1"]
+                )
+                conn.commit()
+
+                cur.execute("SELECT ROLE_ID FROM AIRLINE_ROLE_MSTR_TBL")
+                roles = [r[0] for r in cur.fetchall()]
+                for r_id in roles:
+                    cur.execute(
+                        "INSERT INTO AIRLINE_ROLE_MENU_MAP_TBL (ROLE_ID, MENU_ID, CREATED_BY, CREATED_IP) VALUES (:1, :2, :3, :4)",
+                        [r_id, menu_id, "DUSHMANTA", "127.0.0.1"]
+                    )
+                conn.commit()
+        except Exception as seed_err:
+            print(f"[WARNING setup_dynamic_price_menu] {seed_err}")
+
+        # GET: return flights dropdown, airports dropdown, and dynamic prices list
+        if request.method == "GET":
+            flights = []
+            try:
+                cur.execute("SELECT FLIGHT_ID, FLIGHT_NO, FLIGHT_NAME FROM AIRLINE_FLIGHT_MSTR_TBL WHERE IS_ACTIVE = 'Y' OR IS_ACTIVE IS NULL ORDER BY FLIGHT_NO")
+                for r in cur.fetchall():
+                    flights.append({
+                        "flightId": r[0],
+                        "flightNo": r[1],
+                        "flightName": r[2] or ""
+                    })
+            except Exception:
+                pass
+
+            airports = []
+            try:
+                cur.execute("""
+                    SELECT A.AIRPORT_ID, A.AIRPORT_NAME, A.AIRPORT_CODE, C.CITY_NAME
+                    FROM AIRLINE_AIRPORT_MSTR_TBL A
+                    LEFT JOIN AIRLINE_CITY_MSTR_TBL C ON A.CITY_ID = C.CITY_ID
+                    WHERE A.IS_ACTIVE = 'Y' OR A.IS_ACTIVE IS NULL
+                    ORDER BY A.AIRPORT_NAME
+                """)
+                for r in cur.fetchall():
+                    airports.append({
+                        "airportId": r[0],
+                        "airportName": r[1],
+                        "airportCode": r[2],
+                        "cityName": r[3] or ""
+                    })
+            except Exception:
+                pass
+
+            dynamic_prices = []
+            try:
+                cur.execute("""
+                    SELECT 
+                        DP.DYNAMIC_PRICE_ID,
+                        DP.FLIGHT_ID,
+                        F.FLIGHT_NO,
+                        F.FLIGHT_NAME,
+                        C.COMPANY_NAME,
+                        C.COMPANY_CODE,
+                        DP.SOURCE_AIRPORT_ID,
+                        SA.AIRPORT_NAME  AS SOURCE_AIRPORT_NAME,
+                        SA.AIRPORT_CODE  AS SOURCE_AIRPORT_CODE,
+                        SC.CITY_NAME     AS SOURCE_CITY_NAME,
+                        DP.DEST_AIRPORT_ID,
+                        DA.AIRPORT_NAME  AS DEST_AIRPORT_NAME,
+                        DA.AIRPORT_CODE  AS DEST_AIRPORT_CODE,
+                        DC.CITY_NAME     AS DEST_CITY_NAME,
+                        TO_CHAR(DP.FLIGHT_DATE, 'YYYY-MM-DD') AS FLIGHT_DATE,
+                        TO_CHAR(DP.DEPARTURE_TIME, 'YYYY-MM-DD HH24:MI:SS') AS DEPARTURE_TIME,
+                        TO_CHAR(DP.ARRIVAL_TIME, 'YYYY-MM-DD HH24:MI:SS') AS ARRIVAL_TIME,
+                        DP.TOTAL_SEATS,
+                        DP.AVAILABLE_SEATS,
+                        DP.CURRENT_PRICE,
+                        DP.IS_ACTIVE
+                    FROM AIRLINE_FLIGHT_DYNAMIC_PRICE_MSTR_TBL DP
+                    LEFT JOIN AIRLINE_FLIGHT_MSTR_TBL F ON DP.FLIGHT_ID = F.FLIGHT_ID
+                    LEFT JOIN AIRLINE_FLIGHT_COMPANY_MSTR_TBL C ON F.COMPANY_ID = C.COMPANY_ID
+                    LEFT JOIN AIRLINE_AIRPORT_MSTR_TBL SA ON DP.SOURCE_AIRPORT_ID = SA.AIRPORT_ID
+                    LEFT JOIN AIRLINE_CITY_MSTR_TBL SC ON SA.CITY_ID = SC.CITY_ID
+                    LEFT JOIN AIRLINE_AIRPORT_MSTR_TBL DA ON DP.DEST_AIRPORT_ID = DA.AIRPORT_ID
+                    LEFT JOIN AIRLINE_CITY_MSTR_TBL DC ON DA.CITY_ID = DC.CITY_ID
+                    ORDER BY DP.DYNAMIC_PRICE_ID DESC
+                """)
+                for r in cur.fetchall():
+                    dynamic_prices.append({
+                        "dynamicPriceId": r[0],
+                        "flightId": r[1],
+                        "flightNo": r[2],
+                        "flightName": r[3] or "",
+                        "companyName": r[4] or "",
+                        "companyCode": r[5] or "",
+                        "sourceAirportId": r[6],
+                        "sourceAirportName": r[7] or "",
+                        "sourceAirportCode": r[8] or "",
+                        "sourceCityName": r[9] or "",
+                        "destAirportId": r[10],
+                        "destAirportName": r[11] or "",
+                        "destAirportCode": r[12] or "",
+                        "destCityName": r[13] or "",
+                        "flightDate": r[14],
+                        "departureTime": r[15],
+                        "arrivalTime": r[16],
+                        "totalSeats": r[17],
+                        "availableSeats": r[18],
+                        "currentPrice": float(r[19]) if r[19] is not None else 0.0,
+                        "isActive": r[20] or "Y"
+                    })
+            except Exception as query_err:
+                print(f"[WARNING dynamic_prices_query] {query_err}")
+
+            return jsonify({
+                "flights": flights,
+                "airports": airports,
+                "dynamicPrices": dynamic_prices,
+                "message": "Data loaded successfully"
+            }), 200
+
+        # POST: Call AIRLINE_FLIGHT_DYNAMIC_PRICE_CREATE_USP
+        data = request.get_json() or {}
+        flight_id = data.get("flightId")
+        source_airport_id = data.get("sourceAirportId")
+        dest_airport_id = data.get("destAirportId")
+        flight_date_str = data.get("flightDate")
+        dep_time_str = data.get("departureTime")
+        arr_time_str = data.get("arrivalTime")
+        total_seats = data.get("totalSeats", 180)
+        available_seats = data.get("availableSeats", 180)
+        current_price = data.get("currentPrice", 0)
+
+        if not all([flight_id, source_airport_id, dest_airport_id, flight_date_str, dep_time_str, arr_time_str]):
+            return jsonify({"message": "Flight, Source Airport, Dest Airport, Flight Date, Departure Time, and Arrival Time are required."}), 400
+
+        from datetime import datetime
+        try:
+            flight_date_obj = datetime.strptime(str(flight_date_str), "%Y-%m-%d").date()
+        except Exception:
+            return jsonify({"message": "Invalid Flight Date format. Use YYYY-MM-DD."}), 400
+
+        def parse_ts(ts_val):
+            for fmt in ("%Y-%m-%dT%H:%M", "%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S"):
+                try:
+                    return datetime.strptime(ts_val, fmt)
+                except Exception:
+                    pass
+            return None
+
+        dep_time_obj = parse_ts(str(dep_time_str))
+        arr_time_obj = parse_ts(str(arr_time_str))
+
+        if not dep_time_obj or not arr_time_obj:
+            return jsonify({"message": "Invalid Departure/Arrival Time format."}), 400
+
+        p_cursor = cur.var(oracledb.CURSOR)
+        p_data = cur.var(str)
+
+        cur.callproc("AIRLINE_FLIGHT_DYNAMIC_PRICE_CREATE_USP", [
+            int(flight_id),
+            int(source_airport_id),
+            int(dest_airport_id),
+            flight_date_obj,
+            dep_time_obj,
+            arr_time_obj,
+            int(total_seats),
+            int(available_seats),
+            float(current_price),
+            p_cursor,
+            p_data
+        ])
+
+        status_msg = p_data.getvalue() or ""
+
+        dynamic_prices = []
+        cursor_val = p_cursor.getvalue()
+        if cursor_val:
+            for r in cursor_val.fetchall():
+                dynamic_prices.append({
+                    "dynamicPriceId": r[0],
+                    "flightId": r[1],
+                    "flightNo": r[2],
+                    "flightName": r[3] or "",
+                    "companyName": r[4] or "",
+                    "companyCode": r[5] or "",
+                    "sourceAirportId": r[6],
+                    "sourceAirportName": r[7] or "",
+                    "sourceAirportCode": r[8] or "",
+                    "sourceCityName": r[9] or "",
+                    "destAirportId": r[10],
+                    "destAirportName": r[11] or "",
+                    "destAirportCode": r[12] or "",
+                    "destCityName": r[13] or "",
+                    "flightDate": r[14].strftime('%Y-%m-%d') if hasattr(r[14], 'strftime') else str(r[14]),
+                    "departureTime": r[15].strftime('%Y-%m-%d %H:%M:%S') if hasattr(r[15], 'strftime') else str(r[15]),
+                    "arrivalTime": r[16].strftime('%Y-%m-%d %H:%M:%S') if hasattr(r[16], 'strftime') else str(r[16]),
+                    "totalSeats": r[17],
+                    "availableSeats": r[18],
+                    "currentPrice": float(r[19]) if r[19] is not None else 0.0,
+                    "isActive": r[20] or "Y"
+                })
+
+        if status_msg and "already exists" in status_msg.lower():
+            return jsonify({"message": status_msg, "dynamicPrices": dynamic_prices}), 400
+
+        return jsonify({"message": status_msg or "Dynamic price created successfully!", "dynamicPrices": dynamic_prices}), 200
+
+    except Exception as e:
+        print(f"[ERROR create_dynamic_price] {str(e)}")
+        if conn:
+            conn.rollback()
+        return jsonify({"message": f"Database Error: {str(e)}"}), 500
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
 # =====================================================================
 # CHATBOT CUSTOM DATABASE INTEGRATION ROUTE (UPDATED)
 # =====================================================================
