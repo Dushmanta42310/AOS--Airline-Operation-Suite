@@ -1642,7 +1642,7 @@ def admin_create_flight():
             flights = []
             try:
                 cur.execute("""
-                    SELECT f.FLIGHT_ID, f.FLIGHT_NO, f.COMPANY_ID, c.COMPANY_NAME, f.FLIGHT_NAME, f.IS_ACTIVE
+                    SELECT f.FLIGHT_ID, f.FLIGHT_NO, f.COMPANY_ID, c.COMPANY_NAME, f.FLIGHT_NAME, f.IS_ACTIVE, NVL(f.TOTAL_SEATS, 180)
                     FROM AIRLINE_FLIGHT_MSTR_TBL f
                     LEFT JOIN AIRLINE_FLIGHT_COMPANY_MSTR_TBL c ON f.COMPANY_ID = c.COMPANY_ID
                     ORDER BY f.FLIGHT_ID DESC
@@ -1654,7 +1654,8 @@ def admin_create_flight():
                         "companyId": r[2],
                         "companyName": r[3] or f"Company #{r[2]}",
                         "flightName": r[4] or "",
-                        "isActive": r[5] or "Y"
+                        "isActive": r[5] or "Y",
+                        "totalSeats": r[6]
                     })
             except Exception:
                 pass
@@ -1672,6 +1673,7 @@ def admin_create_flight():
         flight_no = data.get("flightNo")
         company_id = data.get("companyId")
         flight_name = data.get("flightName", "")
+        total_seats = int(data.get("totalSeats", 180) or 180)
 
         if not flight_no or not company_id:
             return jsonify({
@@ -1680,13 +1682,24 @@ def admin_create_flight():
 
         p_data = cur.var(str)
 
-        cur.callproc("AIRLINE_FLIGHT_CREATE_USP", [
-            int(flight_id),
-            str(flight_no).strip(),
-            int(company_id),
-            str(flight_name).strip() if flight_name else None,
-            p_data
-        ])
+        try:
+            cur.callproc("AIRLINE_FLIGHT_CREATE_USP", [
+                int(flight_id),
+                str(flight_no).strip(),
+                int(company_id),
+                str(flight_name).strip() if flight_name else None,
+                total_seats,
+                p_data
+            ])
+        except Exception:
+            # Fallback if procedure signature differs
+            cur.callproc("AIRLINE_FLIGHT_CREATE_USP", [
+                int(flight_id),
+                str(flight_no).strip(),
+                int(company_id),
+                str(flight_name).strip() if flight_name else None,
+                p_data
+            ])
 
         status_message = p_data.getvalue()
 
@@ -1942,6 +1955,311 @@ def admin_create_dynamic_price():
         if conn:
             conn.rollback()
         return jsonify({"message": f"Database Error: {str(e)}"}), 500
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
+# =====================================================================
+# ROUTE DISTANCE & AUTOMATED DISTANCE-BASED PRICING API
+# =====================================================================
+
+# =====================================================================
+# ROUTE DISTANCE & AUTOMATED DISTANCE-BASED PRICING API
+# =====================================================================
+
+@app.route("/api/calculate-route-fare", methods=["GET"])
+def calculate_route_fare():
+    source_id = request.args.get("sourceId")
+    dest_id = request.args.get("destId")
+    
+    if not source_id or not dest_id:
+        return jsonify({"message": "Source and Destination Airport IDs are required."}), 400
+
+    conn = None
+    cur = None
+    try:
+        conn = get_conn()
+        cur = conn.cursor()
+
+        p_cursor = cur.var(oracledb.CURSOR)
+        p_data = cur.var(str)
+
+        cur.callproc("AIRLINE_CALCULATE_ROUTE_FARE_USP", [
+            int(source_id),
+            int(dest_id),
+            p_cursor,
+            p_data
+        ])
+
+        airports_by_id = {}
+        cursor_val = p_cursor.getvalue()
+        if cursor_val:
+            for r in cursor_val.fetchall():
+                airports_by_id[r[0]] = {"name": r[1], "code": r[2], "city": r[3]}
+
+        src_apt = airports_by_id.get(int(source_id), {})
+        dst_apt = airports_by_id.get(int(dest_id), {})
+
+        all_global = get_global_airports()
+        
+        def find_geo(code, city):
+            code_u = (code or "").upper().strip()
+            city_u = (city or "").upper().strip()
+            for g in all_global:
+                g_iata = (g.get("iata") or "").upper().strip()
+                g_city = (g.get("city") or "").upper().strip()
+                if code_u and g_iata == code_u:
+                    try: return float(g.get("lat")), float(g.get("lng"))
+                    except (ValueError, TypeError): pass
+                if city_u and g_city == city_u:
+                    try: return float(g.get("lat")), float(g.get("lng"))
+                    except (ValueError, TypeError): pass
+            return None, None
+
+        src_lat, src_lng = find_geo(src_apt.get("code"), src_apt.get("city"))
+        dst_lat, dst_lng = find_geo(dst_apt.get("code"), dst_apt.get("city"))
+
+        dist_km = 850.0
+        if src_lat is not None and src_lng is not None and dst_lat is not None and dst_lng is not None:
+            computed = haversine_distance(src_lat, src_lng, dst_lat, dst_lng)
+            if computed > 10:
+                dist_km = computed
+
+        # Fare formula: ₹4.5 per kilometer, minimum ₹1500
+        suggested_fare = max(1500.0, round(dist_km * 4.5, 2))
+
+        return jsonify({
+            "sourceCode": src_apt.get("code", "SRC"),
+            "destCode": dst_apt.get("code", "DST"),
+            "distanceKm": round(dist_km, 2),
+            "suggestedPrice": suggested_fare,
+            "ratePerKm": 4.5
+        }), 200
+
+    except Exception as e:
+        print(f"[ERROR calculate_route_fare] {str(e)}")
+        return jsonify({"message": f"Error calculating fare: {str(e)}"}), 500
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
+# =====================================================================
+# SEAT MAP LAYOUT & SEAT BOOKING API ENDPOINTS
+# =====================================================================
+
+@app.route("/api/flight-seats/<int:dynamic_price_id>", methods=["GET"])
+def get_flight_seat_map(dynamic_price_id):
+    conn = None
+    cur = None
+    try:
+        conn = get_conn()
+        cur = conn.cursor()
+
+        p_flight_cursor = cur.var(oracledb.CURSOR)
+        p_seat_cursor = cur.var(oracledb.CURSOR)
+        p_passenger_cursor = cur.var(oracledb.CURSOR)
+        p_data = cur.var(str)
+
+        cur.callproc("AIRLINE_GET_FLIGHT_SEAT_MAP_USP", [
+            dynamic_price_id,
+            p_flight_cursor,
+            p_seat_cursor,
+            p_passenger_cursor,
+            p_data
+        ])
+
+        flight_details = {}
+        fl_val = p_flight_cursor.getvalue()
+        if fl_val:
+            r = fl_val.fetchone()
+            if r:
+                flight_details = {
+                    "dynamicPriceId": r[0],
+                    "flightId": r[1],
+                    "flightNo": r[2] or "N/A",
+                    "flightName": r[3] or "",
+                    "companyName": r[4] or "",
+                    "sourceCode": r[5] or "",
+                    "sourceCity": r[6] or "",
+                    "destCode": r[7] or "",
+                    "destCity": r[8] or "",
+                    "flightDate": r[9],
+                    "departureTime": r[10],
+                    "arrivalTime": r[11],
+                    "totalSeats": r[12],
+                    "availableSeats": r[13],
+                    "currentPrice": float(r[14])
+                }
+
+        if not flight_details:
+            return jsonify({"message": "Flight schedule not found."}), 404
+
+        seats = []
+        st_val = p_seat_cursor.getvalue()
+        if st_val:
+            for r in st_val.fetchall():
+                seats.append({
+                    "seatNo": r[0],
+                    "row": r[1],
+                    "col": r[2],
+                    "seatClass": r[3] or "ECONOMY",
+                    "seatType": r[4] or "REGULAR",
+                    "priceSurcharge": float(r[5]),
+                    "status": (r[6] or "AVAILABLE").upper(),
+                    "finalPrice": float(r[7])
+                })
+
+        passengers = []
+        ps_val = p_passenger_cursor.getvalue()
+        if ps_val:
+            for r in ps_val.fetchall():
+                passengers.append({
+                    "passengerId": r[0],
+                    "passengerName": r[1],
+                    "mobileNo": r[2],
+                    "emailId": r[3],
+                    "passportNo": r[4]
+                })
+
+        return jsonify({
+            "flightDetails": flight_details,
+            "seats": seats,
+            "passengers": passengers,
+            "message": p_data.getvalue() or "Seat layout fetched successfully"
+        }), 200
+
+    except Exception as e:
+        print(f"[ERROR get_flight_seat_map] {str(e)}")
+        return jsonify({"message": f"Database Error: {str(e)}"}), 500
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
+@app.route("/api/ticket-booking/book-seat", methods=["POST"])
+def book_ticket_seat():
+    data = request.get_json() or {}
+    dynamic_price_id = data.get("dynamicPriceId")
+    passenger_id = data.get("passengerId")
+    seat_no = str(data.get("seatNo", "")).strip().upper()
+
+    if not all([dynamic_price_id, passenger_id, seat_no]):
+        return jsonify({"message": "Dynamic Price ID, Passenger ID, and Seat Number are required."}), 400
+
+    conn = None
+    cur = None
+    try:
+        conn = get_conn()
+        cur = conn.cursor()
+
+        p_pnr = cur.var(str)
+        p_booking_id = cur.var(int)
+        p_data = cur.var(str)
+
+        # Call procedure AIRLINE_BOOK_FLIGHT_SEAT_USP
+        sp_success = False
+        try:
+            cur.callproc("AIRLINE_BOOK_FLIGHT_SEAT_USP", [
+                int(passenger_id),
+                int(dynamic_price_id),
+                seat_no,
+                p_pnr,
+                p_booking_id,
+                p_data
+            ])
+            sp_msg = p_data.getvalue() or ""
+            if "successfully" in sp_msg.lower():
+                sp_success = True
+                conn.commit()
+                pnr_no = p_pnr.getvalue()
+                booking_id = p_booking_id.getvalue()
+        except Exception as sp_err:
+            print(f"[WARNING callproc AIRLINE_BOOK_FLIGHT_SEAT_USP] {sp_err}")
+
+        # Fallback SQL execution if stored procedure not compiled in DB session
+        if not sp_success:
+            # Check availability
+            cur.execute("SELECT AVAILABLE_SEATS, CURRENT_PRICE, FLIGHT_ID FROM AIRLINE_FLIGHT_DYNAMIC_PRICE_MSTR_TBL WHERE DYNAMIC_PRICE_ID = :1", [dynamic_price_id])
+            dp_row = cur.fetchone()
+            if not dp_row or dp_row[0] <= 0:
+                return jsonify({"message": "No available seats remaining on this flight schedule."}), 400
+
+            avail_seats, base_price, flight_id = dp_row[0], float(dp_row[1]), dp_row[2]
+
+            # Check if seat is already booked
+            cur.execute("SELECT STATUS FROM AIRLINE_FLIGHT_SEAT_BOOKING_TBL WHERE DYNAMIC_PRICE_ID = :1 AND UPPER(SEAT_NO) = :2", [dynamic_price_id, seat_no])
+            sb_row = cur.fetchone()
+            if sb_row and (sb_row[0] or "").upper() == 'BOOKED':
+                return jsonify({"message": f"Seat {seat_no} is already occupied/booked."}), 400
+
+            # Calculate price
+            surcharge = 0.0
+            cur.execute("SELECT PRICE_SURCHARGE FROM AIRLINE_FLIGHT_SEAT_MSTR_TBL WHERE FLIGHT_ID = :1 AND UPPER(SEAT_NO) = :2", [flight_id, seat_no])
+            s_row = cur.fetchone()
+            if s_row and s_row[0] is not None:
+                surcharge = float(s_row[0])
+
+            final_price = base_price + surcharge
+
+            import random, string
+            pnr_no = "PNR" + "".join(random.choices(string.ascii_uppercase + string.digits, k=5))
+
+            cur.execute("SELECT AIRLINE_TICKET_BOOKING_TRANSACTION_SEQ.NEXTVAL FROM DUAL")
+            booking_id = cur.fetchone()[0]
+
+            # 1. Insert transaction
+            cur.execute("""
+                INSERT INTO AIRLINE_TICKET_BOOKING_TRANSACTION_TBL
+                (BOOKING_ID, PASSENGER_ID, DYNAMIC_PRICE_ID, PNR_NO, SEAT_NO, BOOKING_STATUS, PAYMENT_STATUS, BOOKING_AMOUNT, CREATED_BY)
+                VALUES (:1, :2, :3, :4, :5, 'CONFIRMED', 'PAID', :6, 'SYSTEM')
+            """, [booking_id, passenger_id, dynamic_price_id, pnr_no, seat_no, final_price])
+
+            # 2. Lock seat in seat booking table
+            cur.execute("""
+                SELECT COUNT(*) FROM AIRLINE_FLIGHT_SEAT_BOOKING_TBL 
+                WHERE DYNAMIC_PRICE_ID = :1 AND UPPER(SEAT_NO) = :2
+            """, [dynamic_price_id, seat_no])
+            if cur.fetchone()[0] > 0:
+                cur.execute("""
+                    UPDATE AIRLINE_FLIGHT_SEAT_BOOKING_TBL
+                    SET STATUS = 'BOOKED', BOOKING_ID = :1, BOOKED_BY_PASSENGER_ID = :2, FINAL_SEAT_PRICE = :3, UPDATED_TIME = SYSTIMESTAMP
+                    WHERE DYNAMIC_PRICE_ID = :4 AND UPPER(SEAT_NO) = :5
+                """, [booking_id, passenger_id, final_price, dynamic_price_id, seat_no])
+            else:
+                cur.execute("""
+                    INSERT INTO AIRLINE_FLIGHT_SEAT_BOOKING_TBL (SEAT_BOOKING_ID, DYNAMIC_PRICE_ID, SEAT_NO, STATUS, BOOKING_ID, BOOKED_BY_PASSENGER_ID, FINAL_SEAT_PRICE)
+                    VALUES (AIRLINE_FLIGHT_SEAT_BOOKING_SEQ.NEXTVAL, :1, :2, 'BOOKED', :3, :4, :5)
+                """, [dynamic_price_id, seat_no, booking_id, passenger_id, final_price])
+
+            # 3. Deduct 1 available seat from AIRLINE_FLIGHT_DYNAMIC_PRICE_MSTR_TBL
+            cur.execute("""
+                UPDATE AIRLINE_FLIGHT_DYNAMIC_PRICE_MSTR_TBL
+                SET AVAILABLE_SEATS = AVAILABLE_SEATS - 1,
+                    UPDATED_TIME = SYSTIMESTAMP
+                WHERE DYNAMIC_PRICE_ID = :1
+            """, [dynamic_price_id])
+
+            conn.commit()
+            sp_msg = "Ticket booked successfully!"
+
+        # Fetch updated available seats count
+        cur.execute("SELECT AVAILABLE_SEATS FROM AIRLINE_FLIGHT_DYNAMIC_PRICE_MSTR_TBL WHERE DYNAMIC_PRICE_ID = :1", [dynamic_price_id])
+        updated_avail = cur.fetchone()[0]
+
+        return jsonify({
+            "message": sp_msg or "Ticket booked successfully!",
+            "pnrNo": pnr_no,
+            "bookingId": booking_id,
+            "seatNo": seat_no,
+            "updatedAvailableSeats": updated_avail
+        }), 200
+
+    except Exception as e:
+        print(f"[ERROR book_ticket_seat] {str(e)}")
+        if conn: conn.rollback()
+        return jsonify({"message": f"Booking Error: {str(e)}"}), 500
     finally:
         if cur: cur.close()
         if conn: conn.close()

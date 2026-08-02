@@ -2055,6 +2055,312 @@ document.addEventListener("DOMContentLoaded", async () => {
         };
     }
 
+    async function renderSeatMapBookingView(targetDpId) {
+        if (!mainContent) return;
+
+        mainContent.innerHTML = `
+            <div class="welcome-banner" style="margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; flex-wrap: wrap; gap: 12px;">
+                    <div>
+                        <h1>Interactive Flight Seat Selection 💺</h1>
+                        <p>BookMyShow-style visual cabin layout with real-time seat availability & dynamic seat pricing.</p>
+                    </div>
+                    <button id="backToPricingBtn" style="padding: 10px 18px; border-radius: 8px; border: none; background: rgba(255,255,255,0.25); color: #fff; font-weight: 700; cursor: pointer; font-size: 13px; backdrop-filter: blur(8px);">⬅ Manage Dynamic Rates</button>
+                </div>
+            </div>
+
+            <div id="scheduleSelectorCard" class="macOS-card" style="margin-bottom: 20px; padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; gap: 12px; flex: 1; min-width: 280px;">
+                    <label style="font-weight: 700; font-size: 14px; color: var(--text-main); white-space: nowrap;">✈️ Select Flight Schedule:</label>
+                    <select id="seatMapScheduleSelect" style="flex: 1; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-color); font-size: 13px; font-weight: 600; outline: none; background: #ffffff;">
+                        <option value="" disabled selected>Loading flight schedules...</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="seatMapContainer">
+                <div style="text-align: center; padding: 40px; color: var(--text-muted);" class="macOS-card">
+                    <h3>Loading visual seat map layout... ✈️</h3>
+                </div>
+            </div>
+        `;
+
+        document.getElementById("backToPricingBtn")?.addEventListener("click", () => {
+            renderCreateDynamicPriceForm();
+        });
+
+        let activeDpId = targetDpId;
+        const scheduleSelect = document.getElementById("seatMapScheduleSelect");
+
+        try {
+            const res = await fetch("/api/admin/create-dynamic-price", { credentials: "same-origin" });
+            const data = await res.json();
+
+            if (res.ok && data.dynamicPrices && data.dynamicPrices.length > 0) {
+                const prices = data.dynamicPrices;
+                
+                // If targetDpId not passed or invalid, default to first schedule
+                const exists = prices.some(p => p.dynamicPriceId === parseInt(activeDpId));
+                if (!activeDpId || !exists) {
+                    activeDpId = prices[0].dynamicPriceId;
+                }
+
+                scheduleSelect.innerHTML = prices.map(p => `
+                    <option value="${p.dynamicPriceId}" ${p.dynamicPriceId === parseInt(activeDpId) ? 'selected' : ''}>
+                        ${p.flightNo} (${p.companyName}) | ${p.sourceAirportCode || 'SRC'} ➔ ${p.destAirportCode || 'DST'} | 📅 ${p.flightDate} [Seats: ${p.availableSeats}/${p.totalSeats}]
+                    </option>
+                `).join('');
+
+                scheduleSelect.addEventListener("change", (e) => {
+                    const newDpId = e.target.value;
+                    if (newDpId) {
+                        loadSeatMap(parseInt(newDpId));
+                    }
+                });
+
+                loadSeatMap(parseInt(activeDpId));
+            } else {
+                document.getElementById("seatMapContainer").innerHTML = `
+                    <div class="macOS-card" style="padding: 32px; text-align: center;">
+                        <span style="font-size: 40px;">🏷️</span>
+                        <h3 style="margin-top: 12px; font-weight: 700;">No Flight Schedules Found</h3>
+                        <p style="color: var(--text-muted); margin-top: 6px; font-size: 13px;">Please add a flight schedule under Dynamic Pricing first to select and book seats.</p>
+                        <button id="goToPricingFormBtn" style="margin-top: 16px; padding: 10px 20px; border-radius: 8px; border: none; background: #007AFF; color: #fff; font-weight: 700; cursor: pointer;">
+                            ➕ Add Flight Schedule
+                        </button>
+                    </div>
+                `;
+                document.getElementById("goToPricingFormBtn")?.addEventListener("click", () => {
+                    renderCreateDynamicPriceForm();
+                });
+            }
+        } catch (err) {
+            console.error("Error loading schedules for seat map:", err);
+            loadSeatMap(targetDpId || 16000001);
+        }
+    }
+
+    async function loadSeatMap(dynamicPriceId) {
+        const container = document.getElementById("seatMapContainer");
+        if (!container) return;
+
+        try {
+            const res = await fetch(`/api/flight-seats/${dynamicPriceId}`, { credentials: "same-origin" });
+            const data = await res.json();
+
+            if (!res.ok) {
+                container.innerHTML = `<div class="macOS-card" style="padding: 24px; text-align: center; color: #ef4444;">❌ ${data.message || 'Failed to load seat map.'}</div>`;
+                return;
+            }
+
+            const fd = data.flightDetails || {};
+            const seats = data.seats || [];
+            const passengers = data.passengers || [];
+
+            let selectedSeat = null;
+
+            // Render main seat map layout container
+            container.innerHTML = `
+                <div class="seat-map-wrapper">
+                    <!-- Left: Aircraft Cabin Seat Matrix Card -->
+                    <div class="aircraft-cabin-card">
+                        <!-- Aircraft Nose Cockpit Banner -->
+                        <div class="aircraft-nose-banner">
+                            <span>✈️</span>
+                            <span>FRONT OF AIRCRAFT (COCKPIT)</span>
+                        </div>
+
+                        <!-- Color Legend Bar -->
+                        <div class="seat-legend-bar">
+                            <div class="legend-item"><span class="legend-box available"></span> <span>Available (Green)</span></div>
+                            <div class="legend-item"><span class="legend-box booked"></span> <span>Booked / Occupied (Red)</span></div>
+                            <div class="legend-item"><span class="legend-box selected"></span> <span>Selected (Blue)</span></div>
+                            <div class="legend-item"><span class="legend-box business"></span> <span>Business Class (+₹1,500)</span></div>
+                        </div>
+
+                        <!-- Seats Rows Container -->
+                        <div class="cabin-rows-container" id="cabinRowsContainer"></div>
+                    </div>
+
+                    <!-- Right: Booking Summary Sidebar Card -->
+                    <div class="booking-summary-card">
+                        <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 16px; color: #0f172a;">Ticket & Seat Reservation 🎫</h3>
+
+                        <div class="flight-ticket-info">
+                            <div class="flight-route-header">
+                                <span class="route-code" style="color: #007AFF;">${fd.sourceCode || 'SRC'}</span>
+                                <span style="font-size: 16px;">✈️</span>
+                                <span class="route-code" style="color: #FF9500;">${fd.destCode || 'DST'}</span>
+                            </div>
+                            <div style="font-size: 12px; color: #64748b; font-weight: 600; margin-bottom: 4px;">${fd.flightNo} - ${fd.companyName} (${fd.flightName})</div>
+                            <div style="font-size: 12px; color: #64748b;">📅 ${fd.flightDate} | 🕒 ${fd.departureTime} - ${fd.arrivalTime}</div>
+                            <div style="margin-top: 8px;"><span class="badge green" id="summaryAvailBadge">Available Seats: ${fd.availableSeats} / ${fd.totalSeats}</span></div>
+                        </div>
+
+                        <div class="input-group" style="margin-bottom: 16px;">
+                            <label style="font-weight: 600; font-size: 13px; display: block; margin-bottom: 6px;">Select Passenger</label>
+                            <select id="passengerSelect" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); font-size: 13px;">
+                                ${passengers.length > 0 
+                                    ? passengers.map(p => `<option value="${p.passengerId}">${p.passengerName} (${p.mobileNo || p.passportNo})</option>`).join('')
+                                    : '<option value="" disabled selected>No passengers registered</option>'
+                                }
+                            </select>
+                        </div>
+
+                        <div class="selected-seat-badge" id="selectedSeatBadge">
+                            <span>Selected Seat:</span>
+                            <span id="selectedSeatNoText" style="font-weight: 800; font-size: 18px;">None</span>
+                        </div>
+
+                        <div style="margin-bottom: 20px;">
+                            <div class="price-breakdown-row">
+                                <span>Base Flight Fare:</span>
+                                <span>₹${fd.currentPrice.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
+                            </div>
+                            <div class="price-breakdown-row">
+                                <span>Seat Choice Surcharge:</span>
+                                <span id="seatSurchargeText">+₹0.00</span>
+                            </div>
+                            <div class="price-total-row">
+                                <span>Total Amount:</span>
+                                <span id="totalPriceText">₹${fd.currentPrice.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
+                            </div>
+                        </div>
+
+                        <button id="confirmSeatBookingBtn" style="width: 100%; padding: 14px; border-radius: 10px; border: none; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #fff; font-weight: 800; font-size: 15px; cursor: pointer; box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4); transition: all 0.2s ease;">
+                            Confirm Seat & Pay Ticket
+                        </button>
+
+                        <div id="bookingMsg" class="form-message" style="margin-top: 12px;"></div>
+                    </div>
+                </div>
+            `;
+
+            // Build cabin rows 1 to 30
+            const rowsContainer = document.getElementById("cabinRowsContainer");
+            let rowsHtml = '';
+
+            for (let r = 1; r <= 30; r++) {
+                if (r === 1) rowsHtml += `<div class="cabin-class-header">⭐ Business Class (Rows 1 - 3)</div>`;
+                else if (r === 4) rowsHtml += `<div class="cabin-class-header">✨ Premium Economy (Rows 4 - 6)</div>`;
+                else if (r === 7) rowsHtml += `<div class="cabin-class-header">💺 Main Economy Cabin</div>`;
+                else if (r === 10) rowsHtml += `<div class="cabin-class-header">🚪 Emergency Exit Rows - Extra Legroom (+₹300)</div>`;
+
+                const rowSeats = seats.filter(s => s.row === r);
+                const leftGroup = ['A', 'B', 'C'].map(col => rowSeats.find(s => s.col === col));
+                const rightGroup = ['D', 'E', 'F'].map(col => rowSeats.find(s => s.col === col));
+
+                const renderSeatBtn = (s, colName) => {
+                    if (!s) return `<div style="width:44px;"></div>`;
+                    const isBooked = s.status === 'BOOKED';
+                    const isBusiness = s.seatClass === 'BUSINESS';
+                    const btnClass = `seat-btn ${isBooked ? 'booked' : 'available'} ${isBusiness ? 'business-seat' : ''}`;
+                    const icon = isBooked ? '🔒' : s.seatNo;
+                    return `
+                        <button class="${btnClass}" data-seat="${s.seatNo}" data-price="${s.finalPrice}" data-surcharge="${s.priceSurcharge}" data-type="${s.seatType}" data-class="${s.seatClass}" ${isBooked ? 'disabled' : ''}>
+                            <span>${icon}</span>
+                            <span class="seat-type-tag">${isBooked ? 'OCCUPIED' : s.seatType.substring(0,3)}</span>
+                        </button>
+                    `;
+                };
+
+                rowsHtml += `
+                    <div class="seat-row-grid">
+                        <div class="row-number-badge">${r}</div>
+                        <div class="seat-group">${leftGroup.map((s, idx) => renderSeatBtn(s, ['A','B','C'][idx])).join('')}</div>
+                        <div class="aisle-gap">AISLE</div>
+                        <div class="seat-group">${rightGroup.map((s, idx) => renderSeatBtn(s, ['D','E','F'][idx])).join('')}</div>
+                        <div class="row-number-badge">${r}</div>
+                    </div>
+                `;
+            }
+
+            rowsContainer.innerHTML = rowsHtml;
+
+            // Handle seat click selection
+            rowsContainer.querySelectorAll('.seat-btn.available').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    rowsContainer.querySelectorAll('.seat-btn').forEach(b => b.classList.remove('selected'));
+                    btn.classList.add('selected');
+
+                    const seatNo = btn.dataset.seat;
+                    const finalPrice = parseFloat(btn.dataset.price);
+                    const surcharge = parseFloat(btn.dataset.surcharge);
+                    const seatType = btn.dataset.type;
+                    const seatClass = btn.dataset.class;
+
+                    selectedSeat = { seatNo, finalPrice, surcharge, seatType, seatClass };
+
+                    document.getElementById('selectedSeatNoText').textContent = `${seatNo} (${seatClass} - ${seatType})`;
+                    document.getElementById('seatSurchargeText').textContent = `+₹${surcharge.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+                    document.getElementById('totalPriceText').textContent = `₹${finalPrice.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+                });
+            });
+
+            // Handle ticket booking submit
+            const confirmBtn = document.getElementById("confirmSeatBookingBtn");
+            const bookingMsg = document.getElementById("bookingMsg");
+            const passengerSelect = document.getElementById("passengerSelect");
+
+            confirmBtn.addEventListener("click", async () => {
+                if (!selectedSeat) {
+                    bookingMsg.textContent = "⚠️ Please select an available green seat on the map first!";
+                    bookingMsg.className = "form-message error";
+                    return;
+                }
+
+                const passengerId = passengerSelect ? passengerSelect.value : null;
+                if (!passengerId) {
+                    bookingMsg.textContent = "⚠️ Please select a registered passenger.";
+                    bookingMsg.className = "form-message error";
+                    return;
+                }
+
+                bookingMsg.textContent = "Processing seat reservation & PNR generation...";
+                bookingMsg.className = "form-message info";
+                confirmBtn.disabled = true;
+
+                try {
+                    const bookRes = await fetch("/api/ticket-booking/book-seat", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            dynamicPriceId: dynamicPriceId,
+                            passengerId: parseInt(passengerId),
+                            seatNo: selectedSeat.seatNo
+                        }),
+                        credentials: "same-origin"
+                    });
+
+                    const bookData = await bookRes.json();
+                    confirmBtn.disabled = false;
+
+                    if (bookRes.ok) {
+                        bookingMsg.textContent = `🎉 Ticket Booked Successfully! PNR: ${bookData.pnrNo} | Seat: ${bookData.seatNo}`;
+                        bookingMsg.className = "form-message success";
+                        
+                        alert(`✈️ TICKET BOOKED SUCCESSFULLY!\n\nPNR Number: ${bookData.pnrNo}\nSeat Number: ${bookData.seatNo}\nBooking ID: #${bookData.bookingId}\nAmount Paid: ${document.getElementById('totalPriceText').textContent}`);
+                        
+                        // Re-fetch seat map so newly booked seat turns RED
+                        loadSeatMap(dynamicPriceId);
+                    } else {
+                        bookingMsg.textContent = "❌ " + (bookData.message || "Booking failed");
+                        bookingMsg.className = "form-message error";
+                    }
+                } catch (err) {
+                    confirmBtn.disabled = false;
+                    console.error("Booking error:", err);
+                    bookingMsg.textContent = "❌ Network error. Please try again.";
+                    bookingMsg.className = "form-message error";
+                }
+            });
+
+        } catch (err) {
+            console.error("Error loading seat map:", err);
+            container.innerHTML = `<div class="macOS-card" style="padding: 24px; text-align: center; color: #ef4444;">❌ Server connection error while loading seats.</div>`;
+        }
+    }
+
     function renderCreateDynamicPriceForm() {
         if (!mainContent) return;
 
@@ -2119,6 +2425,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                         <div class="input-group full-width">
                             <label>Current Ticket Price (₹)</label>
                             <input type="number" id="dpCurrentPrice" step="0.01" value="4500.00" placeholder="e.g. 4500.00" required>
+                            <div id="dpRouteDistanceBadge" style="display: none; margin-top: 8px; font-size: 12px; background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; padding: 8px 12px; border-radius: 8px;"></div>
                         </div>
                     </div>
 
@@ -2155,11 +2462,12 @@ document.addEventListener("DOMContentLoaded", async () => {
                                 <th style="padding: 12px 14px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Seats (Avail/Total)</th>
                                 <th style="padding: 12px 14px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Price (₹)</th>
                                 <th style="padding: 12px 14px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Status</th>
+                                <th style="padding: 12px 14px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Action</th>
                             </tr>
                         </thead>
                         <tbody id="dpTableBody">
                             <tr>
-                                <td colspan="9" style="text-align: center; padding: 24px; color: var(--text-muted);">Loading dynamic pricing records...</td>
+                                <td colspan="10" style="text-align: center; padding: 24px; color: var(--text-muted);">Loading dynamic pricing records...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -2182,6 +2490,31 @@ document.addEventListener("DOMContentLoaded", async () => {
         const searchInput = document.getElementById("dpSearchInput");
         const countBadge = document.getElementById("dpCountBadge");
 
+        async function updateDistanceFare() {
+            const srcId = sourceSelect.value;
+            const dstId = destSelect.value;
+            const routeBadge = document.getElementById("dpRouteDistanceBadge");
+
+            if (srcId && dstId && srcId !== dstId) {
+                try {
+                    const res = await fetch(`/api/calculate-route-fare?sourceId=${srcId}&destId=${dstId}`);
+                    const data = await res.json();
+                    if (res.ok && data.suggestedPrice) {
+                        currentPriceInput.value = data.suggestedPrice.toFixed(2);
+                        if (routeBadge) {
+                            routeBadge.style.display = "block";
+                            routeBadge.innerHTML = `📍 <strong>Route Distance:</strong> ${data.distanceKm} km | <strong>Distance-Based Fare (₹${data.ratePerKm}/km):</strong> <span style="color:#059669; font-weight:800;">₹${data.suggestedPrice.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>`;
+                        }
+                    }
+                } catch (e) {
+                    console.warn("Distance fare error:", e);
+                }
+            }
+        }
+
+        sourceSelect.addEventListener("change", updateDistanceFare);
+        destSelect.addEventListener("change", updateDistanceFare);
+
         let allDynamicPrices = [];
 
         function renderRows(records) {
@@ -2199,12 +2532,27 @@ document.addEventListener("DOMContentLoaded", async () => {
                         <td style="padding: 12px 14px;"><span class="badge green">${r.availableSeats} / ${r.totalSeats}</span></td>
                         <td style="padding: 12px 14px; font-weight: 700; color: #34C759;">₹${Number(r.currentPrice).toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
                         <td style="padding: 12px 14px;"><span class="badge green">${r.isActive === 'Y' ? 'ACTIVE' : 'INACTIVE'}</span></td>
+                        <td style="padding: 12px 14px;">
+                            <button class="select-seats-btn" data-dpid="${r.dynamicPriceId}" style="padding: 6px 12px; border-radius: 6px; border: none; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #fff; font-weight: 700; font-size: 12px; cursor: pointer; box-shadow: 0 2px 6px rgba(16,185,129,0.3);">
+                                🎫 Book Seats
+                            </button>
+                        </td>
                     </tr>
                 `).join("");
+
+                // Attach click listeners for Book Seats button
+                tableBody.querySelectorAll(".select-seats-btn").forEach(btn => {
+                    btn.addEventListener("click", (e) => {
+                        const dpId = e.currentTarget.dataset.dpid;
+                        if (dpId) {
+                            renderSeatMapBookingView(parseInt(dpId));
+                        }
+                    });
+                });
             } else {
                 tableBody.innerHTML = `
                     <tr>
-                        <td colspan="9" style="text-align: center; padding: 24px; color: var(--text-muted);">No dynamic pricing records found.</td>
+                        <td colspan="10" style="text-align: center; padding: 24px; color: var(--text-muted);">No dynamic pricing records found.</td>
                     </tr>
                 `;
             }
@@ -2550,6 +2898,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
             else if (label.includes("create airport")) {
                 renderCreateAirportForm();
+            }
+            else if (label.includes("seat") || label.includes("book ticket") || label.includes("booking")) {
+                renderSeatMapBookingView();
             }
             else if (label.includes("create dynamic price") || label.includes("dynamic price") || label.includes("price")) {
                 renderCreateDynamicPriceForm();
