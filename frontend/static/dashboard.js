@@ -2269,20 +2269,6 @@ async function initDashboard() {
                 <div class="seat-map-wrapper">
                     <div class="aircraft-cabin-card">
                         <div class="airplane-sketch-outer">
-                            <div class="airplane-wing-container">
-                                <div class="airplane-wing left">
-                                    <div class="jet-engine-pod">
-                                        <div class="jet-engine-fan"></div>
-                                        <span style="font-size:7px; color:#fff; font-weight:800;">ENG 1</span>
-                                    </div>
-                                </div>
-                                <div class="airplane-wing right">
-                                    <div class="jet-engine-pod">
-                                        <div class="jet-engine-fan"></div>
-                                        <span style="font-size:7px; color:#fff; font-weight:800;">ENG 2</span>
-                                    </div>
-                                </div>
-                            </div>
                             <div class="airplane-fuselage-body">
                                 <div class="airplane-cockpit-header">
                                     <div class="cockpit-windshield-wrapper">

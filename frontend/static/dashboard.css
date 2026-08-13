@@ -1409,105 +1409,33 @@ body {
 /* Aeroplane Sketch Container */
 .airplane-sketch-outer {
     position: relative;
-    max-width: 680px;
+    max-width: 620px;
     margin: 0 auto;
-    padding: 10px 0 40px 0;
+    padding: 10px 0;
 }
 
-/* Wings Left & Right attached to Fuselage */
-.airplane-wing-container {
-    position: absolute;
-    top: 360px;
-    width: 100%;
-    height: 180px;
-    pointer-events: none;
-    z-index: 1;
-}
-
-.airplane-wing {
-    position: absolute;
-    width: 140px;
-    height: 160px;
-    background: linear-gradient(135deg, #cbd5e1 0%, #94a3b8 100%);
-    border: 2px solid #64748b;
-    box-shadow: 0 10px 20px rgba(0,0,0,0.12);
-}
-
-.airplane-wing.left {
-    left: -115px;
-    clip-path: polygon(100% 0, 0 35%, 15% 100%, 100% 75%);
-    border-radius: 8px 0 0 16px;
-}
-
-.airplane-wing.right {
-    right: -115px;
-    clip-path: polygon(0 0, 100% 35%, 85% 100%, 0 75%);
-    border-radius: 0 8px 16px 0;
-}
-
-/* Jet Turbofan Engine Pods attached under wings */
-.jet-engine-pod {
-    position: absolute;
-    width: 38px;
-    height: 60px;
-    background: linear-gradient(180deg, #1e293b 0%, #475569 50%, #0f172a 100%);
-    border-radius: 20px 20px 10px 10px;
-    border: 2px solid #334155;
-    box-shadow: inset 0 -4px 8px rgba(0,0,0,0.4), 0 4px 10px rgba(0,0,0,0.25);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: space-between;
-    padding: 4px 0;
-}
-
-.jet-engine-fan {
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    background: radial-gradient(circle, #38bdf8 0%, #0284c7 60%, #0f172a 100%);
-    border: 2px solid #7dd3fc;
-    box-shadow: 0 0 8px rgba(56, 189, 248, 0.6);
-    animation: engine-spin 2s linear infinite;
-}
-
-@keyframes engine-spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
-
-.airplane-wing.left .jet-engine-pod {
-    left: 20px;
-    top: 50px;
-}
-
-.airplane-wing.right .jet-engine-pod {
-    right: 20px;
-    top: 50px;
-}
-
-/* Aircraft Fuselage Body Shell Outline */
+/* Formal Aircraft Fuselage Body Border Shell */
 .airplane-fuselage-body {
-    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 50%, #f1f5f9 100%);
-    border: 3px solid #3b82f6;
-    border-radius: 260px 260px 60px 60px;
-    box-shadow: 0 15px 35px rgba(59, 130, 246, 0.12), inset 0 0 20px rgba(59, 130, 246, 0.03);
-    padding: 16px 20px 30px 20px;
+    background: #ffffff;
+    border: 2.5px solid #007AFF;
+    border-radius: 140px 140px 40px 40px;
+    box-shadow: 0 8px 30px rgba(0, 122, 255, 0.08);
+    padding: 16px 16px 24px 16px;
     position: relative;
     z-index: 2;
 }
 
 /* Aeroplane Nose Cone & Cockpit Header */
 .airplane-cockpit-header {
-    background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+    background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
     color: #ffffff;
-    border-radius: 220px 220px 20px 20px;
-    padding: 24px 20px 16px 20px;
+    border-radius: 120px 120px 16px 16px;
+    padding: 20px 16px 14px 16px;
     text-align: center;
-    margin-bottom: 20px;
+    margin-bottom: 16px;
     position: relative;
-    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.25);
-    border-bottom: 3px solid #3b82f6;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.2);
+    border-bottom: 2.5px solid #007AFF;
 }
 
 .cockpit-windshield-wrapper {
