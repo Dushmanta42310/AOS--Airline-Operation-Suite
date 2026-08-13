@@ -2270,19 +2270,8 @@ async function initDashboard() {
                     <div class="aircraft-cabin-card">
                         <div class="airplane-sketch-outer">
                             <div class="airplane-fuselage-body">
-                                <div class="airplane-cockpit-header">
-                                    <div class="cockpit-windshield-wrapper">
-                                        <div class="cockpit-window-glass left"></div>
-                                        <div class="cockpit-window-glass right"></div>
-                                    </div>
-                                    <div class="cockpit-title-tag">
-                                        <span>👨‍✈️</span>
-                                        <span>FLIGHT DECK & COCKPIT (FRONT OF AIRCRAFT)</span>
-                                        <span>👩‍✈️</span>
-                                    </div>
-                                    <div style="font-size: 10px; color: #94a3b8; margin-top: 4px; font-weight:600;">
-                                        BOEING 737-MAX / AIRBUS A320 FUSELAGE DIAGRAM
-                                    </div>
+                                <div class="simple-plane-header" style="text-align: center; padding: 10px; font-weight: 700; font-size: 13px; color: #475569; letter-spacing: 1px; border-bottom: 1px solid #e2e8f0; margin-bottom: 14px;">
+                                    ▲ FRONT (COCKPIT) ▲
                                 </div>
                                 <div class="seat-legend-bar">
                                     <div class="legend-item"><span class="legend-box available"></span> <span>Free (Green)</span></div>
@@ -2291,14 +2280,8 @@ async function initDashboard() {
                                     <div class="legend-item"><span class="legend-box business"></span> <span>Business Class (+₹1,500)</span></div>
                                 </div>
                                 <div class="cabin-rows-container" id="cabinRowsContainer"></div>
-                                <div class="airplane-tail-section">
-                                    <div class="tail-fin-graphic"></div>
-                                    <div style="font-size: 12px; font-weight: 800; letter-spacing: 1px; color: #38bdf8;">
-                                        ✈️ REAR GALLEY & EMPENNAGE TAIL FIN 🚻
-                                    </div>
-                                    <div style="font-size: 10px; color: #94a3b8; margin-top: 2px;">
-                                        Lavatories & Emergency Rear Exit Doors
-                                    </div>
+                                <div class="simple-plane-footer" style="text-align: center; padding: 10px; font-weight: 700; font-size: 13px; color: #475569; letter-spacing: 1px; border-top: 1px solid #e2e8f0; margin-top: 14px;">
+                                    ▼ REAR (TAIL) ▼
                                 </div>
                             </div>
                         </div>
