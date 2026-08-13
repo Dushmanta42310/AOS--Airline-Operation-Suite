@@ -2366,14 +2366,38 @@ async function initDashboard() {
                             <div style="margin-top: 8px;"><span class="badge green" id="summaryAvailBadge">Available Seats: ${availSeatsCount} / ${totalSeatsCount}</span></div>
                         </div>
 
-                        <div class="input-group" style="margin-bottom: 16px;">
-                            <label style="font-weight: 700; font-size: 13px; display: block; margin-bottom: 6px;">Select Passenger</label>
+                        <div class="input-group" style="margin-bottom: 12px;">
+                            <label style="font-weight: 700; font-size: 13px; display: block; margin-bottom: 6px;">Select Passenger / Customer</label>
                             <select id="passengerSelect" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); font-size: 13px; font-weight:600;">
                                 ${passengers.length > 0 
-                                    ? passengers.map(p => `<option value="${p.passengerId}">${p.passengerName} (${p.mobileNo || p.passportNo || 'PASS'})</option>`).join('')
-                                    : '<option value="1" selected>Default Passenger (Dushmanta Das)</option>'
+                                    ? passengers.map(p => `<option value="${p.passengerId}" data-name="${p.passengerName || ''}" data-mobile="${p.mobileNo || ''}" data-email="${p.emailId || ''}" data-passport="${p.passportNo || ''}">${p.passengerName} (${p.mobileNo || p.passportNo || 'DB ID: ' + p.passengerId})</option>`).join('')
+                                    : '<option value="10000001" data-name="Dushmanta Das" data-mobile="7008233179" data-email="dushmantadas@aos.com" data-passport="P9876543">Dushmanta Das (7008233179)</option>'
                                 }
+                                <option value="NEW">➕ Register New Customer / Guest</option>
                             </select>
+                        </div>
+
+                        <!-- Customer DB Autofill Fields -->
+                        <div id="customerDetailsSection" style="background: #f8fafc; border-radius: 12px; padding: 12px; margin-bottom: 16px; border: 1px solid #e2e8f0;">
+                            <div style="font-weight: 700; font-size: 12px; color: #475569; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">📋 Customer Details (DB Autofill)</div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                                <div>
+                                    <label style="font-size: 11px; font-weight: 700; color: #64748b; display: block;">Full Name</label>
+                                    <input type="text" id="custNameInput" style="width: 100%; padding: 6px 8px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 12px; font-weight: 600;" placeholder="Customer Name">
+                                </div>
+                                <div>
+                                    <label style="font-size: 11px; font-weight: 700; color: #64748b; display: block;">Mobile No</label>
+                                    <input type="text" id="custMobileInput" style="width: 100%; padding: 6px 8px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 12px; font-weight: 600;" placeholder="Mobile No">
+                                </div>
+                                <div>
+                                    <label style="font-size: 11px; font-weight: 700; color: #64748b; display: block;">Email Address</label>
+                                    <input type="email" id="custEmailInput" style="width: 100%; padding: 6px 8px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 12px; font-weight: 600;" placeholder="Email ID">
+                                </div>
+                                <div>
+                                    <label style="font-size: 11px; font-weight: 700; color: #64748b; display: block;">Govt ID / Passport</label>
+                                    <input type="text" id="custPassportInput" style="width: 100%; padding: 6px 8px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 12px; font-weight: 600;" placeholder="Passport / Aadhar">
+                                </div>
+                            </div>
                         </div>
 
                         <div class="selected-seat-badge" id="selectedSeatBadge">
@@ -2397,7 +2421,7 @@ async function initDashboard() {
                         </div>
 
                         <button id="confirmSeatBookingBtn" style="width: 100%; padding: 14px; border-radius: 12px; border: none; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #fff; font-weight: 800; font-size: 15px; cursor: pointer; box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4); transition: all 0.2s ease;">
-                            Confirm Seat & Pay Ticket
+                            Proceed to Payment & Book Seat 💳
                         </button>
 
                         <div id="bookingMsg" class="form-message" style="margin-top: 12px;"></div>
@@ -2410,7 +2434,7 @@ async function initDashboard() {
             let rowsHtml = '';
 
             for (let r = 1; r <= 30; r++) {
-                if (r === 1) rowsHtml += `<div class="cabin-class-header">👑 Business Class (Rows 1 - 3) - Extra Recline & Luxury</div>`;
+                if (r === 1) rowsHtml += `<div class="cabin-class-header">👑 Business Class (Rows 1 - 3) - Extra Recline & Luxury (+₹1,500)</div>`;
                 else if (r === 4) rowsHtml += `<div class="cabin-class-header">✨ Premium Economy (Rows 4 - 6)</div>`;
                 else if (r === 7) rowsHtml += `<div class="cabin-class-header">💺 Main Economy Cabin</div>`;
                 else if (r === 10) rowsHtml += `<div class="cabin-class-header exit-row">🚪 OVER-WING EMERGENCY EXIT ROWS - Extra Legroom (+₹300)</div>`;
@@ -2421,9 +2445,9 @@ async function initDashboard() {
 
                 const renderSeatBtn = (s, colName) => {
                     if (!s) return `<div style="width:44px;"></div>`;
-                    const isBooked = s.status === 'BOOKED';
+                    const isBooked = s.status === 'BOOKED' || s.status === 'OCCUPIED';
                     const isBusiness = s.seatClass === 'BUSINESS';
-                    // Available = Green, Booked = Red
+                    // Available = White/Green, Booked = Red
                     const btnClass = `seat-btn ${isBooked ? 'booked' : 'available'} ${isBusiness ? 'business-seat' : ''}`;
                     const icon = isBooked ? '🔒' : s.seatNo;
                     const statusTag = isBooked ? 'BOOKED' : s.seatType.substring(0,3);
@@ -2449,6 +2473,34 @@ async function initDashboard() {
             }
 
             rowsContainer.innerHTML = rowsHtml;
+
+            // Handle Customer Autofill from Select Dropdown
+            const passengerSelect = document.getElementById("passengerSelect");
+            const custNameInput = document.getElementById("custNameInput");
+            const custMobileInput = document.getElementById("custMobileInput");
+            const custEmailInput = document.getElementById("custEmailInput");
+            const custPassportInput = document.getElementById("custPassportInput");
+
+            const updateCustFields = () => {
+                if (!passengerSelect) return;
+                const selectedOpt = passengerSelect.options[passengerSelect.selectedIndex];
+                if (selectedOpt && selectedOpt.value !== "NEW") {
+                    if (custNameInput) custNameInput.value = selectedOpt.dataset.name || "";
+                    if (custMobileInput) custMobileInput.value = selectedOpt.dataset.mobile || "";
+                    if (custEmailInput) custEmailInput.value = selectedOpt.dataset.email || "";
+                    if (custPassportInput) custPassportInput.value = selectedOpt.dataset.passport || "";
+                } else {
+                    if (custNameInput) custNameInput.value = "";
+                    if (custMobileInput) custMobileInput.value = "";
+                    if (custEmailInput) custEmailInput.value = "";
+                    if (custPassportInput) custPassportInput.value = "";
+                }
+            };
+
+            if (passengerSelect) {
+                passengerSelect.addEventListener("change", updateCustFields);
+                updateCustFields(); // initial autofill
+            }
 
             // Handle interactive seat click selection with ORANGE TRANSITION state
             rowsContainer.querySelectorAll('.seat-btn.available').forEach(btn => {
@@ -2477,82 +2529,148 @@ async function initDashboard() {
                 });
             });
 
-            // Handle ticket booking submission
+            // Handle Ticket Booking & Fake Payment Gateway Modal
             const confirmBtn = document.getElementById("confirmSeatBookingBtn");
             const bookingMsg = document.getElementById("bookingMsg");
-            const passengerSelect = document.getElementById("passengerSelect");
 
-            confirmBtn.addEventListener("click", async () => {
+            confirmBtn.addEventListener("click", () => {
                 if (!selectedSeat) {
                     bookingMsg.textContent = "⚠️ Please click an available green seat on the airplane map to select it (turns Orange)!";
                     bookingMsg.className = "form-message error";
                     return;
                 }
 
-                const passengerId = passengerSelect ? passengerSelect.value : null;
-                if (!passengerId) {
-                    bookingMsg.textContent = "⚠️ Please select a registered passenger.";
-                    bookingMsg.className = "form-message error";
-                    return;
-                }
+                const custName = custNameInput ? custNameInput.value.trim() : "Passenger";
+                const custMobile = custMobileInput ? custMobileInput.value.trim() : "N/A";
+                const passengerIdVal = (passengerSelect && passengerSelect.value !== "NEW") ? passengerSelect.value : "10000001";
 
-                // Show active booking transition on selected seat (Orange pulse + spinner)
-                if (selectedSeat.btnElement) {
-                    selectedSeat.btnElement.innerHTML = `<span>⏳</span><span class="seat-type-tag">HOLD</span>`;
-                }
+                // Open Fake Payment Gateway Modal
+                const existingModal = document.getElementById("paymentModalOverlay");
+                if (existingModal) existingModal.remove();
 
-                bookingMsg.textContent = "Processing seat reservation & PNR generation...";
-                bookingMsg.className = "form-message info";
-                confirmBtn.disabled = true;
+                const modalHtml = `
+                    <div class="payment-modal-overlay" id="paymentModalOverlay">
+                        <div class="payment-modal-card">
+                            <div class="payment-modal-header">
+                                <div>
+                                    <div style="font-weight: 800; font-size: 16px;">✈️ AOS Airline Ticket Payment</div>
+                                    <div style="font-size: 11px; opacity: 0.8;">256-Bit SSL Encrypted Transaction</div>
+                                </div>
+                                <button id="closePaymentModalBtn" style="background: none; border: none; color: #fff; font-size: 20px; cursor: pointer;">✕</button>
+                            </div>
+                            <div class="payment-modal-body">
+                                <div style="background: #f1f5f9; border-radius: 12px; padding: 14px; margin-bottom: 16px;">
+                                    <div style="display: flex; justify-content: space-between; font-weight: 700; font-size: 14px; margin-bottom: 4px;">
+                                        <span>${fd.flightNo || 'AI-101'} (${fd.companyName || 'Air India'})</span>
+                                        <span style="color: #10b981;">Seat ${selectedSeat.seatNo}</span>
+                                    </div>
+                                    <div style="font-size: 12px; color: #64748b;">Passenger: <b>${custName}</b> (${custMobile})</div>
+                                    <div style="display: flex; justify-content: space-between; margin-top: 10px; font-weight: 800; font-size: 16px; border-top: 1px dashed #cbd5e1; padding-top: 8px;">
+                                        <span>Total Amount:</span>
+                                        <span style="color: #059669;">₹${selectedSeat.finalPrice.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
+                                    </div>
+                                </div>
 
-                try {
-                    const bookRes = await fetch("/api/ticket-booking/book-seat", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                            dynamicPriceId: dynamicPriceId,
-                            passengerId: parseInt(passengerId),
-                            seatNo: selectedSeat.seatNo
-                        }),
-                        credentials: "same-origin"
+                                <div style="font-weight: 700; font-size: 13px; color: #334155; margin-bottom: 8px;">Select Payment Method:</div>
+                                <div class="payment-option-grid">
+                                    <div class="payment-option-item selected" data-method="UPI">
+                                        <div style="font-size: 20px;">📱</div>
+                                        <div style="font-size: 12px; font-weight: 700; margin-top: 4px;">Google Pay / UPI</div>
+                                    </div>
+                                    <div class="payment-option-item" data-method="CARD">
+                                        <div style="font-size: 20px;">💳</div>
+                                        <div style="font-size: 12px; font-weight: 700; margin-top: 4px;">Credit / Debit Card</div>
+                                    </div>
+                                    <div class="payment-option-item" data-method="NETBANKING">
+                                        <div style="font-size: 20px;">🏦</div>
+                                        <div style="font-size: 12px; font-weight: 700; margin-top: 4px;">Net Banking</div>
+                                    </div>
+                                    <div class="payment-option-item" data-method="CASH">
+                                        <div style="font-size: 20px;">💵</div>
+                                        <div style="font-size: 12px; font-weight: 700; margin-top: 4px;">Counter Cash</div>
+                                    </div>
+                                </div>
+
+                                <div id="paymentStatusBox" style="font-size: 12px; font-weight: 700; text-align: center; color: #0284c7; margin: 12px 0;"></div>
+
+                                <button id="payNowSubmitBtn" style="width: 100%; padding: 14px; border-radius: 12px; border: none; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #fff; font-weight: 800; font-size: 15px; cursor: pointer; box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4);">
+                                    Pay ₹${selectedSeat.finalPrice.toLocaleString('en-IN', {minimumFractionDigits: 2})} & Confirm Seat
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                document.body.insertAdjacentHTML("beforeend", modalHtml);
+
+                const modalOverlay = document.getElementById("paymentModalOverlay");
+                const closeModalBtn = document.getElementById("closePaymentModalBtn");
+                const payNowSubmitBtn = document.getElementById("payNowSubmitBtn");
+                const paymentStatusBox = document.getElementById("paymentStatusBox");
+
+                if (closeModalBtn) closeModalBtn.addEventListener("click", () => modalOverlay.remove());
+
+                // Toggle payment method selection
+                document.querySelectorAll(".payment-option-item").forEach(item => {
+                    item.addEventListener("click", () => {
+                        document.querySelectorAll(".payment-option-item").forEach(i => i.classList.remove("selected"));
+                        item.classList.add("selected");
                     });
+                });
 
-                    const bookData = await bookRes.json();
-                    confirmBtn.disabled = false;
+                payNowSubmitBtn.addEventListener("click", async () => {
+                    payNowSubmitBtn.disabled = true;
+                    paymentStatusBox.innerHTML = "⏳ Step 1/3: Connecting to Bank Payment Gateway...";
 
-                    if (bookRes.ok) {
-                        // Immediately transition the booked seat from ORANGE to RED!
-                        if (selectedSeat.btnElement) {
-                            selectedSeat.btnElement.classList.remove('in-transition', 'selected', 'available');
-                            selectedSeat.btnElement.classList.add('booked');
-                            selectedSeat.btnElement.disabled = true;
-                            selectedSeat.btnElement.innerHTML = `<span>🔒</span><span class="seat-type-tag">BOOKED</span>`;
-                        }
+                    setTimeout(async () => {
+                        paymentStatusBox.innerHTML = "💳 Step 2/3: Payment Authorized & Verified!";
 
-                        bookingMsg.textContent = `🎉 Ticket Booked Successfully! PNR: ${bookData.pnrNo} | Seat: ${bookData.seatNo}`;
-                        bookingMsg.className = "form-message success";
-                        
-                        alert(`✈️ TICKET BOOKED SUCCESSFULLY!\n\nPNR Number: ${bookData.pnrNo}\nSeat Number: ${bookData.seatNo}\nBooking ID: #${bookData.bookingId}\nAmount Paid: ${document.getElementById('totalPriceText').textContent}\n\nSeat ${bookData.seatNo} is now permanently RED (Booked)!`);
-                        
-                        // Re-fetch seat map to refresh counts and keep layout completely updated
-                        loadSeatMap(dynamicPriceId);
-                    } else {
-                        // Revert seat back to orange selection if backend returned error
-                        if (selectedSeat.btnElement) {
-                            selectedSeat.btnElement.innerHTML = `<span>${selectedSeat.seatNo}</span><span class="seat-type-tag">${selectedSeat.seatType.substring(0,3)}</span>`;
-                        }
-                        bookingMsg.textContent = "❌ " + (bookData.message || "Booking failed");
-                        bookingMsg.className = "form-message error";
-                    }
-                } catch (err) {
-                    confirmBtn.disabled = false;
-                    if (selectedSeat.btnElement) {
-                        selectedSeat.btnElement.innerHTML = `<span>${selectedSeat.seatNo}</span><span class="seat-type-tag">${selectedSeat.seatType.substring(0,3)}</span>`;
-                    }
-                    console.error("Booking error:", err);
-                    bookingMsg.textContent = "❌ Network error. Please try again.";
-                    bookingMsg.className = "form-message error";
-                }
+                        setTimeout(async () => {
+                            paymentStatusBox.innerHTML = "✈️ Step 3/3: Reserving Seat & Issuing PNR Ticket...";
+
+                            try {
+                                const bookRes = await fetch("/api/ticket-booking/book-seat", {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({
+                                        dynamicPriceId: dynamicPriceId,
+                                        passengerId: parseInt(passengerIdVal),
+                                        seatNo: selectedSeat.seatNo
+                                    }),
+                                    credentials: "same-origin"
+                                });
+
+                                const bookData = await bookRes.json();
+
+                                if (bookRes.ok) {
+                                    modalOverlay.remove();
+
+                                    // Transition seat to RED (BOOKED / OCCUPIED)
+                                    if (selectedSeat.btnElement) {
+                                        selectedSeat.btnElement.classList.remove('in-transition', 'selected', 'available');
+                                        selectedSeat.btnElement.classList.add('booked');
+                                        selectedSeat.btnElement.disabled = true;
+                                        selectedSeat.btnElement.innerHTML = `<span>🔒</span><span class="seat-type-tag">BOOKED</span>`;
+                                    }
+
+                                    bookingMsg.textContent = `🎉 Ticket Booked Successfully! PNR: ${bookData.pnrNo} | Seat: ${bookData.seatNo}`;
+                                    bookingMsg.className = "form-message success";
+                                    
+                                    alert(`✈️ TICKET BOOKED & PAYMENT SUCCESSFUL!\n\nPassenger Name: ${custName}\nPNR Number: ${bookData.pnrNo}\nSeat Number: ${bookData.seatNo}\nAmount Paid: ₹${selectedSeat.finalPrice.toLocaleString('en-IN')}\nPayment Status: COMPLETED ✅\n\nSeat ${bookData.seatNo} is now permanently RED (Occupied)!`);
+                                    
+                                    // Refresh seat map
+                                    loadSeatMap(dynamicPriceId);
+                                } else {
+                                    paymentStatusBox.innerHTML = "❌ " + (bookData.message || "Booking failed");
+                                    payNowSubmitBtn.disabled = false;
+                                }
+                            } catch (err) {
+                                paymentStatusBox.innerHTML = "❌ Connection error during booking.";
+                                payNowSubmitBtn.disabled = false;
+                            }
+                        }, 800);
+                    }, 800);
+                });
             });
 
         } catch (err) {
