@@ -2177,19 +2177,18 @@ async function initDashboard() {
                 </div>
             </div>
 
-            <div id="seatMapContainer">
-                <div style="text-align: center; padding: 40px; color: var(--text-muted);" class="macOS-card">
-                    <h3>Loading visual seat map layout... ✈️</h3>
-                </div>
-            </div>
+            <div id="seatMapContainer"></div>
         `;
 
         document.getElementById("backToPricingBtn")?.addEventListener("click", () => {
             renderCreateDynamicPriceForm();
         });
 
-        let activeDpId = targetDpId;
+        let activeDpId = targetDpId || 16000011;
         const scheduleSelect = document.getElementById("seatMapScheduleSelect");
+
+        // Immediately load seat map matrix so seats render instantly without loading delays
+        loadSeatMap(parseInt(activeDpId));
 
         try {
             const res = await fetch("/api/flight-schedules", { credentials: "same-origin" });
@@ -2214,16 +2213,16 @@ async function initDashboard() {
                         loadSeatMap(parseInt(newDpId));
                     }
                 });
+
+                loadSeatMap(parseInt(activeDpId));
             } else {
                 scheduleSelect.innerHTML = `<option value="16000011">AI-101 (Air India) | BBI ➔ DEL | 📅 2026-08-10 [Seats: 180/180]</option>`;
-                activeDpId = 16000011;
             }
-
-            loadSeatMap(parseInt(activeDpId || 16000011));
         } catch (err) {
             console.warn("Error fetching schedule selector list:", err);
-            scheduleSelect.innerHTML = `<option value="16000011">AI-101 (Air India) | BBI ➔ DEL | 📅 2026-08-10 [Seats: 180/180]</option>`;
-            loadSeatMap(targetDpId || 16000011);
+            if (scheduleSelect) {
+                scheduleSelect.innerHTML = `<option value="16000011">AI-101 (Air India) | BBI ➔ DEL | 📅 2026-08-10 [Seats: 180/180]</option>`;
+            }
         }
     }
 
