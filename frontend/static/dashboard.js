@@ -2172,7 +2172,7 @@ async function initDashboard() {
                 <div style="display: flex; align-items: center; gap: 12px; flex: 1; min-width: 280px;">
                     <label style="font-weight: 700; font-size: 14px; color: var(--text-main); white-space: nowrap;">✈️ Select Flight Schedule:</label>
                     <select id="seatMapScheduleSelect" style="flex: 1; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-color); font-size: 13px; font-weight: 600; outline: none; background: #ffffff;">
-                        <option value="" disabled selected>Loading flight schedules...</option>
+                        <option value="16000011" selected>AI-101 (Air India) | DEL ➔ HYD | 📅 2026-08-05 [Seats: 165/180]</option>
                     </select>
                 </div>
             </div>
