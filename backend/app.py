@@ -301,6 +301,15 @@ def login():
             if not username or not password:
                 return jsonify({"message": "Username and password required."}), 400
 
+            if "@" not in username:
+                try:
+                    cur.execute("SELECT USERNAME FROM AIRLINE_USER_MSTR_TBL WHERE LOWER(USERNAME) = LOWER(:1) OR LOWER(USERNAME) LIKE LOWER(:2)", [username, username + "@%"])
+                    u_match = cur.fetchone()
+                    if u_match and u_match[0]:
+                        username = u_match[0]
+                except Exception:
+                    pass
+
             cur.callproc(
                 "AIRLINE_USER_LOGIN_USP",
                 ["U", username.lower(), password.lower(), None, None, v_result]
