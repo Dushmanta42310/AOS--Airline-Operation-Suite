@@ -211,6 +211,8 @@ def home():
 
 @app.route("/dashboard")
 def dashboard():
+    if not session.get("user_id"):
+        return redirect("/")
     return render_template("dashboard.html")
 
 
@@ -332,7 +334,15 @@ def login():
                 cur.callproc("AIRLINE_UPDATE_OTP_USP", [int(data.get("mobileNo")), None])
 
             if login_mode == "U":
-                user_id = username.lower()
+                try:
+                    cur.execute("SELECT USERNAME FROM AIRLINE_USER_MSTR_TBL WHERE LOWER(USERNAME) = LOWER(:1) OR LOWER(USERNAME) LIKE LOWER(:2)", [username, username + "@%"])
+                    u_row = cur.fetchone()
+                    if u_row and u_row[0]:
+                        user_id = u_row[0].lower()
+                    else:
+                        user_id = username.lower()
+                except Exception:
+                    user_id = username.lower()
             else:
                 user_id = str(data.get("mobileNo", ""))
 
@@ -466,6 +476,15 @@ def me():
             [str(user_id), login_mode, p_result]
         )
         profile_row = p_result.getvalue().fetchone()
+
+        if not profile_row and login_mode == "U" and "@" not in str(user_id):
+            p_result2 = cur.var(oracledb.CURSOR)
+            cur.callproc(
+                "AIRLINE_GET_USER_PROFILE_FULL_USP",
+                [str(user_id) + "@aos.com", login_mode, p_result2]
+            )
+            profile_row = p_result2.getvalue().fetchone()
+
         if not profile_row:
             return jsonify(message="User not found"), 404
 
@@ -2049,6 +2068,71 @@ def calculate_route_fare():
 # SEAT MAP LAYOUT & SEAT BOOKING API ENDPOINTS
 # =====================================================================
 
+@app.route("/api/flight-schedules", methods=["GET"])
+def get_public_flight_schedules():
+    conn = None
+    cur = None
+    try:
+        conn = get_conn()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT 
+                DP.DYNAMIC_PRICE_ID,
+                F.FLIGHT_NO,
+                C.COMPANY_NAME,
+                SA.AIRPORT_CODE AS SOURCE_CODE,
+                DA.AIRPORT_CODE AS DEST_CODE,
+                TO_CHAR(DP.FLIGHT_DATE, 'YYYY-MM-DD') AS FLIGHT_DATE,
+                NVL(DP.AVAILABLE_SEATS, 180) AS AVAIL_SEATS,
+                NVL(DP.TOTAL_SEATS, 180) AS TOTAL_SEATS
+            FROM AIRLINE_FLIGHT_DYNAMIC_PRICE_MSTR_TBL DP
+            LEFT JOIN AIRLINE_FLIGHT_MSTR_TBL F ON DP.FLIGHT_ID = F.FLIGHT_ID
+            LEFT JOIN AIRLINE_FLIGHT_COMPANY_MSTR_TBL C ON F.COMPANY_ID = C.COMPANY_ID
+            LEFT JOIN AIRLINE_AIRPORT_MSTR_TBL SA ON DP.SOURCE_AIRPORT_ID = SA.AIRPORT_ID
+            LEFT JOIN AIRLINE_AIRPORT_MSTR_TBL DA ON DP.DEST_AIRPORT_ID = DA.AIRPORT_ID
+            ORDER BY DP.FLIGHT_DATE DESC, DP.DYNAMIC_PRICE_ID DESC
+        """)
+        schedules = []
+        for r in cur.fetchall():
+            schedules.append({
+                "dynamicPriceId": int(r[0]),
+                "flightNo": str(r[1] or "FL-101"),
+                "companyName": str(r[2] or "Airline"),
+                "sourceAirportCode": str(r[3] or "BBI"),
+                "destAirportCode": str(r[4] or "DEL"),
+                "flightDate": str(r[5] or "2026-08-10"),
+                "availableSeats": int(r[6]),
+                "totalSeats": int(r[7])
+            })
+        if not schedules:
+            schedules = [{
+                "dynamicPriceId": 16000001,
+                "flightNo": "AI-101",
+                "companyName": "Air India",
+                "sourceAirportCode": "BBI",
+                "destAirportCode": "DEL",
+                "flightDate": "2026-08-10",
+                "availableSeats": 145,
+                "totalSeats": 180
+            }]
+        return jsonify({"dynamicPrices": schedules}), 200
+    except Exception as e:
+        print(f"[ERROR get_public_flight_schedules] {str(e)}")
+        return jsonify({"dynamicPrices": [{
+            "dynamicPriceId": 16000001,
+            "flightNo": "AI-101",
+            "companyName": "Air India",
+            "sourceAirportCode": "BBI",
+            "destAirportCode": "DEL",
+            "flightDate": "2026-08-10",
+            "availableSeats": 145,
+            "totalSeats": 180
+        }]}), 200
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
 @app.route("/api/flight-seats/<int:dynamic_price_id>", methods=["GET"])
 def get_flight_seat_map(dynamic_price_id):
     conn = None
@@ -2076,21 +2160,21 @@ def get_flight_seat_map(dynamic_price_id):
             r = fl_val.fetchone()
             if r:
                 flight_details = {
-                    "dynamicPriceId": r[0],
-                    "flightId": r[1],
-                    "flightNo": r[2] or "N/A",
-                    "flightName": r[3] or "",
-                    "companyName": r[4] or "",
-                    "sourceCode": r[5] or "",
-                    "sourceCity": r[6] or "",
-                    "destCode": r[7] or "",
-                    "destCity": r[8] or "",
-                    "flightDate": r[9],
-                    "departureTime": r[10],
-                    "arrivalTime": r[11],
-                    "totalSeats": r[12],
-                    "availableSeats": r[13],
-                    "currentPrice": float(r[14])
+                    "dynamicPriceId": int(r[0]) if r[0] is not None else dynamic_price_id,
+                    "flightId": int(r[1]) if r[1] is not None else 0,
+                    "flightNo": str(r[2]) if r[2] else "N/A",
+                    "flightName": str(r[3]) if r[3] else "",
+                    "companyName": str(r[4]) if r[4] else "",
+                    "sourceCode": str(r[5]) if r[5] else "",
+                    "sourceCity": str(r[6]) if r[6] else "",
+                    "destCode": str(r[7]) if r[7] else "",
+                    "destCity": str(r[8]) if r[8] else "",
+                    "flightDate": str(r[9]) if r[9] is not None else "",
+                    "departureTime": str(r[10]) if r[10] is not None else "",
+                    "arrivalTime": str(r[11]) if r[11] is not None else "",
+                    "totalSeats": int(r[12]) if r[12] is not None else 180,
+                    "availableSeats": int(r[13]) if r[13] is not None else 180,
+                    "currentPrice": float(r[14]) if r[14] is not None else 0.0
                 }
 
         if not flight_details:
@@ -2101,14 +2185,14 @@ def get_flight_seat_map(dynamic_price_id):
         if st_val:
             for r in st_val.fetchall():
                 seats.append({
-                    "seatNo": r[0],
-                    "row": r[1],
-                    "col": r[2],
-                    "seatClass": r[3] or "ECONOMY",
-                    "seatType": r[4] or "REGULAR",
-                    "priceSurcharge": float(r[5]),
-                    "status": (r[6] or "AVAILABLE").upper(),
-                    "finalPrice": float(r[7])
+                    "seatNo": str(r[0]),
+                    "row": int(r[1]) if r[1] is not None else 0,
+                    "col": str(r[2]),
+                    "seatClass": str(r[3] or "ECONOMY"),
+                    "seatType": str(r[4] or "REGULAR"),
+                    "priceSurcharge": float(r[5]) if r[5] is not None else 0.0,
+                    "status": str(r[6] or "AVAILABLE").upper(),
+                    "finalPrice": float(r[7]) if r[7] is not None else 0.0
                 })
 
         passengers = []

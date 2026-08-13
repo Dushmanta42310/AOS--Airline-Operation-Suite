@@ -88,6 +88,7 @@ mobileForm.addEventListener("submit", async (e) => {
     const res = await fetch(`${API_BASE}/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
       body: JSON.stringify({ loginMode: "M", mobileNo, otp })
     });
 
@@ -118,6 +119,7 @@ userForm.addEventListener("submit", async (e) => {
     const res = await fetch(`${API_BASE}/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
       body: JSON.stringify({ loginMode: "U", username, password })
     });
 
