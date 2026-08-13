@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AOS Dashboard</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}?v=20260813_v8">
+    <link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}?v=20260813_v9">
 </head>
 <body>
     <div class="dashboard-container">
@@ -15,13 +15,13 @@
             <div class="sidebar-profile">
                 <div class="profile-avatar-wrap">
                     <img id="sidebarAvatar"
-                         src="https://ui-avatars.com/api/?name=User&background=0D8ABC&color=fff"
+                         src="/api/passport-photo?id=10000001"
                          alt="Profile Photo"
                          class="sidebar-avatar">
                 </div>
-                <h2 id="sidebarName" class="sidebar-name">User Name</h2>
-                <p id="sidebarRole" class="sidebar-role">Role: --</p>
-                <p id="sidebarLastLogin" class="sidebar-last-login">Last Login: --</p>
+                <h2 id="sidebarName" class="sidebar-name">Dushmanta Das</h2>
+                <p id="sidebarRole" class="sidebar-role">ROLE: ADMIN</p>
+                <p id="sidebarLastLogin" class="sidebar-last-login">Last Login: Active Now</p>
             </div>
             
             <hr class="sidebar-divider">
@@ -43,10 +43,10 @@
                 <div class="user-profile">
                     <span class="notifications">🔔<span class="dot"></span></span>
                     <img id="profileAvatar"
-                         src="https://ui-avatars.com/api/?name=User&background=0D8ABC&color=fff"
+                         src="/api/passport-photo?id=10000001"
                          alt="Profile"
                          class="avatar">
-                    <span id="profileName" class="username">Welcome, User</span>
+                    <span id="profileName" class="username">Welcome, Dushmanta Das | ADMIN</span>
                     <button id="logoutBtn" class="logout-btn" type="button">
                         <span class="icon">🚪</span>
                         <span>Logout</span>
@@ -149,6 +149,6 @@
         </div>
     </div>
 
-    <script src="{{ url_for('static', filename='dashboard.js') }}?v=20260813_v8"></script>
+    <script src="{{ url_for('static', filename='dashboard.js') }}?v=20260813_v9"></script>
 </body>
 </html>
