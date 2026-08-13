@@ -2366,68 +2366,49 @@ async function initDashboard() {
                             <div style="margin-top: 8px;"><span class="badge green" id="summaryAvailBadge">Available Seats: ${availSeatsCount} / ${totalSeatsCount}</span></div>
                         </div>
 
-                        <div class="input-group" style="margin-bottom: 12px;">
-                            <label style="font-weight: 700; font-size: 13px; display: block; margin-bottom: 6px;">Select Passenger / Customer</label>
-                            <select id="passengerSelect" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); font-size: 13px; font-weight:600;">
-                                ${passengers.length > 0 
-                                    ? passengers.map(p => `<option value="${p.passengerId}" data-name="${p.passengerName || ''}" data-mobile="${p.mobileNo || ''}" data-email="${p.emailId || ''}" data-passport="${p.passportNo || ''}">${p.passengerName} (${p.mobileNo || p.passportNo || 'DB ID: ' + p.passengerId})</option>`).join('')
-                                    : '<option value="10000001" data-name="Dushmanta Das" data-mobile="7008233179" data-email="dushmantadas@aos.com" data-passport="P9876543">Dushmanta Das (7008233179)</option>'
-                                }
-                                <option value="NEW">➕ Register New Customer / Guest</option>
-                            </select>
-                        </div>
-
-                        <!-- Customer DB Autofill Fields -->
-                        <div id="customerDetailsSection" style="background: #f8fafc; border-radius: 12px; padding: 12px; margin-bottom: 16px; border: 1px solid #e2e8f0;">
-                            <div style="font-weight: 700; font-size: 12px; color: #475569; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">📋 Customer Details (DB Autofill)</div>
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                                <div>
-                                    <label style="font-size: 11px; font-weight: 700; color: #64748b; display: block;">Full Name</label>
-                                    <input type="text" id="custNameInput" style="width: 100%; padding: 6px 8px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 12px; font-weight: 600;" placeholder="Customer Name">
-                                </div>
-                                <div>
-                                    <label style="font-size: 11px; font-weight: 700; color: #64748b; display: block;">Mobile No</label>
-                                    <input type="text" id="custMobileInput" style="width: 100%; padding: 6px 8px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 12px; font-weight: 600;" placeholder="Mobile No">
-                                </div>
-                                <div>
-                                    <label style="font-size: 11px; font-weight: 700; color: #64748b; display: block;">Email Address</label>
-                                    <input type="email" id="custEmailInput" style="width: 100%; padding: 6px 8px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 12px; font-weight: 600;" placeholder="Email ID">
-                                </div>
-                                <div>
-                                    <label style="font-size: 11px; font-weight: 700; color: #64748b; display: block;">Govt ID / Passport</label>
-                                    <input type="text" id="custPassportInput" style="width: 100%; padding: 6px 8px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 12px; font-weight: 600;" placeholder="Passport / Aadhar">
+                        <div style="background: #f8fafc; border-radius: 12px; padding: 12px; margin-bottom: 16px; border: 1px solid #e2e8f0;">
+                            <div style="font-weight: 800; font-size: 13px; color: #1e293b; margin-bottom: 4px;">👥 Multi-Seat Passenger Details</div>
+                            <div style="font-size: 11px; color: #64748b; margin-bottom: 10px;">Select multiple seats on airplane sketch. Assign family member details for each seat.</div>
+                            
+                            <!-- Dynamic Family Member Roster Container -->
+                            <div id="familyMembersRosterContainer">
+                                <div style="font-size: 12px; color: #94a3b8; text-align: center; padding: 14px; border: 1px dashed #cbd5e1; border-radius: 8px;">
+                                    👈 Click any available Green seat on airplane map to select seats for family members!
                                 </div>
                             </div>
                         </div>
 
                         <div class="selected-seat-badge" id="selectedSeatBadge">
-                            <span>Selected Seat:</span>
-                            <span id="selectedSeatNoText" style="font-weight: 800; font-size: 17px; color: #d97706;">None</span>
+                            <span>Selected Seats (<b id="selectedSeatsCountText">0</b>):</span>
+                            <span id="selectedSeatNoText" style="font-weight: 800; font-size: 15px; color: #d97706;">None</span>
                         </div>
 
                         <div style="margin-bottom: 20px;">
                             <div class="price-breakdown-row">
-                                <span>Base Flight Fare:</span>
-                                <span>₹${baseFare.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
+                                <span>Base Fare (<span id="baseFareMultiplierText">0 seats</span>):</span>
+                                <span id="baseFareTotalText">₹0.00</span>
                             </div>
                             <div class="price-breakdown-row">
-                                <span>Seat Choice Surcharge:</span>
+                                <span>Seat Surcharges Total:</span>
                                 <span id="seatSurchargeText">+₹0.00</span>
                             </div>
                             <div class="price-total-row">
-                                <span>Total Amount:</span>
-                                <span id="totalPriceText">₹${baseFare.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
+                                <span>Grand Total Amount:</span>
+                                <span id="totalPriceText">₹0.00</span>
                             </div>
                         </div>
 
                         <button id="confirmSeatBookingBtn" style="width: 100%; padding: 14px; border-radius: 12px; border: none; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #fff; font-weight: 800; font-size: 15px; cursor: pointer; box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4); transition: all 0.2s ease;">
-                            Proceed to Payment & Book Seat 💳
+                            Proceed to Payment & Book Seats 💳
                         </button>
 
                         <div id="bookingMsg" class="form-message" style="margin-top: 12px;"></div>
                     </div>
                 </div>
             `;
+
+            // Map to store multi-seat selections
+            const selectedSeatsMap = new Map();
 
             // Build cabin rows 1 to 30 inside aeroplane sketch
             const rowsContainer = document.getElementById("cabinRowsContainer");
@@ -2474,100 +2455,160 @@ async function initDashboard() {
 
             rowsContainer.innerHTML = rowsHtml;
 
-            // Handle Customer Autofill from Select Dropdown
-            const passengerSelect = document.getElementById("passengerSelect");
-            const custNameInput = document.getElementById("custNameInput");
-            const custMobileInput = document.getElementById("custMobileInput");
-            const custEmailInput = document.getElementById("custEmailInput");
-            const custPassportInput = document.getElementById("custPassportInput");
+            // Helper to update multi-seat sidebar summary & family passenger cards
+            const updateMultiSeatSummary = () => {
+                const rosterContainer = document.getElementById("familyMembersRosterContainer");
+                const countElem = document.getElementById("selectedSeatsCountText");
+                const seatListElem = document.getElementById("selectedSeatNoText");
+                const baseMultiplierElem = document.getElementById("baseFareMultiplierText");
+                const baseTotalElem = document.getElementById("baseFareTotalText");
+                const surchargeElem = document.getElementById("seatSurchargeText");
+                const totalElem = document.getElementById("totalPriceText");
 
-            const updateCustFields = () => {
-                if (!passengerSelect) return;
-                const selectedOpt = passengerSelect.options[passengerSelect.selectedIndex];
-                if (selectedOpt && selectedOpt.value !== "NEW") {
-                    if (custNameInput) custNameInput.value = selectedOpt.dataset.name || "";
-                    if (custMobileInput) custMobileInput.value = selectedOpt.dataset.mobile || "";
-                    if (custEmailInput) custEmailInput.value = selectedOpt.dataset.email || "";
-                    if (custPassportInput) custPassportInput.value = selectedOpt.dataset.passport || "";
-                } else {
-                    if (custNameInput) custNameInput.value = "";
-                    if (custMobileInput) custMobileInput.value = "";
-                    if (custEmailInput) custEmailInput.value = "";
-                    if (custPassportInput) custPassportInput.value = "";
+                const seatCount = selectedSeatsMap.size;
+                if (countElem) countElem.textContent = seatCount;
+
+                if (seatCount === 0) {
+                    if (seatListElem) seatListElem.textContent = "None";
+                    if (baseMultiplierElem) baseMultiplierElem.textContent = "0 seats";
+                    if (baseTotalElem) baseTotalElem.textContent = "₹0.00";
+                    if (surchargeElem) surchargeElem.textContent = "+₹0.00";
+                    if (totalElem) totalElem.textContent = "₹0.00";
+                    if (rosterContainer) {
+                        rosterContainer.innerHTML = `
+                            <div style="font-size: 12px; color: #94a3b8; text-align: center; padding: 14px; border: 1px dashed #cbd5e1; border-radius: 8px;">
+                                👈 Click any available Green seat on airplane map to select seats for family members!
+                            </div>
+                        `;
+                    }
+                    return;
+                }
+
+                let totalBasePrice = baseFare * seatCount;
+                let totalSurcharges = 0;
+                let grandTotal = 0;
+                const seatNoList = [];
+
+                selectedSeatsMap.forEach((seatData, seatNo) => {
+                    seatNoList.push(seatNo);
+                    totalSurcharges += (seatData.surcharge || 0);
+                    grandTotal += (seatData.finalPrice || (baseFare + (seatData.surcharge || 0)));
+                });
+
+                if (seatListElem) seatListElem.textContent = seatNoList.join(", ");
+                if (baseMultiplierElem) baseMultiplierElem.textContent = `${seatCount} seat${seatCount > 1 ? 's' : ''}`;
+                if (baseTotalElem) baseTotalElem.textContent = `₹${totalBasePrice.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+                if (surchargeElem) surchargeElem.textContent = `+₹${totalSurcharges.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+                if (totalElem) totalElem.textContent = `₹${grandTotal.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+
+                // Render Passenger Detail Card for EACH selected seat
+                if (rosterContainer) {
+                    let rosterHtml = '';
+                    let idx = 0;
+                    selectedSeatsMap.forEach((seatData, seatNo) => {
+                        idx++;
+                        const defaultPassenger = (passengers && passengers.length >= idx) ? passengers[idx - 1] : (passengers && passengers.length > 0 ? passengers[0] : null);
+                        const defaultName = defaultPassenger ? defaultPassenger.passengerName : (idx === 1 ? 'Dushmanta Das' : `Family Member ${idx}`);
+                        const defaultMobile = defaultPassenger ? defaultPassenger.mobileNo : (idx === 1 ? '7008233179' : '');
+                        const defaultGovt = defaultPassenger ? defaultPassenger.passportNo : '';
+
+                        rosterHtml += `
+                            <div class="family-passenger-card" style="background: #ffffff; border: 1.5px solid #cbd5e1; border-radius: 10px; padding: 10px; margin-bottom: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.04);">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                                    <span style="font-weight: 800; font-size: 12px; color: #0284c7;">💺 Seat ${seatNo} (${seatData.seatClass} - ${seatData.seatType})</span>
+                                    <span style="font-size: 11px; font-weight: 700; color: #059669;">+₹${seatData.finalPrice.toLocaleString('en-IN')}</span>
+                                </div>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+                                    <div>
+                                        <label style="font-size: 10px; font-weight: 700; color: #64748b; display: block;">Passenger Name</label>
+                                        <input type="text" id="custName_${seatNo}" value="${defaultName}" style="width: 100%; padding: 5px 6px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 11px; font-weight: 600;" placeholder="Name">
+                                    </div>
+                                    <div>
+                                        <label style="font-size: 10px; font-weight: 700; color: #64748b; display: block;">Mobile No</label>
+                                        <input type="text" id="custMobile_${seatNo}" value="${defaultMobile}" style="width: 100%; padding: 5px 6px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 11px; font-weight: 600;" placeholder="Mobile">
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    rosterContainer.innerHTML = rosterHtml;
                 }
             };
 
-            if (passengerSelect) {
-                passengerSelect.addEventListener("change", updateCustFields);
-                updateCustFields(); // initial autofill
-            }
-
-            // Handle interactive seat click selection with ORANGE TRANSITION state
-            rowsContainer.querySelectorAll('.seat-btn.available').forEach(btn => {
+            // Handle Multi-Seat Toggle Click Selection (BookMyShow-Style)
+            rowsContainer.querySelectorAll('.seat-btn.available, .seat-btn.in-transition').forEach(btn => {
                 btn.addEventListener('click', () => {
-                    // Reset any previously selected seat back to Green (Available)
-                    rowsContainer.querySelectorAll('.seat-btn.in-transition').forEach(b => {
-                        b.classList.remove('in-transition', 'selected');
-                        b.classList.add('available');
-                    });
-
-                    // Set currently clicked seat into ORANGE TRANSITION state
-                    btn.classList.remove('available');
-                    btn.classList.add('in-transition', 'selected');
-
                     const seatNo = btn.dataset.seat;
                     const finalPrice = parseFloat(btn.dataset.price);
                     const surcharge = parseFloat(btn.dataset.surcharge);
                     const seatType = btn.dataset.type;
                     const seatClass = btn.dataset.class;
 
-                    selectedSeat = { seatNo, finalPrice, surcharge, seatType, seatClass, btnElement: btn };
+                    if (selectedSeatsMap.has(seatNo)) {
+                        // Deselect seat -> revert back to Green (Available)
+                        selectedSeatsMap.delete(seatNo);
+                        btn.classList.remove('in-transition', 'selected');
+                        btn.classList.add('available');
+                    } else {
+                        // Select seat -> turn to Orange (In-Transition)
+                        selectedSeatsMap.set(seatNo, { seatNo, finalPrice, surcharge, seatType, seatClass, btnElement: btn });
+                        btn.classList.remove('available');
+                        btn.classList.add('in-transition', 'selected');
+                    }
 
-                    document.getElementById('selectedSeatNoText').textContent = `${seatNo} (${seatClass} - ${seatType}) 🟠`;
-                    document.getElementById('seatSurchargeText').textContent = `+₹${surcharge.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
-                    document.getElementById('totalPriceText').textContent = `₹${finalPrice.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+                    updateMultiSeatSummary();
                 });
             });
 
-            // Handle Ticket Booking & Fake Payment Gateway Modal
+            // Handle Multi-Seat Ticket Booking & Fake Payment Gateway Modal
             const confirmBtn = document.getElementById("confirmSeatBookingBtn");
             const bookingMsg = document.getElementById("bookingMsg");
 
             confirmBtn.addEventListener("click", () => {
-                if (!selectedSeat) {
-                    bookingMsg.textContent = "⚠️ Please click an available green seat on the airplane map to select it (turns Orange)!";
+                if (selectedSeatsMap.size === 0) {
+                    bookingMsg.textContent = "⚠️ Please click available Green seats on the airplane map to select seats for your family!";
                     bookingMsg.className = "form-message error";
                     return;
                 }
 
-                const custName = custNameInput ? custNameInput.value.trim() : "Passenger";
-                const custMobile = custMobileInput ? custMobileInput.value.trim() : "N/A";
-                const passengerIdVal = (passengerSelect && passengerSelect.value !== "NEW") ? passengerSelect.value : "10000001";
-
                 // Open Fake Payment Gateway Modal
                 const existingModal = document.getElementById("paymentModalOverlay");
                 if (existingModal) existingModal.remove();
+
+                let totalPayable = 0;
+                let seatItemRows = '';
+
+                selectedSeatsMap.forEach((seatData, seatNo) => {
+                    totalPayable += seatData.finalPrice;
+                    const nameInput = document.getElementById(`custName_${seatNo}`);
+                    const passName = nameInput ? nameInput.value.trim() : `Passenger (${seatNo})`;
+                    seatItemRows += `
+                        <div style="display: flex; justify-content: space-between; font-size: 12px; color: #475569; margin-bottom: 4px;">
+                            <span><b>Seat ${seatNo}</b> (${passName})</span>
+                            <span style="font-weight: 700;">₹${seatData.finalPrice.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
+                        </div>
+                    `;
+                });
 
                 const modalHtml = `
                     <div class="payment-modal-overlay" id="paymentModalOverlay">
                         <div class="payment-modal-card">
                             <div class="payment-modal-header">
                                 <div>
-                                    <div style="font-weight: 800; font-size: 16px;">✈️ AOS Airline Ticket Payment</div>
-                                    <div style="font-size: 11px; opacity: 0.8;">256-Bit SSL Encrypted Transaction</div>
+                                    <div style="font-weight: 800; font-size: 16px;">✈️ AOS Family Ticket Payment</div>
+                                    <div style="font-size: 11px; opacity: 0.8;">256-Bit SSL Encrypted Multi-Seat Checkout</div>
                                 </div>
                                 <button id="closePaymentModalBtn" style="background: none; border: none; color: #fff; font-size: 20px; cursor: pointer;">✕</button>
                             </div>
                             <div class="payment-modal-body">
                                 <div style="background: #f1f5f9; border-radius: 12px; padding: 14px; margin-bottom: 16px;">
-                                    <div style="display: flex; justify-content: space-between; font-weight: 700; font-size: 14px; margin-bottom: 4px;">
-                                        <span>${fd.flightNo || 'AI-101'} (${fd.companyName || 'Air India'})</span>
-                                        <span style="color: #10b981;">Seat ${selectedSeat.seatNo}</span>
+                                    <div style="font-weight: 700; font-size: 14px; color: #0f172a; margin-bottom: 8px;">
+                                        ${fd.flightNo || 'AI-101'} (${fd.companyName || 'Air India'}) | ${fd.sourceCode || 'BBI'} ➔ ${fd.destCode || 'DEL'}
                                     </div>
-                                    <div style="font-size: 12px; color: #64748b;">Passenger: <b>${custName}</b> (${custMobile})</div>
-                                    <div style="display: flex; justify-content: space-between; margin-top: 10px; font-weight: 800; font-size: 16px; border-top: 1px dashed #cbd5e1; padding-top: 8px;">
-                                        <span>Total Amount:</span>
-                                        <span style="color: #059669;">₹${selectedSeat.finalPrice.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
+                                    ${seatItemRows}
+                                    <div style="display: flex; justify-content: space-between; margin-top: 10px; font-weight: 800; font-size: 17px; border-top: 2px dashed #cbd5e1; padding-top: 8px;">
+                                        <span>Total Amount Payable:</span>
+                                        <span style="color: #059669;">₹${totalPayable.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
                                     </div>
                                 </div>
 
@@ -2594,7 +2635,7 @@ async function initDashboard() {
                                 <div id="paymentStatusBox" style="font-size: 12px; font-weight: 700; text-align: center; color: #0284c7; margin: 12px 0;"></div>
 
                                 <button id="payNowSubmitBtn" style="width: 100%; padding: 14px; border-radius: 12px; border: none; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #fff; font-weight: 800; font-size: 15px; cursor: pointer; box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4);">
-                                    Pay ₹${selectedSeat.finalPrice.toLocaleString('en-IN', {minimumFractionDigits: 2})} & Confirm Seat
+                                    Pay ₹${totalPayable.toLocaleString('en-IN', {minimumFractionDigits: 2})} & Confirm All Seats
                                 </button>
                             </div>
                         </div>
@@ -2626,47 +2667,57 @@ async function initDashboard() {
                         paymentStatusBox.innerHTML = "💳 Step 2/3: Payment Authorized & Verified!";
 
                         setTimeout(async () => {
-                            paymentStatusBox.innerHTML = "✈️ Step 3/3: Reserving Seat & Issuing PNR Ticket...";
+                            paymentStatusBox.innerHTML = "✈️ Step 3/3: Reserving Seats & Issuing PNR Tickets...";
 
-                            try {
-                                const bookRes = await fetch("/api/ticket-booking/book-seat", {
-                                    method: "POST",
-                                    headers: { "Content-Type": "application/json" },
-                                    body: JSON.stringify({
-                                        dynamicPriceId: dynamicPriceId,
-                                        passengerId: parseInt(passengerIdVal),
-                                        seatNo: selectedSeat.seatNo
-                                    }),
-                                    credentials: "same-origin"
-                                });
+                            const bookedPnrs = [];
+                            let hasErrors = false;
 
-                                const bookData = await bookRes.json();
+                            // Book each selected seat sequentially
+                            for (const [seatNo, seatData] of selectedSeatsMap.entries()) {
+                                try {
+                                    const bookRes = await fetch("/api/ticket-booking/book-seat", {
+                                        method: "POST",
+                                        headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({
+                                            dynamicPriceId: dynamicPriceId,
+                                            passengerId: 10000001,
+                                            seatNo: seatNo
+                                        }),
+                                        credentials: "same-origin"
+                                    });
 
-                                if (bookRes.ok) {
-                                    modalOverlay.remove();
+                                    const bookData = await bookRes.json();
+                                    if (bookRes.ok) {
+                                        bookedPnrs.push(`${seatNo}: PNR ${bookData.pnrNo}`);
 
-                                    // Transition seat to RED (BOOKED / OCCUPIED)
-                                    if (selectedSeat.btnElement) {
-                                        selectedSeat.btnElement.classList.remove('in-transition', 'selected', 'available');
-                                        selectedSeat.btnElement.classList.add('booked');
-                                        selectedSeat.btnElement.disabled = true;
-                                        selectedSeat.btnElement.innerHTML = `<span>🔒</span><span class="seat-type-tag">BOOKED</span>`;
+                                        // Turn seat RED (Booked)
+                                        if (seatData.btnElement) {
+                                            seatData.btnElement.classList.remove('in-transition', 'selected', 'available');
+                                            seatData.btnElement.classList.add('booked');
+                                            seatData.btnElement.disabled = true;
+                                            seatData.btnElement.innerHTML = `<span>🔒</span><span class="seat-type-tag">BOOKED</span>`;
+                                        }
+                                    } else {
+                                        hasErrors = true;
                                     }
-
-                                    bookingMsg.textContent = `🎉 Ticket Booked Successfully! PNR: ${bookData.pnrNo} | Seat: ${bookData.seatNo}`;
-                                    bookingMsg.className = "form-message success";
-                                    
-                                    alert(`✈️ TICKET BOOKED & PAYMENT SUCCESSFUL!\n\nPassenger Name: ${custName}\nPNR Number: ${bookData.pnrNo}\nSeat Number: ${bookData.seatNo}\nAmount Paid: ₹${selectedSeat.finalPrice.toLocaleString('en-IN')}\nPayment Status: COMPLETED ✅\n\nSeat ${bookData.seatNo} is now permanently RED (Occupied)!`);
-                                    
-                                    // Refresh seat map
-                                    loadSeatMap(dynamicPriceId);
-                                } else {
-                                    paymentStatusBox.innerHTML = "❌ " + (bookData.message || "Booking failed");
-                                    payNowSubmitBtn.disabled = false;
+                                } catch (err) {
+                                    hasErrors = true;
                                 }
-                            } catch (err) {
-                                paymentStatusBox.innerHTML = "❌ Connection error during booking.";
-                                payNowSubmitBtn.disabled = false;
+                            }
+
+                            modalOverlay.remove();
+
+                            if (bookedPnrs.length > 0) {
+                                bookingMsg.textContent = `🎉 Tickets Booked Successfully! PNRs: ${bookedPnrs.join(" | ")}`;
+                                bookingMsg.className = "form-message success";
+
+                                alert(`✈️ FAMILY TICKETS BOOKED & PAYMENT SUCCESSFUL!\n\nBooked Seats (${bookedPnrs.length}):\n${bookedPnrs.join('\n')}\n\nTotal Paid: ₹${totalPayable.toLocaleString('en-IN')}\nPayment Status: COMPLETED ✅\n\nSelected seats are now permanently RED (Occupied)!`);
+
+                                // Reload seat map to refresh remaining available count
+                                loadSeatMap(dynamicPriceId);
+                            } else {
+                                bookingMsg.textContent = "❌ Booking failed for selected seats.";
+                                bookingMsg.className = "form-message error";
                             }
                         }, 800);
                     }, 800);
