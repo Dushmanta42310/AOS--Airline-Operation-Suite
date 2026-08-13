@@ -2106,7 +2106,7 @@ def get_public_flight_schedules():
             })
         if not schedules:
             schedules = [{
-                "dynamicPriceId": 16000001,
+                "dynamicPriceId": 16000011,
                 "flightNo": "AI-101",
                 "companyName": "Air India",
                 "sourceAirportCode": "BBI",

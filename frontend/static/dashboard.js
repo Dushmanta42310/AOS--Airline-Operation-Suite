@@ -2215,15 +2215,15 @@ async function initDashboard() {
                     }
                 });
             } else {
-                scheduleSelect.innerHTML = `<option value="16000001">AI-101 (Air India) | BBI ➔ DEL | 📅 2026-08-10 [Seats: 145/180]</option>`;
-                activeDpId = 16000001;
+                scheduleSelect.innerHTML = `<option value="16000011">AI-101 (Air India) | BBI ➔ DEL | 📅 2026-08-10 [Seats: 180/180]</option>`;
+                activeDpId = 16000011;
             }
 
-            loadSeatMap(parseInt(activeDpId || 16000001));
+            loadSeatMap(parseInt(activeDpId || 16000011));
         } catch (err) {
             console.warn("Error fetching schedule selector list:", err);
-            scheduleSelect.innerHTML = `<option value="16000001">AI-101 (Air India) | BBI ➔ DEL | 📅 2026-08-10 [Seats: 145/180]</option>`;
-            loadSeatMap(targetDpId || 16000001);
+            scheduleSelect.innerHTML = `<option value="16000011">AI-101 (Air India) | BBI ➔ DEL | 📅 2026-08-10 [Seats: 180/180]</option>`;
+            loadSeatMap(targetDpId || 16000011);
         }
     }
 
@@ -2231,14 +2231,15 @@ async function initDashboard() {
         const container = document.getElementById("seatMapContainer");
         if (!container) return;
 
-        if (!dynamicPriceId) dynamicPriceId = 16000001;
+        let targetId = parseInt(dynamicPriceId);
+        if (!targetId || isNaN(targetId)) targetId = 16000011;
 
         let fd = {};
         let seats = [];
         let passengers = [];
 
         try {
-            const res = await fetch(`/api/flight-seats/${dynamicPriceId}`, { credentials: "same-origin" });
+            const res = await fetch(`/api/flight-seats/${targetId}`, { credentials: "same-origin" });
             if (res.ok) {
                 const data = await res.json();
                 fd = data.flightDetails || {};
