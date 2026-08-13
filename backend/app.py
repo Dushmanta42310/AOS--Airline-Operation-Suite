@@ -2187,7 +2187,7 @@ def get_flight_seat_map(dynamic_price_id):
                 seats.append({
                     "seatNo": str(r[0]),
                     "row": int(r[1]) if r[1] is not None else 0,
-                    "col": str(r[2]),
+                    "col": str(r[2] or "").strip(),
                     "seatClass": str(r[3] or "ECONOMY"),
                     "seatType": str(r[4] or "REGULAR"),
                     "priceSurcharge": float(r[5]) if r[5] is not None else 0.0,

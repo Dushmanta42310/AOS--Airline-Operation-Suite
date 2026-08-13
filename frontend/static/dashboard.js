@@ -2439,9 +2439,9 @@ async function initDashboard() {
                 else if (r === 7) rowsHtml += `<div class="cabin-class-header">💺 Main Economy Cabin</div>`;
                 else if (r === 10) rowsHtml += `<div class="cabin-class-header exit-row">🚪 OVER-WING EMERGENCY EXIT ROWS - Extra Legroom (+₹300)</div>`;
 
-                const rowSeats = seats.filter(s => s.row === r);
-                const leftGroup = ['A', 'B', 'C'].map(col => rowSeats.find(s => s.col === col));
-                const rightGroup = ['D', 'E', 'F'].map(col => rowSeats.find(s => s.col === col));
+                const rowSeats = seats.filter(s => parseInt(s.row) === r);
+                const leftGroup = ['A', 'B', 'C'].map(col => rowSeats.find(s => (s.col || '').trim().toUpperCase() === col));
+                const rightGroup = ['D', 'E', 'F'].map(col => rowSeats.find(s => (s.col || '').trim().toUpperCase() === col));
 
                 const renderSeatBtn = (s, colName) => {
                     if (!s) return `<div style="width:44px;"></div>`;
