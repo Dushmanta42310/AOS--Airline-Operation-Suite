@@ -2045,10 +2045,27 @@ async function initDashboard() {
                             <label>Passport Number</label>
                             <input type="text" name="passportNo" placeholder="Enter Passport Number" required>
                         </div>
+
+                        <!-- MEMBERSHIP TIER SELECTION WITH ANNUAL FEE -->
+                        <div class="input-group" style="grid-column: span 2; background: #f0f9ff; border: 1.5px solid #0284c7; padding: 12px 16px; border-radius: 10px; margin-top: 6px;">
+                            <label style="font-weight: 800; color: #0369a1; font-size: 13px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center;">
+                                <span>\uD83C\uDFC5 Select Frequent Flyer Membership Tier & Fee (Annual Pass):</span>
+                                <span style="background: #0284c7; color: #fff; font-size: 11px; padding: 3px 8px; border-radius: 6px; font-weight: 800;">Oracle DB Linked</span>
+                            </label>
+                            <select name="memberTier" id="mainMemberTierSelect" style="width: 100%; padding: 10px; border-radius: 8px; border: 1.5px solid #0284c7; font-weight: 800; font-size: 13px; color: #0f172a; background: #ffffff;">
+                                <option value="Executive Platinum" selected>Executive Platinum (15% Flight Discount) \u2014 Membership Fee: \u20B91,500/year</option>
+                                <option value="Gold Elite">Gold Elite (10% Flight Discount) \u2014 Membership Fee: \u20B91,000/year</option>
+                                <option value="Silver Preferred">Silver Preferred (5% Flight Discount) \u2014 Membership Fee: \u20B9500/year</option>
+                                <option value="Standard">Standard Member (0% Flight Discount) \u2014 Free (\u20B90)</option>
+                            </select>
+                            <div style="font-size: 11px; color: #0369a1; margin-top: 6px; font-weight: 600;">
+                                \u2728 Membership fee details & discount tier will be saved to Oracle DB parent-child mapping tables.
+                            </div>
+                        </div>
                     </div>
 
                     <div class="form-footer">
-                        <button type="submit" class="submit-btn">Register Customer</button>
+                        <button type="submit" class="submit-btn">Register Customer & Save Membership</button>
                     </div>
                 </form>
 
@@ -2071,7 +2088,8 @@ async function initDashboard() {
                 dob: formData.get("dob"),
                 mobileNo: formData.get("mobileNo"),
                 emailId: formData.get("emailId"),
-                passportNo: formData.get("passportNo")
+                passportNo: formData.get("passportNo"),
+                memberTier: formData.get("memberTier") || "Executive Platinum"
             };
 
             msgDiv.textContent = "Registering customer...";
@@ -2598,11 +2616,11 @@ async function initDashboard() {
                                                     <option value="F">Female</option>
                                                     <option value="O">Other</option>
                                                 </select>
-                                                <select id="newCustTierSelect" style="padding: 7px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 11px;">
-                                                    <option value="Executive Platinum">Executive Platinum (15% Off)</option>
-                                                    <option value="Gold Elite">Gold Elite (10% Off)</option>
-                                                    <option value="Silver Preferred">Silver Preferred (5% Off)</option>
-                                                    <option value="Standard">Standard Customer</option>
+                                                <select id="newCustTierSelect" style="padding: 7px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 11px; font-weight: 700;">
+                                                    <option value="Executive Platinum">Executive Platinum (15% Off) \u2014 Fee: \u20B91,500/yr</option>
+                                                    <option value="Gold Elite">Gold Elite (10% Off) \u2014 Fee: \u20B91,000/yr</option>
+                                                    <option value="Silver Preferred">Silver Preferred (5% Off) \u2014 Fee: \u20B9500/yr</option>
+                                                    <option value="Standard">Standard Customer \u2014 Free (\u20B90)</option>
                                                 </select>
                                             </div>
                                             <button id="saveNewCustDbBtn" type="button" style="width: 100%; padding: 9px; border-radius: 8px; border: none; background: #0284c7; color: #fff; font-weight: 800; font-size: 12px; cursor: pointer;">
@@ -2788,12 +2806,12 @@ async function initDashboard() {
 
                                         <!-- MEMBERSHIP OPTION FIELD AT BOTTOM OF CUSTOMER REGISTRATION FORM -->
                                         <div class="membership-field-group" style="margin-top: 6px;">
-                                            <label style="font-size: 11px; font-weight: 800; color: #0369a1; display: block; margin-bottom: 4px;">\uD83C\uDFC5 Select Frequent Flyer Membership Tier (Discount):</label>
+                                            <label style="font-size: 11px; font-weight: 800; color: #0369a1; display: block; margin-bottom: 4px;">\uD83C\uDFC5 Select Frequent Flyer Membership Tier (Membership Fee & Discount):</label>
                                             <select id="regTier_${seatNo}" style="width: 100%; padding: 7px; border-radius: 6px; border: 1px solid #0284c7; font-size: 11px; font-weight: 800; color: #0f172a; background: #ffffff;">
-                                                <option value="Executive Platinum" ${pass.memberTier === 'Executive Platinum' ? 'selected' : ''}>Executive Platinum (15% Special Discount)</option>
-                                                <option value="Gold Elite" ${pass.memberTier === 'Gold Elite' ? 'selected' : ''}>Gold Elite (10% Special Discount)</option>
-                                                <option value="Silver Preferred" ${pass.memberTier === 'Silver Preferred' ? 'selected' : ''}>Silver Preferred (5% Special Discount)</option>
-                                                <option value="Standard" ${pass.memberTier === 'Standard' ? 'selected' : ''}>Standard Customer (No Discount)</option>
+                                                <option value="Executive Platinum" ${pass.memberTier === 'Executive Platinum' ? 'selected' : ''}>Executive Platinum (15% Flight Discount) \u2014 Fee: \u20B91,500/yr</option>
+                                                <option value="Gold Elite" ${pass.memberTier === 'Gold Elite' ? 'selected' : ''}>Gold Elite (10% Flight Discount) \u2014 Fee: \u20B91,000/yr</option>
+                                                <option value="Silver Preferred" ${pass.memberTier === 'Silver Preferred' ? 'selected' : ''}>Silver Preferred (5% Flight Discount) \u2014 Fee: \u20B9500/yr</option>
+                                                <option value="Standard" ${pass.memberTier === 'Standard' ? 'selected' : ''}>Standard Customer (0% Discount) \u2014 Free (\u20B90)</option>
                                             </select>
                                         </div>
 

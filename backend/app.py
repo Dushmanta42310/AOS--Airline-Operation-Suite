@@ -2756,8 +2756,60 @@ def register_new_passenger():
             """, [new_id, passenger_name, gender, dob_obj, mobile_int, email_id, passport_no, member_tier])
             conn.commit()
 
+        # Calculate Membership Fee & Discount Percentage according to selected tier
+        tier_upper = member_tier.upper()
+        if "EXECUTIVE" in tier_upper or "PLATINUM" in tier_upper:
+            membership_fee = 1500.0
+            discount_pct = 15.0
+        elif "GOLD" in tier_upper:
+            membership_fee = 1000.0
+            discount_pct = 10.0
+        elif "SILVER" in tier_upper:
+            membership_fee = 500.0
+            discount_pct = 5.0
+        else:
+            membership_fee = 0.0
+            discount_pct = 0.0
+
+        # Save membership transaction in parent-child child table AIRLINE_PASSENGER_MEMBERSHIP_MAP_TBL
+        try:
+            cur.execute("""
+                CREATE TABLE AIRLINE_PASSENGER_MEMBERSHIP_MAP_TBL (
+                    MAP_ID NUMBER PRIMARY KEY,
+                    PASSENGER_ID NUMBER REFERENCES AIRLINE_PASSENGERS_REGD_FORM_MSTR_TBL(PASSENGER_ID),
+                    MEMBER_TIER VARCHAR2(50),
+                    MEMBERSHIP_FEE NUMBER(10,2),
+                    DISCOUNT_PCT NUMBER(5,2),
+                    START_DATE DATE DEFAULT SYSDATE,
+                    EXPIRY_DATE DATE DEFAULT SYSDATE + 365,
+                    STATUS VARCHAR2(20) DEFAULT 'ACTIVE',
+                    CREATED_BY VARCHAR2(50) DEFAULT 'SYSTEM'
+                )
+            """)
+            conn.commit()
+        except Exception:
+            pass
+
+        try:
+            map_id_val = 20000001
+            try:
+                cur.execute("SELECT NVL(MAX(MAP_ID), 20000000) + 1 FROM AIRLINE_PASSENGER_MEMBERSHIP_MAP_TBL")
+                max_m = cur.fetchone()[0]
+                if max_m: map_id_val = max_m
+            except Exception:
+                pass
+
+            cur.execute("""
+                INSERT INTO AIRLINE_PASSENGER_MEMBERSHIP_MAP_TBL
+                (MAP_ID, PASSENGER_ID, MEMBER_TIER, MEMBERSHIP_FEE, DISCOUNT_PCT, START_DATE, EXPIRY_DATE, STATUS, CREATED_BY)
+                VALUES (:1, :2, :3, :4, :5, SYSDATE, SYSDATE + 365, 'ACTIVE', 'SYSTEM')
+            """, [map_id_val, new_id, member_tier, membership_fee, discount_pct])
+            conn.commit()
+        except Exception as map_err:
+            print(f"[WARN AIRLINE_PASSENGER_MEMBERSHIP_MAP_TBL insert]: {map_err}")
+
         return jsonify({
-            "message": f"Successfully registered member '{passenger_name}' in Oracle DB!",
+            "message": f"Successfully registered member '{passenger_name}' with {member_tier} (\u20B9{membership_fee:,.2f} membership fee) in Oracle DB!",
             "passenger": {
                 "passengerId": new_id,
                 "passengerName": passenger_name,
@@ -2767,7 +2819,9 @@ def register_new_passenger():
                 "gender": gender,
                 "dob": str(dob_obj),
                 "nationality": "Indian",
-                "memberTier": member_tier
+                "memberTier": member_tier,
+                "membershipFee": membership_fee,
+                "discountPct": discount_pct
             }
         }), 201
 
