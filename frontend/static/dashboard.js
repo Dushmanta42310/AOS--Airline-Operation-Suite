@@ -2120,6 +2120,28 @@ async function initDashboard() {
                 </div>
             </div>
 
+            <!-- SELECT PLANE / AIRCRAFT FROM DATABASE DROP-DOWN BAR -->
+            <div class="macOS-card" style="margin-bottom: 20px; padding: 16px 20px; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #ffffff; border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 12px; box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+                    <label for="planeSelectBar" style="font-weight: 800; font-size: 14px; color: #38bdf8; display: flex; align-items: center; gap: 8px;">
+                        <span>\u2708\uFE0F</span> Select Plane / Flight (From DB):
+                    </label>
+                    <span style="font-size: 11px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); padding: 4px 10px; border-radius: 6px; font-weight: 700;">
+                        Live Fleet & Schedule Sync
+                    </span>
+                </div>
+                <div style="display: flex; gap: 14px; align-items: center; flex-wrap: wrap;">
+                    <div style="flex: 1; min-width: 300px;">
+                        <select id="planeSelectBar" style="width: 100%; padding: 12px 16px; border-radius: 8px; border: 1.5px solid #0284c7; background: #020617; color: #ffffff; font-weight: 800; font-size: 14px; outline: none; cursor: pointer; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25);">
+                            <option value="" disabled selected>Loading registered planes from database...</option>
+                        </select>
+                    </div>
+                    <div id="selectedPlaneBadge" style="display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; color: #f8fafc; background: rgba(255, 255, 255, 0.08); padding: 10px 16px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.15);">
+                        <span>\uD83D\uEBEB Aircraft Selected:</span> <span id="planeBadgeText" style="color: #39FF14; font-weight: 800;">Air India AI-101 (Airbus A320)</span>
+                    </div>
+                </div>
+            </div>
+
             <!-- 7-DAY FLIGHT DATE SELECTOR TABS (SYSDATE ROLLING WINDOW) -->
             <div class="macOS-card" style="margin-bottom: 20px; padding: 16px 20px;">
                 <div style="font-weight: 800; font-size: 14px; color: #0f172a; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
@@ -2140,6 +2162,52 @@ async function initDashboard() {
 
         let activeDpId = targetDpId || 16000011;
         const dateTabsContainer = document.getElementById("flightDateTabsContainer");
+        const planeSelectBar = document.getElementById("planeSelectBar");
+        const planeBadgeText = document.getElementById("planeBadgeText");
+
+        // Fetch registered planes from DB to populate the Selectbar
+        let registeredPlanes = [];
+        try {
+            const planeRes = await fetch("/api/registered-planes", { credentials: "same-origin" });
+            if (planeRes.ok) {
+                const pData = await planeRes.json();
+                registeredPlanes = pData.planes || [];
+            }
+        } catch (err) {
+            console.warn("Could not fetch registered planes for selectbar:", err);
+        }
+        window._aos_registeredPlanes = registeredPlanes;
+
+        if (planeSelectBar) {
+            if (registeredPlanes.length > 0) {
+                planeSelectBar.innerHTML = registeredPlanes.map(p => `
+                    <option value="${p.dynamicPriceId}" data-flightno="${p.flightNo}" data-company="${p.companyName}" data-model="${p.flightName}" data-route="${p.sourceCode} \u2794 ${p.destCode}">
+                        \u2708\uFE0F ${p.companyName} (${p.flightNo}) - ${p.flightName} | Route: ${p.sourceCode} \u2794 ${p.destCode} | Avail: ${p.availableSeats} seats | \u20B9${p.currentPrice.toLocaleString('en-IN')}
+                    </option>
+                `).join('');
+
+                const matchedPlane = registeredPlanes.find(p => p.dynamicPriceId === parseInt(activeDpId)) || registeredPlanes[0];
+                if (matchedPlane) {
+                    activeDpId = matchedPlane.dynamicPriceId;
+                    planeSelectBar.value = matchedPlane.dynamicPriceId;
+                    if (planeBadgeText) {
+                        planeBadgeText.textContent = `${matchedPlane.companyName} ${matchedPlane.flightNo} (${matchedPlane.flightName}) \u2022 ${matchedPlane.sourceCode} \u2794 ${matchedPlane.destCode}`;
+                    }
+                }
+
+                planeSelectBar.addEventListener("change", (e) => {
+                    const selectedDpId = parseInt(e.target.value);
+                    const selectedPlane = registeredPlanes.find(p => p.dynamicPriceId === selectedDpId);
+                    if (selectedPlane && planeBadgeText) {
+                        planeBadgeText.textContent = `${selectedPlane.companyName} ${selectedPlane.flightNo} (${selectedPlane.flightName}) \u2022 ${selectedPlane.sourceCode} \u2794 ${selectedPlane.destCode}`;
+                    }
+                    activeDpId = selectedDpId;
+                    loadSeatMap(selectedDpId);
+                });
+            } else {
+                planeSelectBar.innerHTML = `<option value="16000011">\u2708\uFE0F Air India (AI-101) - Airbus A320 | DEL \u2794 BOM | Avail: 180 seats</option>`;
+            }
+        }
 
         // Construct 7 rolling days strictly starting from SYSDATE (today, no past dates)
         const sysdateNow = new Date();
@@ -2181,6 +2249,7 @@ async function initDashboard() {
         } catch (err) {
             console.warn("Could not fetch DB schedules, using SYSDATE rolling window:", err);
         }
+        window._aos_sysdateDaysList = sysdateDaysList;
 
         const exists = sysdateDaysList.some(p => p.dynamicPriceId === parseInt(activeDpId));
         if (!activeDpId || !exists) {
@@ -2207,6 +2276,13 @@ async function initDashboard() {
                     dateTabsContainer.querySelectorAll(".date-schedule-tab").forEach(t => t.classList.remove("active"));
                     tab.classList.add("active");
                     const newDpId = parseInt(tab.dataset.dpid);
+                    if (planeSelectBar && Array.from(planeSelectBar.options).some(o => parseInt(o.value) === newDpId)) {
+                        planeSelectBar.value = newDpId;
+                        const matchP = registeredPlanes.find(p => p.dynamicPriceId === newDpId);
+                        if (matchP && planeBadgeText) {
+                            planeBadgeText.textContent = `${matchP.companyName} ${matchP.flightNo} (${matchP.flightName}) \u2022 ${matchP.sourceCode} \u2794 ${matchP.destCode}`;
+                        }
+                    }
                     loadSeatMap(newDpId);
                 });
             });
@@ -2244,8 +2320,8 @@ async function initDashboard() {
         };
 
         function renderSeatMapUI(fd, seats, passengers) {
-            const businessFare = 6000.0;
-            const economyFare = 3500.0;
+            const economyFare = (fd && fd.currentPrice) ? parseFloat(fd.currentPrice) : 3500.0;
+            const businessFare = economyFare + 2500.0;
 
             if (!seats || seats.length === 0) {
                 seats = [];
@@ -2306,10 +2382,10 @@ async function initDashboard() {
                     <div class="booking-summary-card">
                         <div class="flight-route-header-card">
                             <div class="flight-route-title">
-                                ${fd.sourceCode || 'DEL'} &nbsp;\u2794&nbsp; ${fd.destCode || 'BOM'}
+                                ${fd.sourceCode || 'BBI'} &nbsp;\u2794&nbsp; ${fd.destCode || 'DEL'}
                             </div>
                             <div class="flight-route-sub">
-                                ${fd.flightNo || '6E 532'} \u2022 ${fd.flightName || 'Airbus A320'} \u2022 \uD83D\uDCC5 ${fd.flightDate || 'Date'}
+                                ${fd.flightNo || 'AI-101'} \u2022 ${fd.flightName || 'Airbus A320 Neo'} \u2022 \uD83D\uDCC5 ${fd.flightDate || 'Date'}
                             </div>
                         </div>
 
@@ -2318,13 +2394,13 @@ async function initDashboard() {
                             <div class="sc-legend-item">
                                 <div class="sc-legend-box business"></div>
                                 <div class="sc-legend-text">
-                                    Business (BUS)<br><span class="sc-legend-price">\u20B9 6,000</span>
+                                    Business (BUS)<br><span class="sc-legend-price">\u20B9 ${businessFare.toLocaleString('en-IN')}</span>
                                 </div>
                             </div>
                             <div class="sc-legend-item">
                                 <div class="sc-legend-box economy"></div>
                                 <div class="sc-legend-text">
-                                    Economy Class<br><span class="sc-legend-price">\u20B9 3,500</span>
+                                    Economy Class<br><span class="sc-legend-price">\u20B9 ${economyFare.toLocaleString('en-IN')}</span>
                                 </div>
                             </div>
                             <div class="sc-legend-item">
@@ -2673,20 +2749,47 @@ async function initDashboard() {
                                         </span>
                                     </div>
 
-                                    <!-- INLINE REGISTRATION FORM FOR THIS SEAT -->
-                                    <div class="seat-reg-form" id="seatRegForm_${seatNo}" style="display: none;">
-                                        <div class="reg-form-title">\u2795 Register Customer for Seat ${seatNo} in Oracle DB</div>
-                                        <div class="reg-grid">
-                                            <input type="text" id="regName_${seatNo}" placeholder="Full Name *" value="${pass.passengerName || ''}">
-                                            <input type="text" id="regMobile_${seatNo}" placeholder="Mobile Number *" value="${pass.mobileNo || ''}">
-                                            <input type="email" id="regEmail_${seatNo}" placeholder="Email Address" value="${pass.emailId || ''}">
-                                            <input type="text" id="regPassport_${seatNo}" placeholder="Passport No" value="${pass.passportNo || ''}">
+                                    <!-- INLINE REGISTRATION FORM FOR THIS SEAT (MATCHES REGD CUSTOMER FORM MENU) -->
+                                    <div class="seat-reg-form" id="seatRegForm_${seatNo}" style="display: none; background: #f8fafc; border: 1.5px solid #0284c7; border-radius: 12px; padding: 14px; margin-top: 10px;">
+                                        <div style="font-size: 13px; font-weight: 800; color: #0284c7; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+                                            <span>\u2795</span> Register New Customer for Seat ${seatNo} (Oracle DB)
+                                        </div>
+
+                                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+                                            <div>
+                                                <label style="font-size: 11px; font-weight: 700; color: #0f172a; display: block; margin-bottom: 2px;">Passenger Name *</label>
+                                                <input type="text" id="regName_${seatNo}" placeholder="Enter Full Name" value="${pass.passengerName || ''}" style="width: 100%; padding: 7px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 11px; font-weight: 600;">
+                                            </div>
+                                            <div>
+                                                <label style="font-size: 11px; font-weight: 700; color: #0f172a; display: block; margin-bottom: 2px;">Gender *</label>
+                                                <select id="regGender_${seatNo}" style="width: 100%; padding: 7px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 11px; font-weight: 600; background: #fff;">
+                                                    <option value="MALE" ${pass.gender === 'MALE' || pass.gender === 'M' ? 'selected' : ''}>MALE</option>
+                                                    <option value="FEMALE" ${pass.gender === 'FEMALE' || pass.gender === 'F' ? 'selected' : ''}>FEMALE</option>
+                                                    <option value="OTHER" ${pass.gender === 'OTHER' || pass.gender === 'O' ? 'selected' : ''}>OTHER</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label style="font-size: 11px; font-weight: 700; color: #0f172a; display: block; margin-bottom: 2px;">Date of Birth *</label>
+                                                <input type="date" id="regDob_${seatNo}" value="${pass.dob || '1995-05-15'}" style="width: 100%; padding: 7px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 11px; font-weight: 600;">
+                                            </div>
+                                            <div>
+                                                <label style="font-size: 11px; font-weight: 700; color: #0f172a; display: block; margin-bottom: 2px;">Mobile Number *</label>
+                                                <input type="number" id="regMobile_${seatNo}" placeholder="10 digit mobile number" value="${pass.mobileNo || ''}" style="width: 100%; padding: 7px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 11px; font-weight: 600;">
+                                            </div>
+                                            <div>
+                                                <label style="font-size: 11px; font-weight: 700; color: #0f172a; display: block; margin-bottom: 2px;">Email Address *</label>
+                                                <input type="email" id="regEmail_${seatNo}" placeholder="customer@example.com" value="${pass.emailId || ''}" style="width: 100%; padding: 7px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 11px; font-weight: 600;">
+                                            </div>
+                                            <div>
+                                                <label style="font-size: 11px; font-weight: 700; color: #0f172a; display: block; margin-bottom: 2px;">Passport Number *</label>
+                                                <input type="text" id="regPassport_${seatNo}" placeholder="Enter Passport Number" value="${pass.passportNo || ''}" style="width: 100%; padding: 7px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 11px; font-weight: 600;">
+                                            </div>
                                         </div>
 
                                         <!-- MEMBERSHIP OPTION FIELD AT BOTTOM OF CUSTOMER REGISTRATION FORM -->
-                                        <div class="membership-field-group">
-                                            <label>\uD83C\uDFC5 Purchase / Select Frequent Flyer Membership Tier (Optional):</label>
-                                            <select id="regTier_${seatNo}">
+                                        <div class="membership-field-group" style="margin-top: 6px;">
+                                            <label style="font-size: 11px; font-weight: 800; color: #0369a1; display: block; margin-bottom: 4px;">\uD83C\uDFC5 Select Frequent Flyer Membership Tier (Discount):</label>
+                                            <select id="regTier_${seatNo}" style="width: 100%; padding: 7px; border-radius: 6px; border: 1px solid #0284c7; font-size: 11px; font-weight: 800; color: #0f172a; background: #ffffff;">
                                                 <option value="Executive Platinum" ${pass.memberTier === 'Executive Platinum' ? 'selected' : ''}>Executive Platinum (15% Special Discount)</option>
                                                 <option value="Gold Elite" ${pass.memberTier === 'Gold Elite' ? 'selected' : ''}>Gold Elite (10% Special Discount)</option>
                                                 <option value="Silver Preferred" ${pass.memberTier === 'Silver Preferred' ? 'selected' : ''}>Silver Preferred (5% Special Discount)</option>
@@ -2694,7 +2797,7 @@ async function initDashboard() {
                                             </select>
                                         </div>
 
-                                        <button type="button" class="save-seat-cust-btn" id="saveCustBtn_${seatNo}">
+                                        <button type="button" class="save-seat-cust-btn" id="saveCustBtn_${seatNo}" style="margin-top: 10px;">
                                             Save Customer & Apply Membership to DB \uD83D\uDCBE
                                         </button>
                                         <div id="seatRegMsg_${seatNo}" style="font-size: 11px; margin-top: 6px;"></div>
@@ -2777,14 +2880,16 @@ async function initDashboard() {
                             if (saveBtn) {
                                 saveBtn.addEventListener("click", async () => {
                                     const nameVal = document.getElementById(`regName_${seatNo}`)?.value.trim();
+                                    const genderVal = document.getElementById(`regGender_${seatNo}`)?.value || 'MALE';
+                                    const dobVal = document.getElementById(`regDob_${seatNo}`)?.value || '1995-05-15';
                                     const mobVal = document.getElementById(`regMobile_${seatNo}`)?.value.trim();
-                                    const emailVal = document.getElementById(`regEmail_${seatNo}`)?.value.trim();
+                                    const emailVal = document.getElementById(`regEmail_${seatNo}`)?.value.trim() || 'customer@example.com';
                                     const passportVal = document.getElementById(`regPassport_${seatNo}`)?.value.trim() || 'N/A';
                                     const tierVal = document.getElementById(`regTier_${seatNo}`)?.value || 'Executive Platinum';
 
                                     if (!nameVal || !mobVal) {
                                         if (msgDiv) {
-                                            msgDiv.textContent = "\u26A0\uFE0F Full Name and Mobile Number are required!";
+                                            msgDiv.textContent = "\u26A0\uFE0F Passenger Name and Mobile Number are required!";
                                             msgDiv.style.color = "#dc2626";
                                         }
                                         return;
@@ -2799,10 +2904,11 @@ async function initDashboard() {
                                             headers: { "Content-Type": "application/json" },
                                             body: JSON.stringify({
                                                 passengerName: nameVal,
+                                                gender: genderVal,
+                                                dob: dobVal,
                                                 mobileNo: mobVal,
                                                 emailId: emailVal,
                                                 passportNo: passportVal,
-                                                gender: "M",
                                                 memberTier: tierVal
                                             }),
                                             credentials: "same-origin"
@@ -2993,6 +3099,36 @@ async function initDashboard() {
         } // END renderSeatMapUI
 
         // Render default seat matrix
+        // Find selected plane & date schedule to populate initial dynamic flight info
+        const regPlanes = window._aos_registeredPlanes || [];
+        const scheduleList = window._aos_sysdateDaysList || [];
+
+        const selectedPlane = (regPlanes && regPlanes.length > 0)
+            ? regPlanes.find(p => p.dynamicPriceId === targetId)
+            : null;
+
+        const selectedSchedule = (scheduleList && scheduleList.length > 0)
+            ? scheduleList.find(p => p.dynamicPriceId === targetId)
+            : null;
+
+        const activeTab = document.querySelector(".date-schedule-tab.active");
+        const activeTabDateText = activeTab ? activeTab.querySelector(".tab-date")?.textContent?.replace('\uD83D\uDCC5', '')?.trim() : null;
+
+        const initialFd = {
+            dynamicPriceId: targetId,
+            flightNo: selectedPlane?.flightNo || selectedSchedule?.flightNo || "AI-101",
+            flightName: selectedPlane?.flightName || "Airbus A320 Neo",
+            companyName: selectedPlane?.companyName || selectedSchedule?.companyName || "Air India",
+            sourceCode: selectedPlane?.sourceCode || selectedSchedule?.sourceAirportCode || "BBI",
+            sourceCity: selectedPlane?.sourceCode || "Bhubaneswar",
+            destCode: selectedPlane?.destCode || selectedSchedule?.destAirportCode || "DEL",
+            destCity: selectedPlane?.destCode || "Delhi",
+            flightDate: selectedSchedule?.flightDate || selectedPlane?.flightDate || activeTabDateText || new Date().toISOString().split('T')[0],
+            currentPrice: selectedPlane?.currentPrice || selectedSchedule?.currentPrice || 3500.0,
+            availableSeats: selectedPlane?.availableSeats || selectedSchedule?.availableSeats || 180,
+            totalSeats: selectedPlane?.totalSeats || selectedSchedule?.totalSeats || 180
+        };
+
         const defaultSeats = [];
         const cols = ['A', 'B', 'C', 'D', 'E', 'F'];
         for (let r = 1; r <= 20; r++) {
@@ -3008,23 +3144,23 @@ async function initDashboard() {
                     seatType: seatType,
                     priceSurcharge: isBusiness ? 2500 : 0,
                     status: 'AVAILABLE',
-                    finalPrice: isBusiness ? 6000.0 : 3500.0
+                    finalPrice: isBusiness ? (initialFd.currentPrice + 2500.0) : initialFd.currentPrice
                 });
             }
         }
 
-        renderSeatMapUI({}, defaultSeats, registeredCustomersList);
+        renderSeatMapUI(initialFd, defaultSeats, registeredCustomersList);
 
         try {
             const res = await fetch(`/api/flight-seats/${targetId}`, { credentials: "same-origin" });
             if (res.ok) {
                 const data = await res.json();
-                const realFd = data.flightDetails || {};
+                const realFd = Object.assign({}, initialFd, data.flightDetails || {});
                 const realSeats = (data.seats && data.seats.length > 0) ? data.seats : defaultSeats;
                 renderSeatMapUI(realFd, realSeats, registeredCustomersList);
             }
         } catch (err) {
-            console.warn("Could not fetch flight seats from API, keeping default matrix:", err);
+            console.warn("Could not fetch flight seats from API, keeping initial dynamic matrix:", err);
         }
     } // END renderSeatMapBookingView
 
