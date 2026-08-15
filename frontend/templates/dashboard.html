@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AOS Dashboard</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}?v=20260813_v9">
+    <link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}?v={{ cache_bust }}">
 </head>
 <body>
     <div class="dashboard-container">
@@ -27,7 +27,18 @@
             <hr class="sidebar-divider">
 
             <ul class="nav-links" id="navLinks">
-                <!-- Menus will be loaded directly from /api/me -->
+                <li class="active"><a href="javascript:void(0)" class="menu-link" data-menu="DASHBOARD" onclick="window.aosNavigateTo('DASHBOARD', this); return false;"><span class="icon">📊</span><span class="menu-text">Dashboard</span></a></li>
+                <li><a href="javascript:void(0)" class="menu-link" data-menu="CREATE CITY" onclick="window.aosNavigateTo('CREATE CITY', this); return false;"><span class="icon">🏙️</span><span class="menu-text">CREATE CITY</span></a></li>
+                <li><a href="javascript:void(0)" class="menu-link" data-menu="CREATE AIRPORT" onclick="window.aosNavigateTo('CREATE AIRPORT', this); return false;"><span class="icon">✈️</span><span class="menu-text">CREATE AIRPORT</span></a></li>
+                <li><a href="javascript:void(0)" class="menu-link" data-menu="CREATE FLIGHT" onclick="window.aosNavigateTo('CREATE FLIGHT', this); return false;"><span class="icon">✈️</span><span class="menu-text">CREATE FLIGHT</span></a></li>
+                <li><a href="javascript:void(0)" class="menu-link" data-menu="REGISTER CUSTOMER" onclick="window.aosNavigateTo('REGISTER CUSTOMER', this); return false;"><span class="icon">🎫</span><span class="menu-text">REGISTER CUSTOMER</span></a></li>
+                <li><a href="javascript:void(0)" class="menu-link" data-menu="CREATE USER" onclick="window.aosNavigateTo('CREATE USER', this); return false;"><span class="icon">👤</span><span class="menu-text">CREATE USER</span></a></li>
+                <li><a href="javascript:void(0)" class="menu-link" data-menu="ASSIGN ROLE TO USER" onclick="window.aosNavigateTo('ASSIGN ROLE TO USER', this); return false;"><span class="icon">👥</span><span class="menu-text">ASSIGN ROLE TO USER</span></a></li>
+                <li><a href="javascript:void(0)" class="menu-link" data-menu="CREATE MENU" onclick="window.aosNavigateTo('CREATE MENU', this); return false;"><span class="icon">📄</span><span class="menu-text">CREATE MENU</span></a></li>
+                <li><a href="javascript:void(0)" class="menu-link" data-menu="ASSIGN ROLE TO MENU" onclick="window.aosNavigateTo('ASSIGN ROLE TO MENU', this); return false;"><span class="icon">📄</span><span class="menu-text">ASSIGN ROLE TO MENU</span></a></li>
+                <li><a href="javascript:void(0)" class="menu-link" data-menu="CREATE FLIGHT COMPANY" onclick="window.aosNavigateTo('CREATE FLIGHT COMPANY', this); return false;"><span class="icon">✈️</span><span class="menu-text">CREATE FLIGHT COMPANY</span></a></li>
+                <li><a href="javascript:void(0)" class="menu-link" data-menu="SEAT BOOKING" onclick="window.aosNavigateTo('SEAT BOOKING', this); return false;"><span class="icon">🎫</span><span class="menu-text">SEAT BOOKING</span></a></li>
+                <li><a href="javascript:void(0)" class="menu-link" data-menu="CREATE DYNAMIC PRICE" onclick="window.aosNavigateTo('CREATE DYNAMIC PRICE', this); return false;"><span class="icon">💸</span><span class="menu-text">CREATE DYNAMIC PRICE</span></a></li>
             </ul>
         </aside>
 
@@ -84,7 +95,7 @@
                         <div class="icon-circle orange">👥</div>
                         <div class="stat-info">
                             <h3>Active Crew</h3>
-                            <h2 id="activeCrewCount">0</h2>
+                            <h2 id="activeCrewCount">29</h2>
                         </div>
                     </div>
 
@@ -103,8 +114,937 @@
                        <h3 style="font-size: 16px; font-weight: 700; color: var(--text-main); margin: 0;">Registered System Users / Crew 👥</h3>
                    </div>
                    <div id="usersGrid" class="users-grid">
-                       <!-- User glass cards loaded dynamically -->
-                   </div>
+
+                    <div class="user-glass-card my-profile-card">
+                        <div class="user-card-header">
+                            <div class="user-avatar-container">
+                                <img src="/api/passport-photo?id=10000001" alt="Dushmantadas" class="user-avatar-circle" onerror="this.src='https://ui-avatars.com/api/?name=Dushmantadas&background=0D8ABC&color=fff'">
+                                <span class="status-badge-dot active" title="Active User"></span>
+                            </div>
+                            <div class="user-name-role">
+                                <h4>Dushmantadas (You)</h4>
+                                <span class="user-role-badge admin">ADMIN</span>
+                            </div>
+                        </div>
+                        <div class="user-card-details">
+                            <div class="detail-field">
+                                <span class="detail-label">User ID</span>
+                                <span class="detail-value">#10000001</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Username / Email</span>
+                                <span class="detail-value">dushmantadas@aos.com</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Mobile Number</span>
+                                <span class="detail-value">7008233179</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Account Status</span>
+                                <span class="detail-value" style="color: #34C759; font-weight: 700;">Active</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="user-glass-card">
+                        <div class="user-card-header">
+                            <div class="user-avatar-container">
+                                <img src="/api/passport-photo?id=10000002" alt="Darshildas" class="user-avatar-circle" onerror="this.src='https://ui-avatars.com/api/?name=Darshildas&background=0D8ABC&color=fff'">
+                                <span class="status-badge-dot active" title="Active User"></span>
+                            </div>
+                            <div class="user-name-role">
+                                <h4>Darshildas</h4>
+                                <span class="user-role-badge user">CO-PILOT</span>
+                            </div>
+                        </div>
+                        <div class="user-card-details">
+                            <div class="detail-field">
+                                <span class="detail-label">User ID</span>
+                                <span class="detail-value">#10000002</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Username / Email</span>
+                                <span class="detail-value">darshildas@aos.com</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Mobile Number</span>
+                                <span class="detail-value">9861017552</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Account Status</span>
+                                <span class="detail-value" style="color: #34C759; font-weight: 700;">Active</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="user-glass-card">
+                        <div class="user-card-header">
+                            <div class="user-avatar-container">
+                                <img src="/api/passport-photo?id=10000021" alt="Rahulnayak" class="user-avatar-circle" onerror="this.src='https://ui-avatars.com/api/?name=Rahulnayak&background=0D8ABC&color=fff'">
+                                <span class="status-badge-dot active" title="Active User"></span>
+                            </div>
+                            <div class="user-name-role">
+                                <h4>Rahulnayak</h4>
+                                <span class="user-role-badge user">MAINTENANCE ENGINEER</span>
+                            </div>
+                        </div>
+                        <div class="user-card-details">
+                            <div class="detail-field">
+                                <span class="detail-label">User ID</span>
+                                <span class="detail-value">#10000021</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Username / Email</span>
+                                <span class="detail-value">rahulnayak@aos.com</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Mobile Number</span>
+                                <span class="detail-value">9123456701</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Account Status</span>
+                                <span class="detail-value" style="color: #34C759; font-weight: 700;">Active</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="user-glass-card">
+                        <div class="user-card-header">
+                            <div class="user-avatar-container">
+                                <img src="/api/passport-photo?id=10000022" alt="Soumendas" class="user-avatar-circle" onerror="this.src='https://ui-avatars.com/api/?name=Soumendas&background=0D8ABC&color=fff'">
+                                <span class="status-badge-dot active" title="Active User"></span>
+                            </div>
+                            <div class="user-name-role">
+                                <h4>Soumendas</h4>
+                                <span class="user-role-badge user">GROUND STAFF</span>
+                            </div>
+                        </div>
+                        <div class="user-card-details">
+                            <div class="detail-field">
+                                <span class="detail-label">User ID</span>
+                                <span class="detail-value">#10000022</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Username / Email</span>
+                                <span class="detail-value">soumendas@aos.com</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Mobile Number</span>
+                                <span class="detail-value">9123456702</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Account Status</span>
+                                <span class="detail-value" style="color: #34C759; font-weight: 700;">Active</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="user-glass-card">
+                        <div class="user-card-header">
+                            <div class="user-avatar-container">
+                                <img src="/api/passport-photo?id=10000023" alt="Adityamishra" class="user-avatar-circle" onerror="this.src='https://ui-avatars.com/api/?name=Adityamishra&background=0D8ABC&color=fff'">
+                                <span class="status-badge-dot active" title="Active User"></span>
+                            </div>
+                            <div class="user-name-role">
+                                <h4>Adityamishra</h4>
+                                <span class="user-role-badge user">AIR TRAFFIC COORDINATOR</span>
+                            </div>
+                        </div>
+                        <div class="user-card-details">
+                            <div class="detail-field">
+                                <span class="detail-label">User ID</span>
+                                <span class="detail-value">#10000023</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Username / Email</span>
+                                <span class="detail-value">adityamishra@aos.com</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Mobile Number</span>
+                                <span class="detail-value">9123456703</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Account Status</span>
+                                <span class="detail-value" style="color: #34C759; font-weight: 700;">Active</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="user-glass-card">
+                        <div class="user-card-header">
+                            <div class="user-avatar-container">
+                                <img src="/api/passport-photo?id=10000024" alt="Amanpatel" class="user-avatar-circle" onerror="this.src='https://ui-avatars.com/api/?name=Amanpatel&background=0D8ABC&color=fff'">
+                                <span class="status-badge-dot active" title="Active User"></span>
+                            </div>
+                            <div class="user-name-role">
+                                <h4>Amanpatel</h4>
+                                <span class="user-role-badge user">BAGGAGE HANDLER</span>
+                            </div>
+                        </div>
+                        <div class="user-card-details">
+                            <div class="detail-field">
+                                <span class="detail-label">User ID</span>
+                                <span class="detail-value">#10000024</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Username / Email</span>
+                                <span class="detail-value">amanpatel@aos.com</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Mobile Number</span>
+                                <span class="detail-value">9123456704</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Account Status</span>
+                                <span class="detail-value" style="color: #34C759; font-weight: 700;">Active</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="user-glass-card">
+                        <div class="user-card-header">
+                            <div class="user-avatar-container">
+                                <img src="/api/passport-photo?id=10000025" alt="Rohitsahoo" class="user-avatar-circle" onerror="this.src='https://ui-avatars.com/api/?name=Rohitsahoo&background=0D8ABC&color=fff'">
+                                <span class="status-badge-dot active" title="Active User"></span>
+                            </div>
+                            <div class="user-name-role">
+                                <h4>Rohitsahoo</h4>
+                                <span class="user-role-badge user">TICKETING OFFICER</span>
+                            </div>
+                        </div>
+                        <div class="user-card-details">
+                            <div class="detail-field">
+                                <span class="detail-label">User ID</span>
+                                <span class="detail-value">#10000025</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Username / Email</span>
+                                <span class="detail-value">rohitsahoo@aos.com</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Mobile Number</span>
+                                <span class="detail-value">9123456705</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Account Status</span>
+                                <span class="detail-value" style="color: #34C759; font-weight: 700;">Active</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="user-glass-card">
+                        <div class="user-card-header">
+                            <div class="user-avatar-container">
+                                <img src="/api/passport-photo?id=10000026" alt="Pratigayanpattnaik" class="user-avatar-circle" onerror="this.src='https://ui-avatars.com/api/?name=Pratigayanpattnaik&background=0D8ABC&color=fff'">
+                                <span class="status-badge-dot active" title="Active User"></span>
+                            </div>
+                            <div class="user-name-role">
+                                <h4>Pratigayanpattnaik</h4>
+                                <span class="user-role-badge user">FINANCE OFFICER</span>
+                            </div>
+                        </div>
+                        <div class="user-card-details">
+                            <div class="detail-field">
+                                <span class="detail-label">User ID</span>
+                                <span class="detail-value">#10000026</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Username / Email</span>
+                                <span class="detail-value">pratigayanpattnaik@aos.com</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Mobile Number</span>
+                                <span class="detail-value">9123456706</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Account Status</span>
+                                <span class="detail-value" style="color: #34C759; font-weight: 700;">Active</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="user-glass-card">
+                        <div class="user-card-header">
+                            <div class="user-avatar-container">
+                                <img src="/api/passport-photo?id=10000027" alt="Priyasharma" class="user-avatar-circle" onerror="this.src='https://ui-avatars.com/api/?name=Priyasharma&background=0D8ABC&color=fff'">
+                                <span class="status-badge-dot active" title="Active User"></span>
+                            </div>
+                            <div class="user-name-role">
+                                <h4>Priyasharma</h4>
+                                <span class="user-role-badge user">GROUND STAFF</span>
+                            </div>
+                        </div>
+                        <div class="user-card-details">
+                            <div class="detail-field">
+                                <span class="detail-label">User ID</span>
+                                <span class="detail-value">#10000027</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Username / Email</span>
+                                <span class="detail-value">priyasharma@aos.com</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Mobile Number</span>
+                                <span class="detail-value">9123456707</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Account Status</span>
+                                <span class="detail-value" style="color: #34C759; font-weight: 700;">Active</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="user-glass-card">
+                        <div class="user-card-header">
+                            <div class="user-avatar-container">
+                                <img src="/api/passport-photo?id=10000028" alt="Snehadas" class="user-avatar-circle" onerror="this.src='https://ui-avatars.com/api/?name=Snehadas&background=0D8ABC&color=fff'">
+                                <span class="status-badge-dot active" title="Active User"></span>
+                            </div>
+                            <div class="user-name-role">
+                                <h4>Snehadas</h4>
+                                <span class="user-role-badge user">SECURITY OFFICER</span>
+                            </div>
+                        </div>
+                        <div class="user-card-details">
+                            <div class="detail-field">
+                                <span class="detail-label">User ID</span>
+                                <span class="detail-value">#10000028</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Username / Email</span>
+                                <span class="detail-value">snehadas@aos.com</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Mobile Number</span>
+                                <span class="detail-value">9123456708</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Account Status</span>
+                                <span class="detail-value" style="color: #34C759; font-weight: 700;">Active</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="user-glass-card">
+                        <div class="user-card-header">
+                            <div class="user-avatar-container">
+                                <img src="/api/passport-photo?id=10000029" alt="Ananyamohanty" class="user-avatar-circle" onerror="this.src='https://ui-avatars.com/api/?name=Ananyamohanty&background=0D8ABC&color=fff'">
+                                <span class="status-badge-dot active" title="Active User"></span>
+                            </div>
+                            <div class="user-name-role">
+                                <h4>Ananyamohanty</h4>
+                                <span class="user-role-badge user">CABIN CREW</span>
+                            </div>
+                        </div>
+                        <div class="user-card-details">
+                            <div class="detail-field">
+                                <span class="detail-label">User ID</span>
+                                <span class="detail-value">#10000029</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Username / Email</span>
+                                <span class="detail-value">ananyamohanty@aos.com</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Mobile Number</span>
+                                <span class="detail-value">9123456709</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Account Status</span>
+                                <span class="detail-value" style="color: #34C759; font-weight: 700;">Active</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="user-glass-card">
+                        <div class="user-card-header">
+                            <div class="user-avatar-container">
+                                <img src="/api/passport-photo?id=10000030" alt="Sunitanayak" class="user-avatar-circle" onerror="this.src='https://ui-avatars.com/api/?name=Sunitanayak&background=0D8ABC&color=fff'">
+                                <span class="status-badge-dot active" title="Active User"></span>
+                            </div>
+                            <div class="user-name-role">
+                                <h4>Sunitanayak</h4>
+                                <span class="user-role-badge user">CUSTOMER SUPPORT</span>
+                            </div>
+                        </div>
+                        <div class="user-card-details">
+                            <div class="detail-field">
+                                <span class="detail-label">User ID</span>
+                                <span class="detail-value">#10000030</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Username / Email</span>
+                                <span class="detail-value">sunitanayak@aos.com</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Mobile Number</span>
+                                <span class="detail-value">9123456710</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Account Status</span>
+                                <span class="detail-value" style="color: #34C759; font-weight: 700;">Active</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="user-glass-card">
+                        <div class="user-card-header">
+                            <div class="user-avatar-container">
+                                <img src="/api/passport-photo?id=10000031" alt="Admin" class="user-avatar-circle" onerror="this.src='https://ui-avatars.com/api/?name=Admin&background=0D8ABC&color=fff'">
+                                <span class="status-badge-dot active" title="Active User"></span>
+                            </div>
+                            <div class="user-name-role">
+                                <h4>Admin</h4>
+                                <span class="user-role-badge user">AIRPORT MANAGER</span>
+                            </div>
+                        </div>
+                        <div class="user-card-details">
+                            <div class="detail-field">
+                                <span class="detail-label">User ID</span>
+                                <span class="detail-value">#10000031</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Username / Email</span>
+                                <span class="detail-value">admin@aos.com</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Mobile Number</span>
+                                <span class="detail-value">9123456700</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Account Status</span>
+                                <span class="detail-value" style="color: #34C759; font-weight: 700;">Active</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="user-glass-card">
+                        <div class="user-card-header">
+                            <div class="user-avatar-container">
+                                <img src="/api/passport-photo?id=10000043" alt="Prayagayanpattnaik" class="user-avatar-circle" onerror="this.src='https://ui-avatars.com/api/?name=Prayagayanpattnaik&background=0D8ABC&color=fff'">
+                                <span class="status-badge-dot active" title="Active User"></span>
+                            </div>
+                            <div class="user-name-role">
+                                <h4>Prayagayanpattnaik</h4>
+                                <span class="user-role-badge user">GROUND STAFF</span>
+                            </div>
+                        </div>
+                        <div class="user-card-details">
+                            <div class="detail-field">
+                                <span class="detail-label">User ID</span>
+                                <span class="detail-value">#10000043</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Username / Email</span>
+                                <span class="detail-value">prayagayanpattnaik@aos.com</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Mobile Number</span>
+                                <span class="detail-value">9556100003</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Account Status</span>
+                                <span class="detail-value" style="color: #34C759; font-weight: 700;">Active</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="user-glass-card">
+                        <div class="user-card-header">
+                            <div class="user-avatar-container">
+                                <img src="/api/passport-photo?id=10000046" alt="Amitpatel" class="user-avatar-circle" onerror="this.src='https://ui-avatars.com/api/?name=Amitpatel&background=0D8ABC&color=fff'">
+                                <span class="status-badge-dot active" title="Active User"></span>
+                            </div>
+                            <div class="user-name-role">
+                                <h4>Amitpatel</h4>
+                                <span class="user-role-badge user">BOARDING AGENT</span>
+                            </div>
+                        </div>
+                        <div class="user-card-details">
+                            <div class="detail-field">
+                                <span class="detail-label">User ID</span>
+                                <span class="detail-value">#10000046</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Username / Email</span>
+                                <span class="detail-value">amitpatel@aos.com</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Mobile Number</span>
+                                <span class="detail-value">9556100006</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Account Status</span>
+                                <span class="detail-value" style="color: #34C759; font-weight: 700;">Active</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="user-glass-card">
+                        <div class="user-card-header">
+                            <div class="user-avatar-container">
+                                <img src="/api/passport-photo?id=10000048" alt="Vikassahoo" class="user-avatar-circle" onerror="this.src='https://ui-avatars.com/api/?name=Vikassahoo&background=0D8ABC&color=fff'">
+                                <span class="status-badge-dot active" title="Active User"></span>
+                            </div>
+                            <div class="user-name-role">
+                                <h4>Vikassahoo</h4>
+                                <span class="user-role-badge user">GATE AGENT</span>
+                            </div>
+                        </div>
+                        <div class="user-card-details">
+                            <div class="detail-field">
+                                <span class="detail-label">User ID</span>
+                                <span class="detail-value">#10000048</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Username / Email</span>
+                                <span class="detail-value">vikassahoo@aos.com</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Mobile Number</span>
+                                <span class="detail-value">9556100008</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Account Status</span>
+                                <span class="detail-value" style="color: #34C759; font-weight: 700;">Active</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="user-glass-card">
+                        <div class="user-card-header">
+                            <div class="user-avatar-container">
+                                <img src="/api/passport-photo?id=10000050" alt="Dushmanta Manager" class="user-avatar-circle" onerror="this.src='https://ui-avatars.com/api/?name=Dushmanta Manager&background=0D8ABC&color=fff'">
+                                <span class="status-badge-dot active" title="Active User"></span>
+                            </div>
+                            <div class="user-name-role">
+                                <h4>Dushmanta Manager</h4>
+                                <span class="user-role-badge user">CUSTOMER SUPPORT</span>
+                            </div>
+                        </div>
+                        <div class="user-card-details">
+                            <div class="detail-field">
+                                <span class="detail-label">User ID</span>
+                                <span class="detail-value">#10000050</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Username / Email</span>
+                                <span class="detail-value">dushmanta.manager@aos.com</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Mobile Number</span>
+                                <span class="detail-value">9540010002</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Account Status</span>
+                                <span class="detail-value" style="color: #34C759; font-weight: 700;">Active</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="user-glass-card">
+                        <div class="user-card-header">
+                            <div class="user-avatar-container">
+                                <img src="/api/passport-photo?id=10000051" alt="Prayagayan Hr" class="user-avatar-circle" onerror="this.src='https://ui-avatars.com/api/?name=Prayagayan Hr&background=0D8ABC&color=fff'">
+                                <span class="status-badge-dot active" title="Active User"></span>
+                            </div>
+                            <div class="user-name-role">
+                                <h4>Prayagayan Hr</h4>
+                                <span class="user-role-badge user">HR MANAGER</span>
+                            </div>
+                        </div>
+                        <div class="user-card-details">
+                            <div class="detail-field">
+                                <span class="detail-label">User ID</span>
+                                <span class="detail-value">#10000051</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Username / Email</span>
+                                <span class="detail-value">prayagayan.hr@aos.com</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Mobile Number</span>
+                                <span class="detail-value">9540010003</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Account Status</span>
+                                <span class="detail-value" style="color: #34C759; font-weight: 700;">Active</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="user-glass-card">
+                        <div class="user-card-header">
+                            <div class="user-avatar-container">
+                                <img src="/api/passport-photo?id=10000052" alt="Rahul Operator" class="user-avatar-circle" onerror="this.src='https://ui-avatars.com/api/?name=Rahul Operator&background=0D8ABC&color=fff'">
+                                <span class="status-badge-dot active" title="Active User"></span>
+                            </div>
+                            <div class="user-name-role">
+                                <h4>Rahul Operator</h4>
+                                <span class="user-role-badge operator">OPERATOR</span>
+                            </div>
+                        </div>
+                        <div class="user-card-details">
+                            <div class="detail-field">
+                                <span class="detail-label">User ID</span>
+                                <span class="detail-value">#10000052</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Username / Email</span>
+                                <span class="detail-value">rahul.operator@aos.com</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Mobile Number</span>
+                                <span class="detail-value">9540010004</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Account Status</span>
+                                <span class="detail-value" style="color: #34C759; font-weight: 700;">Active</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="user-glass-card">
+                        <div class="user-card-header">
+                            <div class="user-avatar-container">
+                                <img src="/api/passport-photo?id=10000053" alt="Priya Booking" class="user-avatar-circle" onerror="this.src='https://ui-avatars.com/api/?name=Priya Booking&background=0D8ABC&color=fff'">
+                                <span class="status-badge-dot active" title="Active User"></span>
+                            </div>
+                            <div class="user-name-role">
+                                <h4>Priya Booking</h4>
+                                <span class="user-role-badge user">BOOKING AGENT</span>
+                            </div>
+                        </div>
+                        <div class="user-card-details">
+                            <div class="detail-field">
+                                <span class="detail-label">User ID</span>
+                                <span class="detail-value">#10000053</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Username / Email</span>
+                                <span class="detail-value">priya.booking@aos.com</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Mobile Number</span>
+                                <span class="detail-value">9540010005</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Account Status</span>
+                                <span class="detail-value" style="color: #34C759; font-weight: 700;">Active</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="user-glass-card">
+                        <div class="user-card-header">
+                            <div class="user-avatar-container">
+                                <img src="/api/passport-photo?id=10000054" alt="Amit Ticketing" class="user-avatar-circle" onerror="this.src='https://ui-avatars.com/api/?name=Amit Ticketing&background=0D8ABC&color=fff'">
+                                <span class="status-badge-dot active" title="Active User"></span>
+                            </div>
+                            <div class="user-name-role">
+                                <h4>Amit Ticketing</h4>
+                                <span class="user-role-badge user">BAGGAGE HANDLER</span>
+                            </div>
+                        </div>
+                        <div class="user-card-details">
+                            <div class="detail-field">
+                                <span class="detail-label">User ID</span>
+                                <span class="detail-value">#10000054</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Username / Email</span>
+                                <span class="detail-value">amit.ticketing@aos.com</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Mobile Number</span>
+                                <span class="detail-value">9540010006</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Account Status</span>
+                                <span class="detail-value" style="color: #34C759; font-weight: 700;">Active</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="user-glass-card">
+                        <div class="user-card-header">
+                            <div class="user-avatar-container">
+                                <img src="/api/passport-photo?id=10000054" alt="Amit Ticketing" class="user-avatar-circle" onerror="this.src='https://ui-avatars.com/api/?name=Amit Ticketing&background=0D8ABC&color=fff'">
+                                <span class="status-badge-dot active" title="Active User"></span>
+                            </div>
+                            <div class="user-name-role">
+                                <h4>Amit Ticketing</h4>
+                                <span class="user-role-badge user">BOOKING AGENT</span>
+                            </div>
+                        </div>
+                        <div class="user-card-details">
+                            <div class="detail-field">
+                                <span class="detail-label">User ID</span>
+                                <span class="detail-value">#10000054</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Username / Email</span>
+                                <span class="detail-value">amit.ticketing@aos.com</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Mobile Number</span>
+                                <span class="detail-value">9540010006</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Account Status</span>
+                                <span class="detail-value" style="color: #34C759; font-weight: 700;">Active</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="user-glass-card">
+                        <div class="user-card-header">
+                            <div class="user-avatar-container">
+                                <img src="/api/passport-photo?id=10000055" alt="Sneha Support" class="user-avatar-circle" onerror="this.src='https://ui-avatars.com/api/?name=Sneha Support&background=0D8ABC&color=fff'">
+                                <span class="status-badge-dot active" title="Active User"></span>
+                            </div>
+                            <div class="user-name-role">
+                                <h4>Sneha Support</h4>
+                                <span class="user-role-badge user">USER</span>
+                            </div>
+                        </div>
+                        <div class="user-card-details">
+                            <div class="detail-field">
+                                <span class="detail-label">User ID</span>
+                                <span class="detail-value">#10000055</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Username / Email</span>
+                                <span class="detail-value">sneha.support@aos.com</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Mobile Number</span>
+                                <span class="detail-value">9540010007</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Account Status</span>
+                                <span class="detail-value" style="color: #34C759; font-weight: 700;">Active</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="user-glass-card">
+                        <div class="user-card-header">
+                            <div class="user-avatar-container">
+                                <img src="/api/passport-photo?id=10000056" alt="Vikas Security" class="user-avatar-circle" onerror="this.src='https://ui-avatars.com/api/?name=Vikas Security&background=0D8ABC&color=fff'">
+                                <span class="status-badge-dot active" title="Active User"></span>
+                            </div>
+                            <div class="user-name-role">
+                                <h4>Vikas Security</h4>
+                                <span class="user-role-badge user">SECURITY OFFICER</span>
+                            </div>
+                        </div>
+                        <div class="user-card-details">
+                            <div class="detail-field">
+                                <span class="detail-label">User ID</span>
+                                <span class="detail-value">#10000056</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Username / Email</span>
+                                <span class="detail-value">vikas.security@aos.com</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Mobile Number</span>
+                                <span class="detail-value">9540010008</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Account Status</span>
+                                <span class="detail-value" style="color: #34C759; font-weight: 700;">Active</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="user-glass-card">
+                        <div class="user-card-header">
+                            <div class="user-avatar-container">
+                                <img src="/api/passport-photo?id=10000057" alt="Ananya Checkin" class="user-avatar-circle" onerror="this.src='https://ui-avatars.com/api/?name=Ananya Checkin&background=0D8ABC&color=fff'">
+                                <span class="status-badge-dot active" title="Active User"></span>
+                            </div>
+                            <div class="user-name-role">
+                                <h4>Ananya Checkin</h4>
+                                <span class="user-role-badge user">CHECK-IN AGENT</span>
+                            </div>
+                        </div>
+                        <div class="user-card-details">
+                            <div class="detail-field">
+                                <span class="detail-label">User ID</span>
+                                <span class="detail-value">#10000057</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Username / Email</span>
+                                <span class="detail-value">ananya.checkin@aos.com</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Mobile Number</span>
+                                <span class="detail-value">9540010009</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Account Status</span>
+                                <span class="detail-value" style="color: #34C759; font-weight: 700;">Active</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="user-glass-card">
+                        <div class="user-card-header">
+                            <div class="user-avatar-container">
+                                <img src="/api/passport-photo?id=10000058" alt="Pilot Captain" class="user-avatar-circle" onerror="this.src='https://ui-avatars.com/api/?name=Pilot Captain&background=0D8ABC&color=fff'">
+                                <span class="status-badge-dot active" title="Active User"></span>
+                            </div>
+                            <div class="user-name-role">
+                                <h4>Pilot Captain</h4>
+                                <span class="user-role-badge user">PILOT</span>
+                            </div>
+                        </div>
+                        <div class="user-card-details">
+                            <div class="detail-field">
+                                <span class="detail-label">User ID</span>
+                                <span class="detail-value">#10000058</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Username / Email</span>
+                                <span class="detail-value">pilot.captain@aos.com</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Mobile Number</span>
+                                <span class="detail-value">9540010010</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Account Status</span>
+                                <span class="detail-value" style="color: #34C759; font-weight: 700;">Active</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="user-glass-card">
+                        <div class="user-card-header">
+                            <div class="user-avatar-container">
+                                <img src="/api/passport-photo?id=10000059" alt="Darshil Admin" class="user-avatar-circle" onerror="this.src='https://ui-avatars.com/api/?name=Darshil Admin&background=0D8ABC&color=fff'">
+                                <span class="status-badge-dot active" title="Active User"></span>
+                            </div>
+                            <div class="user-name-role">
+                                <h4>Darshil Admin</h4>
+                                <span class="user-role-badge admin">ADMIN</span>
+                            </div>
+                        </div>
+                        <div class="user-card-details">
+                            <div class="detail-field">
+                                <span class="detail-label">User ID</span>
+                                <span class="detail-value">#10000059</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Username / Email</span>
+                                <span class="detail-value">darshil.admin@aos.com</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Mobile Number</span>
+                                <span class="detail-value">9540010001</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Account Status</span>
+                                <span class="detail-value" style="color: #34C759; font-weight: 700;">Active</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="user-glass-card">
+                        <div class="user-card-header">
+                            <div class="user-avatar-container">
+                                <img src="/api/passport-photo?id=10000060" alt="Neha Finance" class="user-avatar-circle" onerror="this.src='https://ui-avatars.com/api/?name=Neha Finance&background=0D8ABC&color=fff'">
+                                <span class="status-badge-dot active" title="Active User"></span>
+                            </div>
+                            <div class="user-name-role">
+                                <h4>Neha Finance</h4>
+                                <span class="user-role-badge user">USER</span>
+                            </div>
+                        </div>
+                        <div class="user-card-details">
+                            <div class="detail-field">
+                                <span class="detail-label">User ID</span>
+                                <span class="detail-value">#10000060</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Username / Email</span>
+                                <span class="detail-value">neha.finance@aos.com</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Mobile Number</span>
+                                <span class="detail-value">9540010011</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Account Status</span>
+                                <span class="detail-value" style="color: #34C759; font-weight: 700;">Active</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="user-glass-card">
+                        <div class="user-card-header">
+                            <div class="user-avatar-container">
+                                <img src="/api/passport-photo?id=10000061" alt="Arjun Engineer" class="user-avatar-circle" onerror="this.src='https://ui-avatars.com/api/?name=Arjun Engineer&background=0D8ABC&color=fff'">
+                                <span class="status-badge-dot active" title="Active User"></span>
+                            </div>
+                            <div class="user-name-role">
+                                <h4>Arjun Engineer</h4>
+                                <span class="user-role-badge user">USER</span>
+                            </div>
+                        </div>
+                        <div class="user-card-details">
+                            <div class="detail-field">
+                                <span class="detail-label">User ID</span>
+                                <span class="detail-value">#10000061</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Username / Email</span>
+                                <span class="detail-value">arjun.engineer@aos.com</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Mobile Number</span>
+                                <span class="detail-value">9540010012</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Account Status</span>
+                                <span class="detail-value" style="color: #34C759; font-weight: 700;">Active</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="user-glass-card">
+                        <div class="user-card-header">
+                            <div class="user-avatar-container">
+                                <img src="/api/passport-photo?id=10000062" alt="Kavya Cabincrew" class="user-avatar-circle" onerror="this.src='https://ui-avatars.com/api/?name=Kavya Cabincrew&background=0D8ABC&color=fff'">
+                                <span class="status-badge-dot active" title="Active User"></span>
+                            </div>
+                            <div class="user-name-role">
+                                <h4>Kavya Cabincrew</h4>
+                                <span class="user-role-badge user">USER</span>
+                            </div>
+                        </div>
+                        <div class="user-card-details">
+                            <div class="detail-field">
+                                <span class="detail-label">User ID</span>
+                                <span class="detail-value">#10000062</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Username / Email</span>
+                                <span class="detail-value">kavya.cabincrew@aos.com</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Mobile Number</span>
+                                <span class="detail-value">9540010013</span>
+                            </div>
+                            <div class="detail-field">
+                                <span class="detail-label">Account Status</span>
+                                <span class="detail-value" style="color: #34C759; font-weight: 700;">Active</span>
+                            </div>
+                        </div>
+                    </div>
+</div>
                </div>
             </div>
         </main>
@@ -149,6 +1089,6 @@
         </div>
     </div>
 
-    <script src="{{ url_for('static', filename='dashboard.js') }}?v=20260813_v9"></script>
+    <script src="{{ url_for('static', filename='dashboard.js') }}?v={{ cache_bust }}" charset="utf-8"></script>
 </body>
 </html>

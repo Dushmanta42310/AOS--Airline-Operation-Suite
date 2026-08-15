@@ -1,3 +1,19 @@
+// Global navigation dispatcher available instantly on script load
+window.aosPendingMenu = null;
+window.aosNavigateTo = function(menuName, element) {
+    console.log("[AOS NAV] Navigating to:", menuName);
+    const li = element ? (element.closest ? element.closest('li') : null) : null;
+    if (window._aos_navigateToMenu) {
+        window._aos_navigateToMenu(menuName, li);
+    } else {
+        window.aosPendingMenu = { menuName, li };
+    }
+};
+
+function getMainContentEl() {
+    return document.querySelector(".content") || document.querySelector(".main-content") || document.querySelector("main");
+}
+
 async function initDashboard() {
     const avatarImg = document.getElementById("profileAvatar");
     const profileName = document.getElementById("profileName");
@@ -24,9 +40,13 @@ async function initDashboard() {
         });
     }
 
+    // Immediately render dashboard stats & staff cards on DOM load
+    renderHomeDashboard();
+
     // Fetch logged in user profile immediately from /api/me
     try {
         const res = await fetch("/api/me", {
+
             method: "GET",
             credentials: "same-origin"
         });
@@ -80,7 +100,9 @@ async function initDashboard() {
             }
 
             renderMenus(data.menus || []);
-            renderHomeDashboard();
+            // Update stats without re-wiping mainContent
+            loadDashboardStats();
+
 
             if (data.photoUrl) {
                 if (avatarImg) {
@@ -135,7 +157,7 @@ async function initDashboard() {
                     emptyState.id = "usersEmptySearchState";
                     emptyState.className = "empty-search-state";
                     emptyState.innerHTML = `
-                        <span>🔍</span>
+                        <span>\uD83D\uDD0D</span>
                         <p>No user matches found for "${e.target.value}"</p>
                     `;
                     const grid = document.getElementById("usersGrid");
@@ -161,17 +183,21 @@ async function initDashboard() {
     }
 
     function setActiveMenu(clickedLi) {
-        if (!navLinks) return;
-        navLinks.querySelectorAll("li").forEach(li => li.classList.remove("active"));
+        const navContainer = document.querySelector(".nav-links") || document.getElementById("navLinks");
+        if (navContainer) {
+            navContainer.querySelectorAll("li").forEach(li => li.classList.remove("active"));
+        }
         if (clickedLi) clickedLi.classList.add("active");
     }
 
+
     function renderCreateUserForm() {
+        const mainContent = getMainContentEl();
         if (!mainContent) return;
 
         mainContent.innerHTML = `
             <div class="welcome-banner">
-                <h1>Create New User 👤</h1>
+                <h1>Create New User \uD83D\uDC64</h1>
                 <p>Register a new employee into the Airline Operation Suite.</p>
             </div>
 
@@ -190,7 +216,7 @@ async function initDashboard() {
 
                         <div class="input-group">
                             <label>Password</label>
-                            <input type="password" name="password" placeholder="••••••••" required>
+                            <input type="password" name="password" placeholder="\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022" required>
                         </div>
 
                         <div class="input-group">
@@ -244,27 +270,28 @@ async function initDashboard() {
                 console.log("Create user response:", result);
 
                 if (res.ok) {
-                    msgDiv.textContent = "✅ " + result.message;
+                    msgDiv.textContent = "\u2705 " + result.message;
                     msgDiv.className = "form-message success";
                     form.reset();
                 } else {
-                    msgDiv.textContent = "❌ " + (result.message || "Failed to create user");
+                    msgDiv.textContent = "\u274C " + (result.message || "Failed to create user");
                     msgDiv.className = "form-message error";
                 }
             } catch (err) {
                 console.error("Create user error:", err);
-                msgDiv.textContent = "❌ Error connecting to server.";
+                msgDiv.textContent = "\u274C Error connecting to server.";
                 msgDiv.className = "form-message error";
             }
         };
     }
 
     function renderCreateRoleForm() {
+        const mainContent = getMainContentEl();
         if (!mainContent) return;
 
         mainContent.innerHTML = `
         <div class="welcome-banner">
-            <h1>Create & Manage Roles 🔑</h1>
+            <h1>Create & Manage Roles \uD83D\uDD11</h1>
             <p>Create new administrative roles or remove existing ones.</p>
         </div>
 
@@ -365,18 +392,18 @@ async function initDashboard() {
                 const result = await res.json();
 
                 if (res.ok) {
-                    createMsg.textContent = "✅ " + result.message;
+                    createMsg.textContent = "\u2705 " + result.message;
                     createMsg.className = "form-message success";
                     roleNameInput.value = "";
                     // Refresh list
                     loadRoles();
                 } else {
-                    createMsg.textContent = "❌ " + (result.message || "Failed to create role");
+                    createMsg.textContent = "\u274C " + (result.message || "Failed to create role");
                     createMsg.className = "form-message error";
                 }
             } catch (err) {
                 console.error(err);
-                createMsg.textContent = "❌ Error connecting to server.";
+                createMsg.textContent = "\u274C Error connecting to server.";
                 createMsg.className = "form-message error";
             }
         };
@@ -405,28 +432,29 @@ async function initDashboard() {
                 const result = await res.json();
 
                 if (res.ok) {
-                    deleteMsg.textContent = "✅ " + result.message;
+                    deleteMsg.textContent = "\u2705 " + result.message;
                     deleteMsg.className = "form-message success";
                     // Refresh list
                     loadRoles();
                 } else {
-                    deleteMsg.textContent = "❌ " + (result.message || "Failed to delete role");
+                    deleteMsg.textContent = "\u274C " + (result.message || "Failed to delete role");
                     deleteMsg.className = "form-message error";
                 }
             } catch (err) {
                 console.error(err);
-                deleteMsg.textContent = "❌ Error connecting to server.";
+                deleteMsg.textContent = "\u274C Error connecting to server.";
                 deleteMsg.className = "form-message error";
             }
         };
     }
 
     function renderCreateMenuForm() {
+        const mainContent = getMainContentEl();
         if (!mainContent) return;
 
         mainContent.innerHTML = `
         <div class="welcome-banner">
-            <h1>Create & Manage Menus 📋</h1>
+            <h1>Create & Manage Menus \uD83D\uDCCB</h1>
             <p>Create new dashboard menus or remove existing ones.</p>
         </div>
 
@@ -527,18 +555,18 @@ async function initDashboard() {
                 const result = await res.json();
 
                 if (res.ok) {
-                    createMsg.textContent = "✅ " + result.message;
+                    createMsg.textContent = "\u2705 " + result.message;
                     createMsg.className = "form-message success";
                     menuNameInput.value = "";
                     // Refresh list
                     loadMenus();
                 } else {
-                    createMsg.textContent = "❌ " + (result.message || "Failed to create menu");
+                    createMsg.textContent = "\u274C " + (result.message || "Failed to create menu");
                     createMsg.className = "form-message error";
                 }
             } catch (err) {
                 console.error(err);
-                createMsg.textContent = "❌ Error connecting to server.";
+                createMsg.textContent = "\u274C Error connecting to server.";
                 createMsg.className = "form-message error";
             }
         };
@@ -567,17 +595,17 @@ async function initDashboard() {
                 const result = await res.json();
 
                 if (res.ok) {
-                    deleteMsg.textContent = "✅ " + result.message;
+                    deleteMsg.textContent = "\u2705 " + result.message;
                     deleteMsg.className = "form-message success";
                     // Refresh list
                     loadMenus();
                 } else {
-                    deleteMsg.textContent = "❌ " + (result.message || "Failed to delete menu");
+                    deleteMsg.textContent = "\u274C " + (result.message || "Failed to delete menu");
                     deleteMsg.className = "form-message error";
                 }
             } catch (err) {
                 console.error(err);
-                deleteMsg.textContent = "❌ Error connecting to server.";
+                deleteMsg.textContent = "\u274C Error connecting to server.";
                 deleteMsg.className = "form-message error";
             }
         };
@@ -585,11 +613,12 @@ async function initDashboard() {
 
 
     function renderAssignRoleForm() {
+        const mainContent = getMainContentEl();
         if (!mainContent) return;
 
         mainContent.innerHTML = `
             <div class="welcome-banner">
-                <h1>Role Management 🔐</h1>
+                <h1>Role Management \uD83D\uDD10</h1>
                 <p>Assign or update application roles for the active system users.</p>
             </div>
 
@@ -616,7 +645,7 @@ async function initDashboard() {
                     </div>
 
                     <div id="roleDetailsBox" class="role-details-box hidden">
-                        <p class="role-status-info">ℹ️ Current Status: <span id="currentUserStatus">No Role Assigned</span></p>
+                        <p class="role-status-info">\u2139\uFE0F Current Status: <span id="currentUserStatus">No Role Assigned</span></p>
                     </div>
 
                     <div class="form-footer">
@@ -661,7 +690,7 @@ async function initDashboard() {
             } catch (err) {
                 console.error(err);
                 if (msgDiv) {
-                    msgDiv.textContent = "❌ Error loading user/role data.";
+                    msgDiv.textContent = "\u274C Error loading user/role data.";
                     msgDiv.className = "form-message error";
                 }
             }
@@ -722,19 +751,19 @@ async function initDashboard() {
 
                 const result = await res.json();
                 if (res.ok) {
-                    msgDiv.textContent = "✅ " + result.message;
+                    msgDiv.textContent = "\u2705 " + result.message;
                     msgDiv.className = "form-message success";
 
                     const selectedRoleName = roleSelect.options[roleSelect.selectedIndex].text;
                     currentUserStatus.textContent = `Currently assigned to ${selectedRoleName}`;
                     submitBtn.textContent = "Update Role";
                 } else {
-                    msgDiv.textContent = "❌ " + (result.message || "Failed to update role");
+                    msgDiv.textContent = "\u274C " + (result.message || "Failed to update role");
                     msgDiv.className = "form-message error";
                 }
             } catch (err) {
                 console.error("Assign role error:", err);
-                msgDiv.textContent = "❌ Error connecting to server.";
+                msgDiv.textContent = "\u274C Error connecting to server.";
                 msgDiv.className = "form-message error";
             }
         };
@@ -742,6 +771,7 @@ async function initDashboard() {
 
 
     async function renderHomeDashboard() {
+        const mainContent = getMainContentEl();
         if (!mainContent) return;
         mainContent.innerHTML = originalContent;
 
@@ -753,132 +783,35 @@ async function initDashboard() {
         cleanName = cleanName.replace(/@aos\.com$/i, "").trim();
 
         if (welcomeBanner) {
-            welcomeBanner.innerHTML = `Welcome back, ${cleanName} 👋`;
+            welcomeBanner.innerHTML = `Welcome back to AOS \uD83D\uDC4B`;
         }
 
         if (welcomeText) {
             if ((userObj.role || "").toUpperCase() === "ADMIN") {
-                welcomeText.textContent = `Welcome back, ${cleanName}. You have full administrative access. The system is operating normally.`;
+                welcomeText.textContent = `Welcome back, ${cleanName}. You have full administrative access. Your airline operations are flying smoothly today.`;
             } else {
                 welcomeText.textContent = `Welcome back, ${cleanName}. Your airline operations are flying smoothly today.`;
             }
         }
 
-        const statsGrid = mainContent.querySelector(".stats-grid");
-        if (!statsGrid) return;
+        loadDashboardStats();
+        await loadUserCards();
 
-// Fetch active crew count and update UI
-(async () => {
-  try {
-    const res = await fetch('/api/active-crew-count', { credentials: 'same-origin' });
-    if (!res.ok) throw new Error('Failed to fetch active crew count');
-    const data = await res.json();
-    const count = data.activeCrewCount ?? data.p_active_cnt ?? 0;
-    const countElem = document.getElementById('activeCrewCount');
-    if (countElem) countElem.textContent = count;
-  } catch (err) {
-    console.error('Error fetching active crew count:', err);
-  }
-})();
-
-        const directorySection = document.createElement("div");
-        directorySection.className = "users-section";
-        directorySection.innerHTML = `
-            <h2><span>👥</span> AOS Team Directory</h2>
-            <div class="users-grid" id="usersGrid">
-                <div style="grid-column: 1/-1; text-align: center; padding: 30px; color: var(--text-muted);">
-                    Loading user directory...
-                </div>
-            </div>
-        `;
-        mainContent.appendChild(directorySection);
-
-        const usersGrid = document.getElementById("usersGrid");
-
-        try {
-            const res = await fetch("/api/users", {
-                credentials: "same-origin"
-            });
-            if (!res.ok) throw new Error("Failed to load user list");
-            allUsers = await res.json();
-
-            if (!usersGrid) return;
-            usersGrid.innerHTML = "";
-
-            if (allUsers && allUsers.length > 0) {
-                allUsers.forEach(u => {
-                    const myId = (currentUser && currentUser.dbUserId) ? currentUser.dbUserId : 10000001;
-                    const isSelf = String(u.userId) === String(myId);
-                    const defaultAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(u.fullName)}&background=${isSelf ? '007AFF' : '8E8E93'}&color=fff`;
-                    const avatarSrc = u.photoUrl || defaultAvatar;
-
-                    const card = document.createElement("div");
-                    card.className = `user-glass-card${isSelf ? ' my-profile-card' : ''}`;
-                    card.innerHTML = `
-                        <div class="user-card-header">
-                            <div class="user-avatar-container">
-                                <img src="${avatarSrc}" alt="${u.fullName}" class="user-avatar-circle" onerror="this.src='${defaultAvatar}'">
-                                <span class="status-badge-dot ${u.isActive === 'Y' ? 'active' : 'inactive'}"></span>
-                            </div>
-                            <div class="user-name-role">
-                                <h4>${u.fullName}${isSelf ? ' (You)' : ''}</h4>
-                                <span class="user-role-badge ${(u.role || 'USER').toLowerCase()}">${u.role || 'User'}</span>
-                            </div>
-                        </div>
-                        <div class="user-card-details">
-                            <div class="detail-field">
-                                <span class="detail-label">User ID</span>
-                                <span class="detail-value">${u.userId}</span>
-                            </div>
-                            <div class="detail-field">
-                                <span class="detail-label">Email</span>
-                                <span class="detail-value">${u.username}</span>
-                            </div>
-                            <div class="detail-field">
-                                <span class="detail-label">Mobile</span>
-                                <span class="detail-value">${u.mobileNo || 'N/A'}</span>
-                            </div>
-                            <div class="detail-field">
-                                <span class="detail-label">Status</span>
-                                <span class="detail-value" style="color: ${u.isActive === 'Y' ? '#34C759' : '#8E8E93'}; font-weight: 700;">
-                                    ${u.isActive === 'Y' ? 'Active' : 'Inactive'}
-                                </span>
-                            </div>
-                        </div>
-                    `;
-                    usersGrid.appendChild(card);
-                });
-            } else {
-                usersGrid.innerHTML = `
-                    <div style="grid-column: 1/-1; text-align: center; padding: 30px; color: var(--text-muted);">
-                        No other users found in the system.
-                    </div>
-                `;
-            }
-
-            if (searchInput && searchInput.value) {
-                searchInput.dispatchEvent(new Event("input"));
-            }
-
-        } catch (err) {
-            console.error("Error displaying users:", err);
-            if (usersGrid) {
-                usersGrid.innerHTML = `
-                    <div style="grid-column: 1/-1; text-align: center; padding: 30px; color: #FF3B30;">
-                        ⚠️ Failed to load user directory.
-                    </div>
-                `;
-            }
+        const searchInput = document.querySelector(".search-bar input");
+        if (searchInput && searchInput.value) {
+            searchInput.dispatchEvent(new Event("input"));
         }
     }
 
 
+
     function renderAssignMenuToRoleForm() {
+        const mainContent = getMainContentEl();
         if (!mainContent) return;
 
         mainContent.innerHTML = `
         <div class="welcome-banner">
-            <h1>Role Menu Mapping 📋</h1>
+            <h1>Role Menu Mapping \uD83D\uDCCB</h1>
             <p>Manage and assign menu permissions to specific roles.</p>
         </div>
 
@@ -935,7 +868,7 @@ async function initDashboard() {
                     data.roles.map(r => `<option value="${r.roleId}">${r.roleName}</option>`).join("");
             } catch (err) {
                 console.error("Error loading roles:", err);
-                msg.textContent = "❌ Error loading roles.";
+                msg.textContent = "\u274C Error loading roles.";
                 msg.className = "form-message error";
                 msg.style.display = "block";
             }
@@ -955,7 +888,7 @@ async function initDashboard() {
                 renderLists();
             } catch (err) {
                 console.error("Error loading menus:", err);
-                msg.textContent = "❌ Error loading menu mapping.";
+                msg.textContent = "\u274C Error loading menu mapping.";
                 msg.className = "form-message error";
                 msg.style.display = "block";
             }
@@ -1041,18 +974,18 @@ async function initDashboard() {
                 if (res.ok) {
                     msg.style.display = "block";
                     msg.className = "form-message success";
-                    msg.textContent = `✅ Successfully added "${menuName}"`;
+                    msg.textContent = `\u2705 Successfully added "${menuName}"`;
                     await loadMenus(roleId);
                 } else {
                     msg.style.display = "block";
                     msg.className = "form-message error";
-                    msg.textContent = "❌ " + (result.message || "Failed to add menu");
+                    msg.textContent = "\u274C " + (result.message || "Failed to add menu");
                 }
             } catch (err) {
                 console.error("Assign menu error:", err);
                 msg.style.display = "block";
                 msg.className = "form-message error";
-                msg.textContent = "❌ Error connecting to server.";
+                msg.textContent = "\u274C Error connecting to server.";
             }
         });
 
@@ -1081,18 +1014,18 @@ async function initDashboard() {
                 if (res.ok) {
                     msg.style.display = "block";
                     msg.className = "form-message success";
-                    msg.textContent = `✅ Successfully removed "${menuItemName}"`;
+                    msg.textContent = `\u2705 Successfully removed "${menuItemName}"`;
                     await loadMenus(roleId);
                 } else {
                     msg.style.display = "block";
                     msg.className = "form-message error";
-                    msg.textContent = "❌ " + (result.message || "Failed to remove menu");
+                    msg.textContent = "\u274C " + (result.message || "Failed to remove menu");
                 }
             } catch (err) {
                 console.error("Remove menu error:", err);
                 msg.style.display = "block";
                 msg.className = "form-message error";
-                msg.textContent = "❌ Error connecting to server.";
+                msg.textContent = "\u274C Error connecting to server.";
             }
         }
         loadRoles();
@@ -1101,11 +1034,12 @@ async function initDashboard() {
 
 
     function renderManageUserRoleForm() {
+        const mainContent = getMainContentEl();
         if (!mainContent) return;
 
         mainContent.innerHTML = `
         <div class="welcome-banner">
-            <h1>ASSIGN ROLE TO USER 📋</h1>
+            <h1>ASSIGN ROLE TO USER \uD83D\uDCCB</h1>
             <p>Assign a role to an employee.</p>
         </div>
 
@@ -1161,7 +1095,7 @@ async function initDashboard() {
                 });
             } catch (err) {
                 console.error(err);
-                msgDiv.textContent = "❌ Failed to load users and roles.";
+                msgDiv.textContent = "\u274C Failed to load users and roles.";
                 msgDiv.className = "form-message error";
             }
         }
@@ -1174,7 +1108,7 @@ async function initDashboard() {
             const roleId = roleSelect.value;
 
             if (!roleId || !userId) {
-                msgDiv.textContent = "❌ Please select User and Role.";
+                msgDiv.textContent = "\u274C Please select User and Role.";
                 msgDiv.className = "form-message error";
                 return;
             }
@@ -1189,25 +1123,26 @@ async function initDashboard() {
 
                 const result = await res.json();
                 if (res.ok) {
-                    msgDiv.textContent = "✅ " + result.message;
+                    msgDiv.textContent = "\u2705 " + result.message;
                     msgDiv.className = "form-message success";
                 } else {
-                    msgDiv.textContent = "❌ " + result.message;
+                    msgDiv.textContent = "\u274C " + result.message;
                     msgDiv.className = "form-message error";
                 }
             } catch (err) {
-                msgDiv.textContent = "❌ Server Error";
+                msgDiv.textContent = "\u274C Server Error";
                 msgDiv.className = "form-message error";
             }
         });
     }
 
     function renderCreateCityForm() {
+        const mainContent = getMainContentEl();
         if (!mainContent) return;
 
         mainContent.innerHTML = `
         <div class="welcome-banner">
-            <h1>Create City 🏙️</h1>
+            <h1>Create City \uD83C\uDFD9\uFE0F</h1>
             <p>Add a new city to the airline operation route network or click on a location on the 3D Globe to load details.</p>
         </div>
 
@@ -1256,7 +1191,7 @@ async function initDashboard() {
 
                 <div class="existing-airports-card macOS-card" style="margin-top: 20px;">
                     <h3 style="margin-bottom: 12px; font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 8px;">
-                        <span>🏙️</span> Registered Cities
+                        <span>\uD83C\uDFD9\uFE0F</span> Registered Cities
                     </h3>
                     <div class="airport-list-wrapper" id="existingCitiesList">
                         <!-- Rendered items -->
@@ -1267,7 +1202,7 @@ async function initDashboard() {
             <div class="globe-column">
                 <div class="globe-card macOS-card">
                     <h3 style="margin-bottom: 12px; font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 8px;">
-                        <span>🌐</span> Interactive Route Globe
+                        <span>\uD83C\uDF10</span> Interactive Route Globe
                     </h3>
                     <div class="globe-iframe-wrapper">
                         <iframe id="globeIframe" src="/static/globe.html" style="width: 100%; height: 400px; border: none; border-radius: 8px; background: #020617;"></iframe>
@@ -1297,7 +1232,7 @@ async function initDashboard() {
                             <span class="airport-item-name">${c.cityName}</span>
                             <span class="airport-item-details">${c.stateName} | ${c.countryName}</span>
                         </div>
-                        <span class="airport-item-action">View ➔</span>
+                        <span class="airport-item-action">View \u2794</span>
                     </div>
                 `).join("");
 
@@ -1337,7 +1272,7 @@ async function initDashboard() {
         // Window message listener for communication from/to iframe
         const handleIframeMessage = (event) => {
             if (!event.data) return;
-            
+
             if (event.data.type === "GLOBE_READY") {
                 sendAirportsToGlobe();
             } else if (event.data.type === "AIRPORT_SELECTED") {
@@ -1399,28 +1334,29 @@ async function initDashboard() {
                 const result = await res.json();
 
                 if (res.ok) {
-                    msgDiv.textContent = "✅ " + result.message;
+                    msgDiv.textContent = "\u2705 " + result.message;
                     msgDiv.className = "form-message success";
                     form.reset();
                     await loadCitiesAndAirports();
                 } else {
-                    msgDiv.textContent = "❌ " + (result.message || "Failed to create city");
+                    msgDiv.textContent = "\u274C " + (result.message || "Failed to create city");
                     msgDiv.className = "form-message error";
                 }
             } catch (err) {
                 console.error(err);
-                msgDiv.textContent = "❌ Error connecting to server.";
+                msgDiv.textContent = "\u274C Error connecting to server.";
                 msgDiv.className = "form-message error";
             }
         };
     }
 
     function renderCreateAirportForm() {
+        const mainContent = getMainContentEl();
         if (!mainContent) return;
 
         mainContent.innerHTML = `
         <div class="welcome-banner">
-            <h1>Create Airport ✈️</h1>
+            <h1>Create Airport \u2708\uFE0F</h1>
             <p>Add a new airport to the route network or click on an existing one on the 3D Globe to load its details.</p>
         </div>
 
@@ -1468,7 +1404,7 @@ async function initDashboard() {
 
                 <div class="existing-airports-card macOS-card" style="margin-top: 20px;">
                     <h3 style="margin-bottom: 12px; font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 8px;">
-                        <span>📋</span> Registered Airports
+                        <span>\uD83D\uDCCB</span> Registered Airports
                     </h3>
                     <div class="airport-list-wrapper" id="existingAirportsList">
                         <!-- Rendered items -->
@@ -1479,7 +1415,7 @@ async function initDashboard() {
             <div class="globe-column">
                 <div class="globe-card macOS-card">
                     <h3 style="margin-bottom: 12px; font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 8px;">
-                        <span>🌐</span> Interactive Route Globe
+                        <span>\uD83C\uDF10</span> Interactive Route Globe
                     </h3>
                     <div class="globe-iframe-wrapper">
                         <iframe id="globeIframe" src="/static/globe.html" style="width: 100%; height: 400px; border: none; border-radius: 8px; background: #020617;"></iframe>
@@ -1509,7 +1445,7 @@ async function initDashboard() {
                             <span class="airport-item-name">${a.airportName}</span>
                             <span class="airport-item-details">${a.airportCode} | ${a.cityName}, ${a.countryName}</span>
                         </div>
-                        <span class="airport-item-action">View ➔</span>
+                        <span class="airport-item-action">View \u2794</span>
                     </div>
                 `).join("");
 
@@ -1549,7 +1485,7 @@ async function initDashboard() {
         // Window message listener for communication from/to iframe
         const handleIframeMessage = (event) => {
             if (!event.data) return;
-            
+
             if (event.data.type === "GLOBE_READY") {
                 sendAirportsToGlobe();
             } else if (event.data.type === "AIRPORT_SELECTED") {
@@ -1557,7 +1493,7 @@ async function initDashboard() {
                 if (airport) {
                     airportNameInput.value = airport.airportName || "";
                     airportCodeInput.value = airport.airportCode || "";
-                    
+
                     // Reset any previous info messages
                     msgDiv.style.display = "none";
                     msgDiv.textContent = "";
@@ -1567,7 +1503,7 @@ async function initDashboard() {
                     } else if (airport.cityName) {
                         const searchCity = airport.cityName.toUpperCase().trim();
                         // Find matching city in current dropdown list
-                        const matchedCity = currentCities.find(c => 
+                        const matchedCity = currentCities.find(c =>
                             c.cityName.toUpperCase().trim() === searchCity
                         );
 
@@ -1583,7 +1519,7 @@ async function initDashboard() {
                                 citySelect.appendChild(opt);
                             }
                             citySelect.value = opt.value;
-                            msgDiv.textContent = `ℹ️ City "${airport.cityName}" is not registered in the database yet. It will be automatically registered when you click "Create Airport".`;
+                            msgDiv.textContent = `\u2139\uFE0F City "${airport.cityName}" is not registered in the database yet. It will be automatically registered when you click "Create Airport".`;
                             msgDiv.className = "form-message info";
                             msgDiv.style.display = "block";
                         }
@@ -1621,7 +1557,7 @@ async function initDashboard() {
                 sendAirportsToGlobe();
             } catch (err) {
                 console.error("Error loading cities:", err);
-                msgDiv.textContent = "❌ Failed to load screen data.";
+                msgDiv.textContent = "\u274C Failed to load screen data.";
                 msgDiv.className = "form-message error";
             }
         }
@@ -1669,12 +1605,12 @@ async function initDashboard() {
                     const loadRes = await fetch("/api/admin/create-airport", { credentials: "same-origin" });
                     if (!loadRes.ok) throw new Error("Failed to reload cities list from database");
                     const loadData = await loadRes.json();
-                    
+
                     currentCities = loadData.cities || [];
-                    const newlyCreatedCity = currentCities.find(c => 
+                    const newlyCreatedCity = currentCities.find(c =>
                         c.cityName.toUpperCase().trim() === newCityName.toUpperCase().trim()
                     );
-                    
+
                     if (!newlyCreatedCity) {
                         throw new Error("City registered but failed to fetch ID from database");
                     }
@@ -1692,17 +1628,17 @@ async function initDashboard() {
                 const result = await res.json();
 
                 if (res.ok) {
-                    msgDiv.textContent = "✅ " + result.message;
+                    msgDiv.textContent = "\u2705 " + result.message;
                     msgDiv.className = "form-message success";
                     form.reset();
                     await loadCitiesAndAirports();
                 } else {
-                    msgDiv.textContent = "❌ " + (result.message || "Failed to create airport");
+                    msgDiv.textContent = "\u274C " + (result.message || "Failed to create airport");
                     msgDiv.className = "form-message error";
                 }
             } catch (err) {
                 console.error(err);
-                msgDiv.textContent = "❌ Error: " + err.message;
+                msgDiv.textContent = "\u274C Error: " + err.message;
                 msgDiv.className = "form-message error";
             }
         };
@@ -1710,11 +1646,12 @@ async function initDashboard() {
 
 
     function renderCreateFlightCompanyForm() {
+        const mainContent = getMainContentEl();
         if (!mainContent) return;
 
         mainContent.innerHTML = `
         <div class="welcome-banner">
-            <h1>Create Flight Company ✈️</h1>
+            <h1>Create Flight Company \u2708\uFE0F</h1>
             <p>Add a new flight company to the airline operation database and view existing active ones.</p>
         </div>
 
@@ -1835,28 +1772,29 @@ async function initDashboard() {
                 const result = await res.json();
 
                 if (res.ok) {
-                    msgDiv.textContent = "✅ " + result.message;
+                    msgDiv.textContent = "\u2705 " + result.message;
                     msgDiv.className = "form-message success";
                     form.reset();
                     loadCompanies();
                 } else {
-                    msgDiv.textContent = "❌ " + (result.message || "Failed to create flight company");
+                    msgDiv.textContent = "\u274C " + (result.message || "Failed to create flight company");
                     msgDiv.className = "form-message error";
                 }
             } catch (err) {
                 console.error(err);
-                msgDiv.textContent = "❌ Error connecting to server.";
+                msgDiv.textContent = "\u274C Error connecting to server.";
                 msgDiv.className = "form-message error";
             }
         };
     }
 
     function renderCreateFlightForm() {
+        const mainContent = getMainContentEl();
         if (!mainContent) return;
 
         mainContent.innerHTML = `
             <div class="welcome-banner">
-                <h1>Create New Flight ✈️</h1>
+                <h1>Create New Flight \u2708\uFE0F</h1>
                 <p>Register a new flight using stored procedure <code>airline_flight_create_usp</code>.</p>
             </div>
 
@@ -1892,11 +1830,11 @@ async function initDashboard() {
             <div class="existing-cities-container macOS-card" style="margin-top: 24px; padding: 20px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
                     <div>
-                        <h3 style="font-weight: 600; font-size: 16px; margin: 0;">Registered Flights Table ✈️</h3>
+                        <h3 style="font-weight: 600; font-size: 16px; margin: 0;">Registered Flights Table \u2708\uFE0F</h3>
                         <p style="font-size: 12px; color: var(--text-muted); margin: 2px 0 0 0;">Overview of all airline flights stored in database</p>
                     </div>
                     <div style="display: flex; align-items: center; gap: 10px;">
-                        <input type="text" id="flightSearchInput" placeholder="🔍 Search flight, company..." style="padding: 8px 14px; border-radius: 8px; border: 1px solid var(--border-color); font-size: 13px; outline: none; background: rgba(255,255,255,0.6); min-width: 200px;">
+                        <input type="text" id="flightSearchInput" placeholder="\uD83D\uDD0D Search flight, company..." style="padding: 8px 14px; border-radius: 8px; border: 1px solid var(--border-color); font-size: 13px; outline: none; background: rgba(255,255,255,0.6); min-width: 200px;">
                         <span id="flightCountBadge" class="badge blue" style="font-size: 12px;">0 Flights</span>
                     </div>
                 </div>
@@ -1942,7 +1880,7 @@ async function initDashboard() {
                         <td style="padding: 12px 16px;"><strong>#${f.flightId}</strong></td>
                         <td style="padding: 12px 16px;"><span class="badge blue" style="font-weight: 600;">${f.flightNo}</span></td>
                         <td style="padding: 12px 16px; font-weight: 500;">${f.companyName}</td>
-                        <td style="padding: 12px 16px; color: var(--text-muted);">${f.flightName || '—'}</td>
+                        <td style="padding: 12px 16px; color: var(--text-muted);">${f.flightName || '\u2014'}</td>
                         <td style="padding: 12px 16px;"><span class="badge green">${f.isActive === 'Y' ? 'ACTIVE' : 'INACTIVE'}</span></td>
                     </tr>
                 `).join("");
@@ -2006,7 +1944,7 @@ async function initDashboard() {
             const flightName = flightNameInput.value.trim();
 
             if (!flightNo || !companyId) {
-                msgDiv.textContent = "❌ Flight Number and Company are required.";
+                msgDiv.textContent = "\u274C Flight Number and Company are required.";
                 msgDiv.className = "form-message error";
                 return;
             }
@@ -2030,30 +1968,31 @@ async function initDashboard() {
                 const result = await res.json();
 
                 if (res.ok) {
-                    msgDiv.textContent = "✅ " + (result.message || "Data Inserted Sucessfully");
+                    msgDiv.textContent = "\u2705 " + (result.message || "Data Inserted Sucessfully");
                     msgDiv.className = "form-message success";
                     flightNoInput.value = "";
                     flightNameInput.value = "";
                     loadFlightData();
                     loadDashboardStats();
                 } else {
-                    msgDiv.textContent = "⚠️ " + (result.message || "Creation failed");
+                    msgDiv.textContent = "\u26A0\uFE0F " + (result.message || "Creation failed");
                     msgDiv.className = "form-message error";
                 }
             } catch (err) {
                 console.error("Create flight error:", err);
-                msgDiv.textContent = "❌ Network error. Please try again.";
+                msgDiv.textContent = "\u274C Network error. Please try again.";
                 msgDiv.className = "form-message error";
             }
         };
     }
 
     function renderPassengerRegistrationForm() {
+        const mainContent = getMainContentEl();
         if (!mainContent) return;
 
         mainContent.innerHTML = `
             <div class="welcome-banner">
-                <h1>Register Customer / Passenger 🎫</h1>
+                <h1>Register Customer / Passenger \uD83C\uDFAB</h1>
                 <p>Register a new customer into the Airline Operation Suite database.</p>
             </div>
 
@@ -2139,41 +2078,44 @@ async function initDashboard() {
                 const result = await res.json();
 
                 if (res.ok) {
-                    msgDiv.textContent = "✅ " + (result.message || "Customer Registered Successfully!");
+                    msgDiv.textContent = "\u2705 " + (result.message || "Customer Registered Successfully!");
                     msgDiv.className = "form-message success";
                     form.reset();
                 } else {
-                    msgDiv.textContent = "❌ " + (result.message || "Registration failed");
+                    msgDiv.textContent = "\u274C " + (result.message || "Registration failed");
                     msgDiv.className = "form-message error";
                 }
             } catch (err) {
                 console.error("Passenger registration error:", err);
-                msgDiv.textContent = "❌ Network error. Please try again.";
+                msgDiv.textContent = "\u274C Network error. Please try again.";
                 msgDiv.className = "form-message error";
             }
         };
     }
 
     async function renderSeatMapBookingView(targetDpId) {
+        const mainContent = getMainContentEl();
         if (!mainContent) return;
 
         mainContent.innerHTML = `
             <div class="welcome-banner" style="margin-bottom: 20px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; flex-wrap: wrap; gap: 12px;">
                     <div>
-                        <h1>Interactive Flight Seat Selection 💺</h1>
-                        <p>BookMyShow-style visual cabin layout with real-time seat availability & dynamic seat pricing.</p>
+                        <h1>Executive Aircraft Seating & Reservations \u2708\uFE0F</h1>
+                        <p>Multi-day flight schedule booking, live Oracle DB seat availability matrix & printable E-Tickets.</p>
                     </div>
-                    <button id="backToPricingBtn" style="padding: 10px 18px; border-radius: 8px; border: none; background: rgba(255,255,255,0.25); color: #fff; font-weight: 700; cursor: pointer; font-size: 13px; backdrop-filter: blur(8px);">⬅ Manage Dynamic Rates</button>
+                    <button id="backToPricingBtn" style="padding: 10px 18px; border-radius: 8px; border: none; background: rgba(255,255,255,0.25); color: #fff; font-weight: 700; cursor: pointer; font-size: 13px; backdrop-filter: blur(8px);">\u2B05 Manage Dynamic Rates</button>
                 </div>
             </div>
 
-            <div id="scheduleSelectorCard" class="macOS-card" style="margin-bottom: 20px; padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;">
-                <div style="display: flex; align-items: center; gap: 12px; flex: 1; min-width: 280px;">
-                    <label style="font-weight: 700; font-size: 14px; color: var(--text-main); white-space: nowrap;">✈️ Select Flight Schedule:</label>
-                    <select id="seatMapScheduleSelect" style="flex: 1; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-color); font-size: 13px; font-weight: 600; outline: none; background: #ffffff;">
-                        <option value="16000011" selected>AI-101 (Air India) | DEL ➔ HYD | 📅 2026-08-05 [Seats: 165/180]</option>
-                    </select>
+            <!-- 7-DAY FLIGHT DATE SELECTOR TABS (SYSDATE ROLLING WINDOW) -->
+            <div class="macOS-card" style="margin-bottom: 20px; padding: 16px 20px;">
+                <div style="font-weight: 800; font-size: 14px; color: #0f172a; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+                    <span>\uD83D\uDCC5 7-Day Flight Schedule (SYSDATE Window: Aug 15 \u2013 Aug 21):</span>
+                    <span style="font-size: 11px; color: #0284c7; background: #e0f2fe; padding: 4px 10px; border-radius: 6px; font-weight: 700;">Live Oracle DB Sync</span>
+                </div>
+                <div class="date-schedule-tabs-container" id="flightDateTabsContainer">
+                    <div style="font-size: 12px; color: #64748b;">Loading flight dates...</div>
                 </div>
             </div>
 
@@ -2185,45 +2127,80 @@ async function initDashboard() {
         });
 
         let activeDpId = targetDpId || 16000011;
-        const scheduleSelect = document.getElementById("seatMapScheduleSelect");
+        const dateTabsContainer = document.getElementById("flightDateTabsContainer");
 
-        // Immediately load seat map matrix so seats render instantly without loading delays
-        loadSeatMap(parseInt(activeDpId));
+        // Construct 7 rolling days strictly starting from SYSDATE (today, no past dates)
+        const sysdateNow = new Date();
+        const sysdateDaysList = [];
+        for (let i = 0; i < 7; i++) {
+            const d = new Date(sysdateNow);
+            d.setDate(sysdateNow.getDate() + i);
+            const dateStr = d.toISOString().split('T')[0];
+            sysdateDaysList.push({
+                dynamicPriceId: 16000011 + i,
+                flightNo: "AI-101",
+                companyName: "Air India",
+                sourceAirportCode: "DEL",
+                destAirportCode: "BOM",
+                flightDate: dateStr,
+                availableSeats: 180,
+                totalSeats: 180
+            });
+        }
 
         try {
             const res = await fetch("/api/flight-schedules", { credentials: "same-origin" });
             const data = await res.json();
-            const prices = (data && data.dynamicPrices) ? data.dynamicPrices : [];
+            const dbPrices = (data && data.dynamicPrices) ? data.dynamicPrices : [];
 
-            if (prices.length > 0) {
-                const exists = prices.some(p => p.dynamicPriceId === parseInt(activeDpId));
-                if (!activeDpId || !exists) {
-                    activeDpId = prices[0].dynamicPriceId;
-                }
+            // Filter DB prices for dates starting from today onwards (no backward past dates)
+            const todayDateStr = sysdateNow.toISOString().split('T')[0];
+            const futureDbPrices = dbPrices.filter(p => (p.flightDate || '') >= todayDateStr);
 
-                scheduleSelect.innerHTML = prices.map(p => `
-                    <option value="${p.dynamicPriceId}" ${p.dynamicPriceId === parseInt(activeDpId) ? 'selected' : ''}>
-                        ${p.flightNo} (${p.companyName}) | ${p.sourceAirportCode || 'SRC'} ➔ ${p.destAirportCode || 'DST'} | 📅 ${p.flightDate} [Seats: ${p.availableSeats}/${p.totalSeats}]
-                    </option>
-                `).join('');
-
-                scheduleSelect.addEventListener("change", (e) => {
-                    const newDpId = e.target.value;
-                    if (newDpId) {
-                        loadSeatMap(parseInt(newDpId));
+            if (futureDbPrices.length > 0) {
+                // Merge DB schedules with 7-day rolling window
+                sysdateDaysList.forEach((sItem, idx) => {
+                    const matchedDb = futureDbPrices.find(dp => dp.flightDate === sItem.flightDate);
+                    if (matchedDb) {
+                        sysdateDaysList[idx] = matchedDb;
                     }
                 });
-
-                loadSeatMap(parseInt(activeDpId));
-            } else {
-                scheduleSelect.innerHTML = `<option value="16000011">AI-101 (Air India) | BBI ➔ DEL | 📅 2026-08-10 [Seats: 180/180]</option>`;
             }
         } catch (err) {
-            console.warn("Error fetching schedule selector list:", err);
-            if (scheduleSelect) {
-                scheduleSelect.innerHTML = `<option value="16000011">AI-101 (Air India) | BBI ➔ DEL | 📅 2026-08-10 [Seats: 180/180]</option>`;
-            }
+            console.warn("Could not fetch DB schedules, using SYSDATE rolling window:", err);
         }
+
+        const exists = sysdateDaysList.some(p => p.dynamicPriceId === parseInt(activeDpId));
+        if (!activeDpId || !exists) {
+            activeDpId = sysdateDaysList[0].dynamicPriceId;
+        }
+
+        if (dateTabsContainer) {
+            dateTabsContainer.innerHTML = sysdateDaysList.map((p) => {
+                const dObj = new Date(p.flightDate);
+                const dayName = dObj.toLocaleDateString('en-US', { weekday: 'short' });
+                const monthDay = dObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                const isActive = p.dynamicPriceId === parseInt(activeDpId);
+
+                return `
+                    <div class="date-schedule-tab ${isActive ? 'active' : ''}" data-dpid="${p.dynamicPriceId}">
+                        <span class="tab-date">\uD83D\uDCC5 ${monthDay}</span>
+                        <span class="tab-sub">${dayName} \u2022 ${p.flightNo}</span>
+                    </div>
+                `;
+            }).join('');
+
+            dateTabsContainer.querySelectorAll(".date-schedule-tab").forEach(tab => {
+                tab.addEventListener("click", () => {
+                    dateTabsContainer.querySelectorAll(".date-schedule-tab").forEach(t => t.classList.remove("active"));
+                    tab.classList.add("active");
+                    const newDpId = parseInt(tab.dataset.dpid);
+                    loadSeatMap(newDpId);
+                });
+            });
+        }
+
+        loadSeatMap(parseInt(activeDpId));
     }
 
     async function loadSeatMap(dynamicPriceId) {
@@ -2233,33 +2210,48 @@ async function initDashboard() {
         let targetId = parseInt(dynamicPriceId);
         if (!targetId || isNaN(targetId)) targetId = 16000011;
 
-        // Inner function to render seat map UI
+        // Fetch registered customer options from DB
+        let registeredCustomersList = [];
+        try {
+            const passRes = await fetch("/api/registered-passengers", { credentials: "same-origin" });
+            if (passRes.ok) {
+                const passData = await passRes.json();
+                registeredCustomersList = passData.passengers || [];
+            }
+        } catch (e) {
+            console.warn("Could not fetch registered passengers:", e);
+        }
+
+        const getSeatShortcut = (s) => {
+            if (s.seatClass === 'BUSINESS' || s.row <= 3) return 'BUS';
+            const col = (s.col || s.seatNo.slice(-1)).toUpperCase();
+            if (col === 'A' || col === 'F') return 'WND';
+            if (col === 'B' || col === 'E') return 'MID';
+            if (col === 'C' || col === 'D') return 'AIS';
+            return 'REG';
+        };
+
         function renderSeatMapUI(fd, seats, passengers) {
-            const baseFare = (fd && typeof fd.currentPrice === 'number') ? fd.currentPrice : (fd && fd.currentPrice ? parseFloat(fd.currentPrice) : 4500.0);
-            const totalSeatsCount = (fd && fd.totalSeats) ? fd.totalSeats : 180;
-            const availSeatsCount = (fd && fd.availableSeats !== undefined) ? fd.availableSeats : 180;
+            const businessFare = 6000.0;
+            const economyFare = 3500.0;
 
             if (!seats || seats.length === 0) {
                 seats = [];
                 const cols = ['A', 'B', 'C', 'D', 'E', 'F'];
-                for (let r = 1; r <= 30; r++) {
+                for (let r = 1; r <= 20; r++) {
                     for (let col of cols) {
                         const isBusiness = r <= 3;
-                        const isExit = r === 10;
-                        const isWindow = col === 'A' || col === 'F';
-                        const isAisle = col === 'C' || col === 'D';
-                        const seatType = isWindow ? 'WINDOW' : (isAisle ? 'AISLE' : 'MIDDLE');
-                        const seatClass = isBusiness ? 'BUSINESS' : (isExit ? 'PREMIUM' : 'ECONOMY');
-                        const surcharge = isBusiness ? 1500 : (isExit ? 300 : (isWindow ? 150 : 0));
+                        const seatType = (col === 'A' || col === 'F') ? 'WINDOW' : ((col === 'C' || col === 'D') ? 'AISLE' : 'MIDDLE');
+                        const seatClass = isBusiness ? 'BUSINESS' : 'ECONOMY';
                         seats.push({
                             seatNo: `${r}${col}`,
                             row: r,
                             col: col,
                             seatClass: seatClass,
                             seatType: seatType,
-                            priceSurcharge: surcharge,
+                            priceSurcharge: isBusiness ? 2500 : 0,
                             status: 'AVAILABLE',
-                            finalPrice: baseFare + surcharge
+                            finalPrice: isBusiness ? businessFare : economyFare
                         });
                     }
                 }
@@ -2267,66 +2259,95 @@ async function initDashboard() {
 
             container.innerHTML = `
                 <div class="seat-map-wrapper">
+                    <!-- LEFT SIDE: ACCURATE AIRPLANE FUSELAGE SEATING MAP -->
                     <div class="aircraft-cabin-card">
                         <div class="airplane-sketch-outer">
                             <div class="airplane-fuselage-body">
-                                <div class="simple-plane-header" style="text-align: center; padding: 10px; font-weight: 700; font-size: 13px; color: #475569; letter-spacing: 1px; border-bottom: 1px solid #e2e8f0; margin-bottom: 14px;">
-                                    ▲ FRONT (COCKPIT) ▲
+                                <!-- FRONT LAVATORY & CANTEEN AMENITIES -->
+                                <div class="plane-cabin-service-bar" style="margin-bottom: 12px; font-size: 11px;">
+                                    <span>\uD83D\uDEBD Lavatory</span>
+                                    <span>\u2615 Canteen / Galley</span>
+                                    <span>\uD83D\uDEBD Lavatory</span>
                                 </div>
-                                <div class="seat-legend-bar">
-                                    <div class="legend-item"><span class="legend-box available"></span> <span>Free (Green)</span></div>
-                                    <div class="legend-item"><span class="legend-box in-transition"></span> <span>Transition / Selecting (Orange)</span></div>
-                                    <div class="legend-item"><span class="legend-box booked"></span> <span>Booked (Red)</span></div>
-                                    <div class="legend-item"><span class="legend-box business"></span> <span>Business Class (+₹1,500)</span></div>
+
+                                <div class="seat-col-header-row" style="margin-top: 10px;">
+                                    <div></div>
+                                    <div class="seat-col-letters"><span>A</span><span>B</span><span>C</span></div>
+                                    <div class="aisle-gap"></div>
+                                    <div class="seat-col-letters"><span>D</span><span>E</span><span>F</span></div>
                                 </div>
+
                                 <div class="cabin-rows-container" id="cabinRowsContainer"></div>
-                                <div class="simple-plane-footer" style="text-align: center; padding: 10px; font-weight: 700; font-size: 13px; color: #475569; letter-spacing: 1px; border-top: 1px solid #e2e8f0; margin-top: 14px;">
-                                    ▼ REAR (TAIL) ▼
+
+                                <!-- REAR LAVATORY & CANTEEN AMENITIES -->
+                                <div class="plane-cabin-service-bar" style="margin-top: 14px; font-size: 11px;">
+                                    <span>\uD83D\uDEBD Lavatory</span>
+                                    <span>\u2615 Canteen / Galley</span>
+                                    <span>\uD83D\uDEBD Lavatory</span>
                                 </div>
                             </div>
                         </div>
                     </div>
+
+
+                    <!-- RIGHT SIDE: SUMMARY CARD MATCHING SCREENSHOT -->
                     <div class="booking-summary-card">
-                        <h3 style="font-size: 16px; font-weight: 800; margin-bottom: 16px; color: #0f172a;">Ticket & Seat Reservation 🎫</h3>
-                        <div class="flight-ticket-info">
-                            <div class="flight-route-header">
-                                <span class="route-code" style="color: #007AFF;">${fd.sourceCode || 'SRC'}</span>
-                                <span style="font-size: 16px;">✈️</span>
-                                <span class="route-code" style="color: #FF9500;">${fd.destCode || 'DST'}</span>
+                        <div class="flight-route-header-card">
+                            <div class="flight-route-title">
+                                ${fd.sourceCode || 'DEL'} &nbsp;\u2794&nbsp; ${fd.destCode || 'BOM'}
                             </div>
-                            <div style="font-size: 12px; color: #64748b; font-weight: 700; margin-bottom: 4px;">${fd.flightNo || 'AI-101'} - ${fd.companyName || 'Air India'} (${fd.flightName || 'Boeing 737'})</div>
-                            <div style="font-size: 12px; color: #64748b;">📅 ${fd.flightDate || '2026-08-10'} | 🕒 ${fd.departureTime || '08:00'} - ${fd.arrivalTime || '10:30'}</div>
-                            <div style="margin-top: 8px;"><span class="badge green" id="summaryAvailBadge">Available Seats: ${availSeatsCount} / ${totalSeatsCount}</span></div>
+                            <div class="flight-route-sub">
+                                ${fd.flightNo || '6E 532'} \u2022 ${fd.flightName || 'Airbus A320'} \u2022 \uD83D\uDCC5 ${fd.flightDate || 'Date'}
+                            </div>
                         </div>
-                        <div style="background: #f8fafc; border-radius: 12px; padding: 12px; margin-bottom: 16px; border: 1px solid #e2e8f0;">
-                            <div style="font-weight: 800; font-size: 13px; color: #1e293b; margin-bottom: 4px;">👥 Multi-Seat Passenger Details</div>
-                            <div style="font-size: 11px; color: #64748b; margin-bottom: 10px;">Select multiple seats on airplane sketch. Assign family member details for each seat.</div>
-                            <div id="familyMembersRosterContainer">
-                                <div style="font-size: 12px; color: #94a3b8; text-align: center; padding: 14px; border: 1px dashed #cbd5e1; border-radius: 8px;">
-                                    👈 Click any available Green seat on airplane map to select seats for family members!
+
+                        <!-- LEGEND GRID MATCHING SCREENSHOT -->
+                        <div class="screenshot-legend-grid">
+                            <div class="sc-legend-item">
+                                <div class="sc-legend-box business"></div>
+                                <div class="sc-legend-text">
+                                    Business (BUS)<br><span class="sc-legend-price">\u20B9 6,000</span>
                                 </div>
                             </div>
-                        </div>
-                        <div class="selected-seat-badge" id="selectedSeatBadge">
-                            <span>Selected Seats (<b id="selectedSeatsCountText">0</b>):</span>
-                            <span id="selectedSeatNoText" style="font-weight: 800; font-size: 15px; color: #d97706;">None</span>
-                        </div>
-                        <div style="margin-bottom: 20px;">
-                            <div class="price-breakdown-row">
-                                <span>Base Fare (<span id="baseFareMultiplierText">0 seats</span>):</span>
-                                <span id="baseFareTotalText">₹0.00</span>
+                            <div class="sc-legend-item">
+                                <div class="sc-legend-box economy"></div>
+                                <div class="sc-legend-text">
+                                    Economy Class<br><span class="sc-legend-price">\u20B9 3,500</span>
+                                </div>
                             </div>
-                            <div class="price-breakdown-row">
-                                <span>Seat Surcharges Total:</span>
-                                <span id="seatSurchargeText">+₹0.00</span>
+                            <div class="sc-legend-item">
+                                <div class="sc-legend-box selected"></div>
+                                <div class="sc-legend-text">Selected Seat</div>
                             </div>
-                            <div class="price-total-row">
-                                <span>Grand Total Amount:</span>
-                                <span id="totalPriceText">₹0.00</span>
+                            <div class="sc-legend-item">
+                                <div class="sc-legend-box booked">X</div>
+                                <div class="sc-legend-text">Booked Seat</div>
                             </div>
                         </div>
-                        <button id="confirmSeatBookingBtn" style="width: 100%; padding: 14px; border-radius: 12px; border: none; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #fff; font-weight: 800; font-size: 15px; cursor: pointer; box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4); transition: all 0.2s ease;">
-                            Proceed to Payment & Book Seats 💳
+
+                        <!-- SELECTED SEATS & TOTAL FARE CARD -->
+                        <div class="screenshot-total-card">
+                            <div>
+                                <div style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase;">Selected Seats</div>
+                                <div class="selected-seats-badge-group" id="selectedSeatsBadgesGroup">
+                                    <span style="font-size: 12px; color: #94a3b8; font-weight: 600;">None</span>
+                                </div>
+                            </div>
+                            <div style="text-align: right;">
+                                <div style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase;">Total</div>
+                                <div style="font-size: 20px; font-weight: 900; color: #0f172a;" id="screenshotTotalFareText">\u20B9 0</div>
+                            </div>
+                        </div>
+
+                        <!-- NOTICE BANNER -->
+                        <div class="screenshot-notice-banner">
+                            <span>\u2139\uFE0F</span>
+                            <span>You can select up to 6 seats per booking</span>
+                        </div>
+
+                        <!-- PROCEED TO PAY BUTTON -->
+                        <button id="proceedToPayBtn" style="width: 100%; padding: 14px; border-radius: 12px; border: none; background: linear-gradient(135deg, #16a34a 0%, #15803d 100%); color: #fff; font-weight: 800; font-size: 15px; cursor: pointer; box-shadow: 0 4px 14px rgba(22, 163, 74, 0.4); transition: all 0.2s ease;">
+                            Proceed to Pay \u2794
                         </button>
                         <div id="bookingMsg" class="form-message" style="margin-top: 12px;"></div>
                     </div>
@@ -2337,121 +2358,63 @@ async function initDashboard() {
             const rowsContainer = document.getElementById("cabinRowsContainer");
             let rowsHtml = '';
 
-            for (let r = 1; r <= 30; r++) {
-                if (r === 1) rowsHtml += `<div class="cabin-class-header">👑 Business Class (Rows 1 - 3) - Extra Recline & Luxury (+₹1,500)</div>`;
-                else if (r === 4) rowsHtml += `<div class="cabin-class-header">✨ Premium Economy (Rows 4 - 6)</div>`;
-                else if (r === 7) rowsHtml += `<div class="cabin-class-header">💺 Main Economy Cabin</div>`;
-                else if (r === 10) rowsHtml += `<div class="cabin-class-header exit-row">🚪 OVER-WING EMERGENCY EXIT ROWS - Extra Legroom (+₹300)</div>`;
-
+            for (let r = 1; r <= 20; r++) {
                 const rowSeats = seats.filter(s => parseInt(s.row) === r);
                 const leftGroup = ['A', 'B', 'C'].map(col => rowSeats.find(s => (s.col || '').trim().toUpperCase() === col));
                 const rightGroup = ['D', 'E', 'F'].map(col => rowSeats.find(s => (s.col || '').trim().toUpperCase() === col));
 
                 const renderSeatBtn = (s, colName) => {
-                    if (!s) return `<div style="width:44px;"></div>`;
-                    const isBooked = s.status === 'BOOKED' || s.status === 'OCCUPIED';
+                    if (!s) return `<div style="width:36px;"></div>`;
+                    const isBooked = s.status === 'BOOKED' || s.status === 'OCCUPIED' || s.status === 'PAID';
                     const isBusiness = s.seatClass === 'BUSINESS';
                     const btnClass = `seat-btn ${isBooked ? 'booked' : 'available'} ${isBusiness ? 'business-seat' : ''}`;
-                    const icon = isBooked ? '🔒' : s.seatNo;
-                    const statusTag = isBooked ? 'BOOKED' : s.seatType.substring(0,3);
+                    const shortcut = getSeatShortcut(s);
+
                     return `
                         <button class="${btnClass}" id="seatBtn_${s.seatNo}" data-seat="${s.seatNo}" data-price="${s.finalPrice}" data-surcharge="${s.priceSurcharge}" data-type="${s.seatType}" data-class="${s.seatClass}" ${isBooked ? 'disabled' : ''}>
-                            <span>${icon}</span>
-                            <span class="seat-type-tag">${statusTag}</span>
+                            ${isBooked ? '<span style="font-size:12px;">X</span>' : `
+                                <span class="seat-num-text">${s.seatNo}</span>
+                                <span class="seat-shortcut-text">${shortcut}</span>
+                            `}
                         </button>
                     `;
                 };
 
                 rowsHtml += `
                     <div class="seat-row-grid">
-                        <div class="cabin-window-sketch" title="Window Row ${r}"></div>
                         <div class="row-number-badge">${r}</div>
-                        <div class="seat-group">${leftGroup.map((s, idx) => renderSeatBtn(s, ['A','B','C'][idx])).join('')}</div>
-                        <div class="aisle-gap">AISLE</div>
-                        <div class="seat-group">${rightGroup.map((s, idx) => renderSeatBtn(s, ['D','E','F'][idx])).join('')}</div>
-                        <div class="row-number-badge">${r}</div>
-                        <div class="cabin-window-sketch" title="Window Row ${r}"></div>
+                        <div class="seat-group">${leftGroup.map((s, idx) => renderSeatBtn(s, ['A', 'B', 'C'][idx])).join('')}</div>
+                        <div class="aisle-gap"></div>
+                        <div class="seat-group">${rightGroup.map((s, idx) => renderSeatBtn(s, ['D', 'E', 'F'][idx])).join('')}</div>
                     </div>
                 `;
             }
 
             if (rowsContainer) rowsContainer.innerHTML = rowsHtml;
 
-            const updateMultiSeatSummary = () => {
-                const rosterContainer = document.getElementById("familyMembersRosterContainer");
-                const countElem = document.getElementById("selectedSeatsCountText");
-                const seatListElem = document.getElementById("selectedSeatNoText");
-                const baseMultiplierElem = document.getElementById("baseFareMultiplierText");
-                const baseTotalElem = document.getElementById("baseFareTotalText");
-                const surchargeElem = document.getElementById("seatSurchargeText");
-                const totalElem = document.getElementById("totalPriceText");
+
+            const updateSelectedSummary = () => {
+                const badgeGroup = document.getElementById("selectedSeatsBadgesGroup");
+                const totalFareElem = document.getElementById("screenshotTotalFareText");
 
                 const seatCount = selectedSeatsMap.size;
-                if (countElem) countElem.textContent = seatCount;
 
                 if (seatCount === 0) {
-                    if (seatListElem) seatListElem.textContent = "None";
-                    if (baseMultiplierElem) baseMultiplierElem.textContent = "0 seats";
-                    if (baseTotalElem) baseTotalElem.textContent = "₹0.00";
-                    if (surchargeElem) surchargeElem.textContent = "+₹0.00";
-                    if (totalElem) totalElem.textContent = "₹0.00";
-                    if (rosterContainer) {
-                        rosterContainer.innerHTML = `
-                            <div style="font-size: 12px; color: #94a3b8; text-align: center; padding: 14px; border: 1px dashed #cbd5e1; border-radius: 8px;">
-                                👈 Click any available Green seat on airplane map to select seats for family members!
-                            </div>
-                        `;
-                    }
+                    if (badgeGroup) badgeGroup.innerHTML = `<span style="font-size: 12px; color: #94a3b8; font-weight: 600;">None</span>`;
+                    if (totalFareElem) totalFareElem.textContent = "\u20B9 0";
                     return;
                 }
 
-                let totalBasePrice = baseFare * seatCount;
-                let totalSurcharges = 0;
                 let grandTotal = 0;
-                const seatNoList = [];
+                let badgeHtml = '';
 
                 selectedSeatsMap.forEach((seatData, seatNo) => {
-                    seatNoList.push(seatNo);
-                    totalSurcharges += (seatData.surcharge || 0);
-                    grandTotal += (seatData.finalPrice || (baseFare + (seatData.surcharge || 0)));
+                    grandTotal += (seatData.finalPrice || 3500);
+                    badgeHtml += `<span class="seat-tag-pill">${seatNo}</span>`;
                 });
 
-                if (seatListElem) seatListElem.textContent = seatNoList.join(", ");
-                if (baseMultiplierElem) baseMultiplierElem.textContent = `${seatCount} seat${seatCount > 1 ? 's' : ''}`;
-                if (baseTotalElem) baseTotalElem.textContent = `₹${totalBasePrice.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
-                if (surchargeElem) surchargeElem.textContent = `+₹${totalSurcharges.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
-                if (totalElem) totalElem.textContent = `₹${grandTotal.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
-
-                if (rosterContainer) {
-                    let rosterHtml = '';
-                    let idx = 0;
-                    selectedSeatsMap.forEach((seatData, seatNo) => {
-                        idx++;
-                        const defaultPassenger = (passengers && passengers.length >= idx) ? passengers[idx - 1] : (passengers && passengers.length > 0 ? passengers[0] : null);
-                        const defaultName = defaultPassenger ? defaultPassenger.passengerName : (idx === 1 ? 'Dushmanta Das' : `Family Member ${idx}`);
-                        const defaultMobile = defaultPassenger ? defaultPassenger.mobileNo : (idx === 1 ? '7008233179' : '');
-
-                        rosterHtml += `
-                            <div class="family-passenger-card" style="background: #ffffff; border: 1.5px solid #cbd5e1; border-radius: 10px; padding: 10px; margin-bottom: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.04);">
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                                    <span style="font-weight: 800; font-size: 12px; color: #0284c7;">💺 Seat ${seatNo} (${seatData.seatClass} - ${seatData.seatType})</span>
-                                    <span style="font-size: 11px; font-weight: 700; color: #059669;">+₹${seatData.finalPrice.toLocaleString('en-IN')}</span>
-                                </div>
-                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
-                                    <div>
-                                        <label style="font-size: 10px; font-weight: 700; color: #64748b; display: block;">Passenger Name</label>
-                                        <input type="text" id="custName_${seatNo}" value="${defaultName}" style="width: 100%; padding: 5px 6px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 11px; font-weight: 600;" placeholder="Name">
-                                    </div>
-                                    <div>
-                                        <label style="font-size: 10px; font-weight: 700; color: #64748b; display: block;">Mobile No</label>
-                                        <input type="text" id="custMobile_${seatNo}" value="${defaultMobile}" style="width: 100%; padding: 5px 6px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 11px; font-weight: 600;" placeholder="Mobile">
-                                    </div>
-                                </div>
-                            </div>
-                        `;
-                    });
-                    rosterContainer.innerHTML = rosterHtml;
-                }
+                if (badgeGroup) badgeGroup.innerHTML = badgeHtml;
+                if (totalFareElem) totalFareElem.textContent = `\u20B9 ${grandTotal.toLocaleString('en-IN')}`;
             };
 
             if (rowsContainer) {
@@ -2468,89 +2431,157 @@ async function initDashboard() {
                             btn.classList.remove('in-transition', 'selected');
                             btn.classList.add('available');
                         } else {
+                            if (selectedSeatsMap.size >= 6) {
+                                alert("\u2139\uFE0F You can select up to 6 seats per booking!");
+                                return;
+                            }
                             selectedSeatsMap.set(seatNo, { seatNo, finalPrice, surcharge, seatType, seatClass, btnElement: btn });
                             btn.classList.remove('available');
                             btn.classList.add('in-transition', 'selected');
                         }
-                        updateMultiSeatSummary();
+                        updateSelectedSummary();
                     });
                 });
             }
 
-            const confirmBtn = document.getElementById("confirmSeatBookingBtn");
+            // PROCEED TO PAY CLICK HANDLER (OPENS CUSTOMER DETAILS FORM & MEMBERSHIP DISCOUNT MODAL)
+            const proceedBtn = document.getElementById("proceedToPayBtn");
             const bookingMsg = document.getElementById("bookingMsg");
 
-            if (confirmBtn) {
-                confirmBtn.addEventListener("click", () => {
+            if (proceedBtn) {
+                proceedBtn.addEventListener("click", () => {
                     if (selectedSeatsMap.size === 0) {
                         if (bookingMsg) {
-                            bookingMsg.textContent = "⚠️ Please click available Green seats on the airplane map to select seats for your family!";
+                            bookingMsg.textContent = "\u26A0\uFE0F Please click available seats on the airplane layout to select your seats!";
                             bookingMsg.className = "form-message error";
                         }
                         return;
                     }
 
-                    const existingModal = document.getElementById("paymentModalOverlay");
+                    const existingModal = document.getElementById("customerPaymentModalOverlay");
                     if (existingModal) existingModal.remove();
 
-                    let totalPayable = 0;
-                    let seatItemRows = '';
-
-                    selectedSeatsMap.forEach((seatData, seatNo) => {
-                        totalPayable += seatData.finalPrice;
-                        const nameInput = document.getElementById(`custName_${seatNo}`);
-                        const passName = nameInput ? nameInput.value.trim() : `Passenger (${seatNo})`;
-                        seatItemRows += `
-                            <div style="display: flex; justify-content: space-between; font-size: 12px; color: #475569; margin-bottom: 4px;">
-                                <span><b>Seat ${seatNo}</b> (${passName})</span>
-                                <span style="font-weight: 700;">₹${seatData.finalPrice.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
-                            </div>
-                        `;
-                    });
+                    let baseTotal = 0;
+                    selectedSeatsMap.forEach(s => baseTotal += s.finalPrice);
 
                     const modalHtml = `
-                        <div class="payment-modal-overlay" id="paymentModalOverlay">
-                            <div class="payment-modal-card">
+                        <div class="payment-modal-overlay" id="customerPaymentModalOverlay">
+                            <div class="payment-modal-card" style="max-width: 560px;">
                                 <div class="payment-modal-header">
                                     <div>
-                                        <div style="font-weight: 800; font-size: 16px;">✈️ AOS Family Ticket Payment</div>
-                                        <div style="font-size: 11px; opacity: 0.8;">256-Bit SSL Encrypted Multi-Seat Checkout</div>
+                                        <div style="font-weight: 800; font-size: 16px;">\u2708\uFE0F Passenger Details & Checkout</div>
+                                        <div style="font-size: 11px; opacity: 0.85;">Fill customer information & select membership tier discount</div>
                                     </div>
-                                    <button id="closePaymentModalBtn" style="background: none; border: none; color: #fff; font-size: 20px; cursor: pointer;">✕</button>
+                                    <button id="closeCustomerModalBtn" style="background: none; border: none; color: #fff; font-size: 20px; cursor: pointer;">\u2715</button>
                                 </div>
+
                                 <div class="payment-modal-body">
-                                    <div style="background: #f1f5f9; border-radius: 12px; padding: 14px; margin-bottom: 16px;">
-                                        <div style="font-weight: 700; font-size: 14px; color: #0f172a; margin-bottom: 8px;">
-                                            ${fd.flightNo || 'AI-101'} (${fd.companyName || 'Air India'}) | ${fd.sourceCode || 'SRC'} ➔ ${fd.destCode || 'DST'}
+                                    <!-- REGISTERED CUSTOMER SELECTION & INLINE REGISTRATION -->
+                                    <div style="background: #f8fafc; border-radius: 12px; padding: 14px; margin-bottom: 16px; border: 1px solid #e2e8f0;">
+                                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                                            <label style="font-size: 12px; font-weight: 800; color: #0f172a;">
+                                                \uD83D\uDC64 Select Registered Customer (From DB):
+                                            </label>
+                                            <button id="toggleNewCustFormBtn" type="button" style="background: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 6px; cursor: pointer;">
+                                                \u2795 Add New Customer / Member
+                                            </button>
                                         </div>
-                                        ${seatItemRows}
-                                        <div style="display: flex; justify-content: space-between; margin-top: 10px; font-weight: 800; font-size: 17px; border-top: 2px dashed #cbd5e1; padding-top: 8px;">
-                                            <span>Total Amount Payable:</span>
-                                            <span style="color: #059669;">₹${totalPayable.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
+
+                                        <select id="regCustomerSelect" style="width: 100%; padding: 9px 12px; border-radius: 8px; border: 1.5px solid #cbd5e1; font-size: 12px; font-weight: 700; outline: none; background: #ffffff; color: #0f172a; margin-bottom: 10px;">
+                                            ${registeredCustomersList.map(c => `
+                                                <option value="${c.passengerId}" data-name="${c.passengerName}" data-mobile="${c.mobileNo}" data-email="${c.emailId || ''}" data-passport="${c.passportNo || 'N/A'}" data-tier="${c.memberTier || 'Executive Platinum'}">
+                                                    ID ${c.passengerId} - ${c.passengerName} (${c.mobileNo}) [${c.memberTier || 'VIP'}]
+                                                </option>
+                                            `).join('')}
+                                        </select>
+
+                                        <!-- INLINE NEW CUSTOMER REGISTRATION FORM -->
+                                        <div id="newMemberRegistrationCard" style="display: none; background: #ffffff; border: 1.5px solid #0284c7; border-radius: 12px; padding: 14px; margin-top: 10px;">
+                                            <div style="font-size: 13px; font-weight: 800; color: #0284c7; margin-bottom: 8px;">\u2795 Register New Customer in Oracle DB</div>
+                                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+                                                <input type="text" id="newCustNameInput" placeholder="Full Name *" style="padding: 7px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 11px;">
+                                                <input type="text" id="newCustMobileInput" placeholder="Mobile Number *" style="padding: 7px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 11px;">
+                                                <input type="email" id="newCustEmailInput" placeholder="Email Address" style="padding: 7px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 11px;">
+                                                <input type="text" id="newCustPassportInput" placeholder="Passport No" style="padding: 7px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 11px;">
+                                            </div>
+                                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px;">
+                                                <select id="newCustGenderSelect" style="padding: 7px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 11px;">
+                                                    <option value="M">Male</option>
+                                                    <option value="F">Female</option>
+                                                    <option value="O">Other</option>
+                                                </select>
+                                                <select id="newCustTierSelect" style="padding: 7px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 11px;">
+                                                    <option value="Executive Platinum">Executive Platinum (15% Off)</option>
+                                                    <option value="Gold Elite">Gold Elite (10% Off)</option>
+                                                    <option value="Silver Preferred">Silver Preferred (5% Off)</option>
+                                                    <option value="Standard">Standard Customer</option>
+                                                </select>
+                                            </div>
+                                            <button id="saveNewCustDbBtn" type="button" style="width: 100%; padding: 9px; border-radius: 8px; border: none; background: #0284c7; color: #fff; font-weight: 800; font-size: 12px; cursor: pointer;">
+                                                Save New Customer to DB \uD83D\uDCBE
+                                            </button>
+                                            <div id="newCustMsg" style="font-size: 11px; margin-top: 6px;"></div>
+                                        </div>
+
+                                        <!-- MEMBERSHIP TIER DISCOUNT SELECTION -->
+                                        <div style="margin-top: 10px;">
+                                            <label style="font-size: 12px; font-weight: 800; color: #0f172a; display: block; margin-bottom: 6px;">
+                                                \u2B50 Select Membership Tier Discount:
+                                            </label>
+                                            <select id="membershipTierSelect" style="width: 100%; padding: 9px 12px; border-radius: 8px; border: 1.5px solid #3b82f6; font-size: 12px; font-weight: 800; outline: none; background: #eff6ff; color: #1e3a8a;">
+                                                <option value="15" selected>Executive Platinum (15% Special Discount)</option>
+                                                <option value="10">Gold Elite (10% Special Discount)</option>
+                                                <option value="5">Silver Preferred (5% Special Discount)</option>
+                                                <option value="0">Standard Customer (No Discount)</option>
+                                            </select>
                                         </div>
                                     </div>
-                                    <div style="font-weight: 700; font-size: 13px; color: #334155; margin-bottom: 8px;">Select Payment Method:</div>
-                                    <div class="payment-option-grid">
-                                        <div class="payment-option-item selected" data-method="UPI">
-                                            <div style="font-size: 20px;">📱</div>
-                                            <div style="font-size: 12px; font-weight: 700; margin-top: 4px;">Google Pay / UPI</div>
+
+                                    <!-- PASSENGER ROSTER FOR SELECTED SEATS -->
+                                    <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px; margin-bottom: 16px;">
+                                        <div style="font-weight: 800; font-size: 12px; color: #334155; margin-bottom: 10px; text-transform: uppercase; display: flex; justify-content: space-between; align-items: center;">
+                                            <span>\uD83D\uDC65 Passenger Details & Membership Tiers (${selectedSeatsMap.size} Seats):</span>
+                                            <span style="font-size: 11px; color: #0284c7; font-weight: 700;">Search Passport / Register</span>
                                         </div>
-                                        <div class="payment-option-item" data-method="CARD">
-                                            <div style="font-size: 20px;">💳</div>
-                                            <div style="font-size: 12px; font-weight: 700; margin-top: 4px;">Credit / Debit Card</div>
+                                        <div id="modalPassengerInputsContainer"></div>
+                                    </div>
+
+                                    <!-- DYNAMIC PRICE BREAKDOWN & DISCOUNT CALCULATION -->
+                                    <div style="background: #f0fdf4; border: 1.5px solid #16a34a; border-radius: 12px; padding: 14px; margin-bottom: 16px;">
+                                        <div style="display: flex; justify-content: space-between; font-size: 13px; color: #475569; margin-bottom: 6px;">
+                                            <span>Subtotal Base Fare (${selectedSeatsMap.size} seats):</span>
+                                            <span style="font-weight: 700;" id="subtotalFareValText">\u20B9${baseTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                                         </div>
-                                        <div class="payment-option-item" data-method="NETBANKING">
-                                            <div style="font-size: 20px;">🏦</div>
-                                            <div style="font-size: 12px; font-weight: 700; margin-top: 4px;">Net Banking</div>
+                                        <div style="display: flex; justify-content: space-between; font-size: 13px; color: #16a34a; font-weight: 700; margin-bottom: 6px;">
+                                            <span>Total Membership Tier Discounts:</span>
+                                            <span id="discountValText">-\u20B90.00</span>
                                         </div>
-                                        <div class="payment-option-item" data-method="CASH">
-                                            <div style="font-size: 20px;">💵</div>
-                                            <div style="font-size: 12px; font-weight: 700; margin-top: 4px;">Counter Cash</div>
+                                        <div style="display: flex; justify-content: space-between; font-size: 17px; font-weight: 900; color: #065f46; border-top: 2px dashed #bbf7d0; padding-top: 8px;">
+                                            <span>Net Payable Amount:</span>
+                                            <span id="netPayableValText">\u20B9${baseTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                                         </div>
                                     </div>
-                                    <div id="paymentStatusBox" style="font-size: 12px; font-weight: 700; text-align: center; color: #0284c7; margin: 12px 0;"></div>
-                                    <button id="payNowSubmitBtn" style="width: 100%; padding: 14px; border-radius: 12px; border: none; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #fff; font-weight: 800; font-size: 15px; cursor: pointer; box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4);">
-                                        Pay ₹${totalPayable.toLocaleString('en-IN', {minimumFractionDigits: 2})} & Confirm All Seats
+
+                                    <!-- COUNTER CASH METHOD & PAID ACTION -->
+                                    <div style="background: #ffffff; border: 1.5px solid #cbd5e1; border-radius: 12px; padding: 14px; margin-bottom: 16px;">
+                                        <div style="font-weight: 800; font-size: 13px; color: #0f172a; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between;">
+                                            <span>\uD83D\uDCB5 Counter Cash Collection Details</span>
+                                            <span style="font-size: 10px; background: #16a34a; color: #fff; padding: 2px 6px; border-radius: 4px; font-weight: 700;">Counter Cash</span>
+                                        </div>
+                                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                                            <div>
+                                                <label style="font-size: 11px; font-weight: 700; color: #475569; display: block; margin-bottom: 2px;">Amount Paid (Cash Tendered):</label>
+                                                <input type="number" id="cashPaidAmountInput" value="${baseTotal}" style="width: 100%; padding: 8px; border-radius: 8px; border: 1.5px solid #16a34a; font-size: 14px; font-weight: 800; outline: none; color: #065f46;">
+                                            </div>
+                                            <div>
+                                                <label style="font-size: 11px; font-weight: 700; color: #475569; display: block; margin-bottom: 2px;">Change to Return (\u20B9):</label>
+                                                <input type="text" id="cashChangeValInput" value="\u20B90.00" readonly style="width: 100%; padding: 8px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 14px; font-weight: 800; background: #f1f5f9; color: #334155;">
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <button id="finalPaidSubmitBtn" style="width: 100%; padding: 14px; border-radius: 12px; border: none; background: linear-gradient(135deg, #16a34a 0%, #15803d 100%); color: #fff; font-weight: 900; font-size: 16px; cursor: pointer; box-shadow: 0 4px 14px rgba(22, 163, 74, 0.4); text-transform: uppercase; letter-spacing: 1px;">
+                                        Paid & Generate Ticket PDF \uD83C\uDFAB
                                     </button>
                                 </div>
                             </div>
@@ -2558,126 +2589,619 @@ async function initDashboard() {
                     `;
 
                     document.body.insertAdjacentHTML("beforeend", modalHtml);
-                    const modalOverlay = document.getElementById("paymentModalOverlay");
-                    const closeModalBtn = document.getElementById("closePaymentModalBtn");
-                    const payNowSubmitBtn = document.getElementById("payNowSubmitBtn");
-                    const paymentStatusBox = document.getElementById("paymentStatusBox");
+                    const modalOverlay = document.getElementById("customerPaymentModalOverlay");
+                    const closeModalBtn = document.getElementById("closeCustomerModalBtn");
+                    const inputsContainer = document.getElementById("modalPassengerInputsContainer");
+                    const subtotalText = document.getElementById("subtotalFareValText");
+                    const discountValText = document.getElementById("discountValText");
+                    const netPayableText = document.getElementById("netPayableValText");
+                    const cashPaidInput = document.getElementById("cashPaidAmountInput");
+                    const cashChangeInput = document.getElementById("cashChangeValInput");
+                    const paidSubmitBtn = document.getElementById("finalPaidSubmitBtn");
 
                     if (closeModalBtn) closeModalBtn.addEventListener("click", () => modalOverlay.remove());
-                    document.querySelectorAll(".payment-option-item").forEach(item => {
-                        item.addEventListener("click", () => {
-                            document.querySelectorAll(".payment-option-item").forEach(i => i.classList.remove("selected"));
-                            item.classList.add("selected");
-                        });
+
+                    let currentNetPayable = baseTotal;
+
+                    // Per-Seat Passenger Assignment Map
+                    const seatPassengerMap = new Map();
+
+                    const getTierDiscountPct = (tierName) => {
+                        if (!tierName) return 0;
+                        const t = tierName.toLowerCase();
+                        if (t.includes("executive") || t.includes("platinum")) return 15;
+                        if (t.includes("gold")) return 10;
+                        if (t.includes("silver")) return 5;
+                        return 0;
+                    };
+
+                    // Default customer initialization for each seat
+                    let passIdx = 0;
+                    selectedSeatsMap.forEach((seatData, seatNo) => {
+                        const defaultCust = registeredCustomersList[passIdx % registeredCustomersList.length] || { passengerId: 10000001, passengerName: "Dushmanta Das", mobileNo: "7008233179", passportNo: "Z9842103", memberTier: "Executive Platinum" };
+                        seatPassengerMap.set(seatNo, { ...defaultCust });
+                        passIdx++;
                     });
 
-                    if (payNowSubmitBtn) {
-                        payNowSubmitBtn.addEventListener("click", async () => {
-                            payNowSubmitBtn.disabled = true;
-                            if (paymentStatusBox) paymentStatusBox.innerHTML = "⏳ Step 1/3: Connecting to Bank Payment Gateway...";
-                            setTimeout(async () => {
-                                if (paymentStatusBox) paymentStatusBox.innerHTML = "💳 Step 2/3: Payment Authorized & Verified!";
-                                setTimeout(async () => {
-                                    if (paymentStatusBox) paymentStatusBox.innerHTML = "✈️ Step 3/3: Reserving Seats & Issuing PNR Tickets...";
-                                    const bookedPnrs = [];
-                                    for (const [seatNo, seatData] of selectedSeatsMap.entries()) {
-                                        try {
-                                            const bookRes = await fetch("/api/ticket-booking/book-seat", {
-                                                method: "POST",
-                                                headers: { "Content-Type": "application/json" },
-                                                body: JSON.stringify({
-                                                    dynamicPriceId: targetId,
-                                                    passengerId: 10000001,
-                                                    seatNo: seatNo
-                                                }),
-                                                credentials: "same-origin"
-                                            });
-                                            const bookData = await bookRes.json();
-                                            if (bookRes.ok) {
-                                                bookedPnrs.push(`${seatNo}: PNR ${bookData.pnrNo}`);
-                                                if (seatData.btnElement) {
-                                                    seatData.btnElement.classList.remove('in-transition', 'selected', 'available');
-                                                    seatData.btnElement.classList.add('booked');
-                                                    seatData.btnElement.disabled = true;
-                                                    seatData.btnElement.innerHTML = `<span>🔒</span><span class="seat-type-tag">BOOKED</span>`;
+                    const renderPerSeatPassengerCards = () => {
+                        if (!inputsContainer) return;
+
+                        let html = '';
+                        selectedSeatsMap.forEach((seatData, seatNo) => {
+                            const pass = seatPassengerMap.get(seatNo) || {};
+                            const discPct = getTierDiscountPct(pass.memberTier);
+
+                            html += `
+                                <div class="passenger-seat-card" id="seatCard_${seatNo}">
+                                    <div class="seat-card-header">
+                                        <div class="seat-title-tag">
+                                            \uD83D\uDCBA Seat ${seatNo} (${seatData.seatClass} - \u20B9${seatData.finalPrice.toLocaleString('en-IN')})
+                                        </div>
+                                        <button type="button" class="register-seat-cust-btn" id="toggleSeatRegBtn_${seatNo}">
+                                            \u2795 Register Customer for Seat ${seatNo}
+                                        </button>
+                                    </div>
+
+                                    <!-- PASSPORT / NAME / MOBILE AUTO-SUGGEST SEARCH INPUT -->
+                                    <div class="seat-cust-search-row">
+                                        <label style="font-size: 11px; font-weight: 700; color: #475569; display: block; margin-bottom: 2px;">
+                                            \uD83D\uDD0D Passport No / Customer DB Search:
+                                        </label>
+                                        <input type="text" class="passport-search-input" id="passportSearch_${seatNo}" placeholder="Type Passport No (e.g. Z9842103), Name or Mobile..." value="${pass.passportNo && pass.passportNo !== 'N/A' ? pass.passportNo + ' (' + pass.passengerName + ')' : pass.passengerName}" autocomplete="off">
+                                        <div class="search-suggestions-box" id="suggestionsBox_${seatNo}" style="display: none;"></div>
+                                    </div>
+
+                                    <!-- SELECTED PASSENGER SUMMARY INFO BOX -->
+                                    <div class="seat-pass-info-box" id="seatInfoBox_${seatNo}">
+                                        <div>
+                                            <b>${pass.passengerName}</b> (${pass.mobileNo || 'No Mobile'}) <span style="font-size:11px; color:#64748b;">| Passport: ${pass.passportNo || 'N/A'}</span>
+                                        </div>
+                                        <span class="suggestion-badge" style="background:${discPct > 0 ? '#dcfce7' : '#f1f5f9'}; color:${discPct > 0 ? '#15803d' : '#475569'};">
+                                            ${pass.memberTier || 'Standard'} (${discPct}% Off)
+                                        </span>
+                                    </div>
+
+                                    <!-- INLINE REGISTRATION FORM FOR THIS SEAT -->
+                                    <div class="seat-reg-form" id="seatRegForm_${seatNo}" style="display: none;">
+                                        <div class="reg-form-title">\u2795 Register Customer for Seat ${seatNo} in Oracle DB</div>
+                                        <div class="reg-grid">
+                                            <input type="text" id="regName_${seatNo}" placeholder="Full Name *" value="${pass.passengerName || ''}">
+                                            <input type="text" id="regMobile_${seatNo}" placeholder="Mobile Number *" value="${pass.mobileNo || ''}">
+                                            <input type="email" id="regEmail_${seatNo}" placeholder="Email Address" value="${pass.emailId || ''}">
+                                            <input type="text" id="regPassport_${seatNo}" placeholder="Passport No" value="${pass.passportNo || ''}">
+                                        </div>
+
+                                        <!-- MEMBERSHIP OPTION FIELD AT BOTTOM OF CUSTOMER REGISTRATION FORM -->
+                                        <div class="membership-field-group">
+                                            <label>\uD83C\uDFC5 Purchase / Select Frequent Flyer Membership Tier (Optional):</label>
+                                            <select id="regTier_${seatNo}">
+                                                <option value="Executive Platinum" ${pass.memberTier === 'Executive Platinum' ? 'selected' : ''}>Executive Platinum (15% Special Discount)</option>
+                                                <option value="Gold Elite" ${pass.memberTier === 'Gold Elite' ? 'selected' : ''}>Gold Elite (10% Special Discount)</option>
+                                                <option value="Silver Preferred" ${pass.memberTier === 'Silver Preferred' ? 'selected' : ''}>Silver Preferred (5% Special Discount)</option>
+                                                <option value="Standard" ${pass.memberTier === 'Standard' ? 'selected' : ''}>Standard Customer (No Discount)</option>
+                                            </select>
+                                        </div>
+
+                                        <button type="button" class="save-seat-cust-btn" id="saveCustBtn_${seatNo}">
+                                            Save Customer & Apply Membership to DB \uD83D\uDCBE
+                                        </button>
+                                        <div id="seatRegMsg_${seatNo}" style="font-size: 11px; margin-top: 6px;"></div>
+                                    </div>
+                                </div>
+                            `;
+                        });
+
+                        inputsContainer.innerHTML = html;
+
+                        // Event Listeners for each per-seat card
+                        selectedSeatsMap.forEach((seatData, seatNo) => {
+                            const toggleBtn = document.getElementById(`toggleSeatRegBtn_${seatNo}`);
+                            const regForm = document.getElementById(`seatRegForm_${seatNo}`);
+                            const searchInput = document.getElementById(`passportSearch_${seatNo}`);
+                            const sugBox = document.getElementById(`suggestionsBox_${seatNo}`);
+                            const saveBtn = document.getElementById(`saveCustBtn_${seatNo}`);
+                            const msgDiv = document.getElementById(`seatRegMsg_${seatNo}`);
+
+                            if (toggleBtn && regForm) {
+                                toggleBtn.addEventListener("click", () => {
+                                    regForm.style.display = regForm.style.display === "none" ? "block" : "none";
+                                });
+                            }
+
+                            // Auto-suggest Passport / Name Search
+                            if (searchInput && sugBox) {
+                                searchInput.addEventListener("input", () => {
+                                    const query = searchInput.value.trim().toLowerCase();
+                                    if (!query) {
+                                        sugBox.style.display = "none";
+                                        return;
+                                    }
+
+                                    const matches = registeredCustomersList.filter(c =>
+                                        (c.passportNo || '').toLowerCase().includes(query) ||
+                                        (c.passengerName || '').toLowerCase().includes(query) ||
+                                        (c.mobileNo || '').includes(query) ||
+                                        (c.passengerId + '').includes(query)
+                                    );
+
+                                    if (matches.length > 0) {
+                                        sugBox.innerHTML = matches.map(c => `
+                                            <div class="suggestion-item" data-id="${c.passengerId}">
+                                                <div>
+                                                    <b>${c.passportNo || 'No Passport'}</b> - ${c.passengerName} (${c.mobileNo})
+                                                </div>
+                                                <span class="suggestion-badge">${c.memberTier || 'Standard'}</span>
+                                            </div>
+                                        `).join('');
+
+                                        sugBox.style.display = "block";
+
+                                        sugBox.querySelectorAll(".suggestion-item").forEach(item => {
+                                            item.addEventListener("click", () => {
+                                                const pId = parseInt(item.dataset.id);
+                                                const matchedPass = registeredCustomersList.find(c => c.passengerId === pId);
+                                                if (matchedPass) {
+                                                    seatPassengerMap.set(seatNo, { ...matchedPass });
+                                                    sugBox.style.display = "none";
+                                                    renderPerSeatPassengerCards();
+                                                    updatePriceCalculations();
                                                 }
-                                            }
-                                        } catch (err) {
-                                            console.error("Error booking seat:", err);
-                                        }
-                                    }
-                                    if (bookedPnrs.length > 0) {
-                                        if (bookingMsg) {
-                                            bookingMsg.textContent = `🎉 Tickets Booked Successfully! PNRs: ${bookedPnrs.join(" | ")}`;
-                                            bookingMsg.className = "form-message success";
-                                        }
-                                        alert(`✈️ FAMILY TICKETS BOOKED & PAYMENT SUCCESSFUL!\n\nBooked Seats (${bookedPnrs.length}):\n${bookedPnrs.join('\n')}\n\nTotal Paid: ₹${totalPayable.toLocaleString('en-IN')}\nPayment Status: COMPLETED ✅`);
-                                        loadSeatMap(targetId);
+                                            });
+                                        });
                                     } else {
-                                        if (bookingMsg) {
-                                            bookingMsg.textContent = "❌ Booking failed for selected seats.";
-                                            bookingMsg.className = "form-message error";
+                                        sugBox.innerHTML = `<div style="padding:8px 12px; font-size:11px; color:#64748b;">No matching customer. Click 'Register Customer' to add new.</div>`;
+                                        sugBox.style.display = "block";
+                                    }
+                                });
+
+                                document.addEventListener("click", (e) => {
+                                    if (!searchInput.contains(e.target) && !sugBox.contains(e.target)) {
+                                        sugBox.style.display = "none";
+                                    }
+                                });
+                            }
+
+                            // Save customer & membership to DB
+                            if (saveBtn) {
+                                saveBtn.addEventListener("click", async () => {
+                                    const nameVal = document.getElementById(`regName_${seatNo}`)?.value.trim();
+                                    const mobVal = document.getElementById(`regMobile_${seatNo}`)?.value.trim();
+                                    const emailVal = document.getElementById(`regEmail_${seatNo}`)?.value.trim();
+                                    const passportVal = document.getElementById(`regPassport_${seatNo}`)?.value.trim() || 'N/A';
+                                    const tierVal = document.getElementById(`regTier_${seatNo}`)?.value || 'Executive Platinum';
+
+                                    if (!nameVal || !mobVal) {
+                                        if (msgDiv) {
+                                            msgDiv.textContent = "\u26A0\uFE0F Full Name and Mobile Number are required!";
+                                            msgDiv.style.color = "#dc2626";
+                                        }
+                                        return;
+                                    }
+
+                                    saveBtn.disabled = true;
+                                    saveBtn.textContent = "\u23F3 Saving to DB...";
+
+                                    try {
+                                        const regRes = await fetch("/api/registered-passengers/register", {
+                                            method: "POST",
+                                            headers: { "Content-Type": "application/json" },
+                                            body: JSON.stringify({
+                                                passengerName: nameVal,
+                                                mobileNo: mobVal,
+                                                emailId: emailVal,
+                                                passportNo: passportVal,
+                                                gender: "M",
+                                                memberTier: tierVal
+                                            }),
+                                            credentials: "same-origin"
+                                        });
+
+                                        const regData = await regRes.json();
+                                        if (regRes.ok && regData.passenger) {
+                                            const p = regData.passenger;
+                                            registeredCustomersList.push(p);
+                                            seatPassengerMap.set(seatNo, { ...p });
+
+                                            if (msgDiv) {
+                                                msgDiv.textContent = `\uD83C\uDF89 ${p.passengerName} saved to DB with ${p.memberTier}!`;
+                                                msgDiv.style.color = "#16a34a";
+                                            }
+
+                                            regForm.style.display = "none";
+                                            renderPerSeatPassengerCards();
+                                            updatePriceCalculations();
+                                        } else {
+                                            if (msgDiv) {
+                                                msgDiv.textContent = `\u274C ${regData.message || 'Error saving customer'}`;
+                                                msgDiv.style.color = "#dc2626";
+                                            }
+                                        }
+                                    } catch (err) {
+                                        console.error("Error saving seat customer:", err);
+                                    } finally {
+                                        saveBtn.disabled = false;
+                                        saveBtn.textContent = "Save Customer & Apply Membership to DB \uD83D\uDCBE";
+                                    }
+                                });
+                            }
+                        });
+                    };
+
+                    const updatePriceCalculations = () => {
+                        let totalDiscountAmount = 0;
+                        let netTotalFare = 0;
+
+                        selectedSeatsMap.forEach((seatData, seatNo) => {
+                            const pass = seatPassengerMap.get(seatNo) || {};
+                            const discPct = getTierDiscountPct(pass.memberTier);
+                            const seatDiscount = (seatData.finalPrice * discPct) / 100.0;
+                            const seatNet = Math.max(0, seatData.finalPrice - seatDiscount);
+
+                            totalDiscountAmount += seatDiscount;
+                            netTotalFare += seatNet;
+                        });
+
+                        currentNetPayable = netTotalFare;
+
+                        if (subtotalText) subtotalText.textContent = `\u20B9${baseTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+                        if (discountValText) discountValText.textContent = `-\u20B9${totalDiscountAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+                        if (netPayableText) netPayableText.textContent = `\u20B9${netTotalFare.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+                        if (cashPaidInput) cashPaidInput.value = currentNetPayable;
+
+                        updateCashReturn();
+                    };
+
+                    const updateCashReturn = () => {
+                        if (!cashPaidInput || !cashChangeInput) return;
+                        const paidAmount = parseFloat(cashPaidInput.value) || 0;
+                        const changeVal = Math.max(0, paidAmount - currentNetPayable);
+                        cashChangeInput.value = `\u20B9${changeVal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+                    };
+
+                    renderPerSeatPassengerCards();
+                    updatePriceCalculations();
+
+                    if (cashPaidInput) cashPaidInput.addEventListener("input", updateCashReturn);
+
+                    // WHEN PAID BUTTON IS CLICKED -> SET STATUS TO PAID AND GENERATE TICKET PDF
+                    if (paidSubmitBtn) {
+                        paidSubmitBtn.addEventListener("click", async () => {
+                            const howMuchPaid = parseFloat(cashPaidInput ? cashPaidInput.value : currentNetPayable) || currentNetPayable;
+                            if (howMuchPaid < currentNetPayable) {
+                                alert(`\u26A0\uFE0F Paid amount (\u20B9${howMuchPaid}) cannot be less than Net Payable Fare (\u20B9${currentNetPayable})!`);
+                                return;
+                            }
+
+                            paidSubmitBtn.disabled = true;
+                            paidSubmitBtn.textContent = "\u23F3 Generating Ticket PDF & Reserving Seats...";
+
+                            const liveBookingTimeStr = new Date().toLocaleString('en-US', { year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+                            const bookedPnrs = [];
+                            const ticketPassengerList = [];
+
+                            for (const [seatNo, seatData] of selectedSeatsMap.entries()) {
+                                try {
+                                    const pass = seatPassengerMap.get(seatNo) || {};
+                                    const discPct = getTierDiscountPct(pass.memberTier);
+                                    const seatDiscount = (seatData.finalPrice * discPct) / 100.0;
+                                    const seatNetPrice = Math.max(0, seatData.finalPrice - seatDiscount);
+
+                                    const bookRes = await fetch("/api/ticket-booking/book-seat", {
+                                        method: "POST",
+                                        headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({
+                                            dynamicPriceId: targetId,
+                                            passengerId: pass.passengerId || 10000001,
+                                            seatNo: seatNo,
+                                            finalSeatPrice: seatNetPrice,
+                                            discountAmount: seatDiscount,
+                                            memberTier: pass.memberTier || "Standard",
+                                            paymentMethod: "CASH",
+                                            amountPaid: howMuchPaid,
+                                            bookingTimestamp: liveBookingTimeStr
+                                        }),
+                                        credentials: "same-origin"
+                                    });
+
+                                    const bookData = await bookRes.json();
+                                    if (bookRes.ok) {
+                                        const finalPnr = bookData.pnrNo || ("PNR" + Math.floor(10000 + Math.random() * 90000));
+                                        bookedPnrs.push(`${seatNo}: ${finalPnr}`);
+                                        ticketPassengerList.push({
+                                            seatNo: seatNo,
+                                            pnrNo: finalPnr,
+                                            passengerName: pass.passengerName || "Passenger",
+                                            mobileNo: pass.mobileNo || "N/A",
+                                            passportNo: pass.passportNo || "N/A",
+                                            memberTier: pass.memberTier || "Standard",
+                                            discountAmount: seatDiscount,
+                                            seatClass: seatData.seatClass,
+                                            finalPrice: seatNetPrice
+                                        });
+
+                                        if (seatData.btnElement) {
+                                            seatData.btnElement.classList.remove('in-transition', 'selected', 'available');
+                                            seatData.btnElement.classList.add('booked');
+                                            seatData.btnElement.disabled = true;
+                                            seatData.btnElement.innerHTML = `<span style="font-size:12px;">X</span>`;
                                         }
                                     }
-                                }, 800);
-                            }, 800);
+                                } catch (err) {
+                                    console.error("Error booking seat:", err);
+                                }
+                            }
+
+                            if (bookedPnrs.length > 0) {
+                                modalOverlay.remove();
+                                if (bookingMsg) {
+                                    bookingMsg.textContent = `\uD83C\uDF89 Tickets Issued & Confirmed in DB! PNRs: ${bookedPnrs.join(" | ")}`;
+                                    bookingMsg.className = "form-message success";
+                                }
+
+                                const primaryPass = ticketPassengerList[0] || {};
+
+                                // GENERATE PLANE TICKET PDF / E-TICKET BOARDING PASS MODAL
+                                showPlaneTicketModal({
+                                    pnrNo: primaryPass.pnrNo || "AOS-98412",
+                                    flightNo: fd.flightNo || "6E 532",
+                                    companyName: fd.companyName || "IndiGo / AOS Airlines",
+                                    flightName: fd.flightName || "Airbus A320",
+                                    sourceCode: fd.sourceCode || "DEL",
+                                    destCode: fd.destCode || "BOM",
+                                    sourceCity: fd.sourceCity || "Delhi",
+                                    destCity: fd.destCity || "Mumbai",
+                                    flightDate: fd.flightDate || "2026-08-15",
+                                    departureTime: fd.departureTime || "08:00 AM",
+                                    arrivalTime: fd.arrivalTime || "10:30 AM",
+                                    bookingTimestamp: liveBookingTimeStr,
+                                    primaryCustName: primaryPass.passengerName,
+                                    primaryCustId: primaryPass.passengerId,
+                                    primaryCustMobile: primaryPass.mobileNo,
+                                    primaryCustTier: primaryPass.memberTier,
+                                    passengers: ticketPassengerList,
+                                    baseTotal: baseTotal,
+                                    discountVal: baseTotal - currentNetPayable,
+                                    netPayable: currentNetPayable,
+                                    howMuchPaid: howMuchPaid,
+                                    paymentMethod: "CASH",
+                                    paymentStatus: "PAID"
+                                });
+
+                                loadSeatMap(targetId);
+                            } else {
+                                alert("\u274C Booking failed for selected seats.");
+                                paidSubmitBtn.disabled = false;
+                                paidSubmitBtn.textContent = "Paid & Generate Ticket PDF \uD83C\uDFAB";
+                            }
                         });
                     }
-                });
-            }
-        }
+                }); // END proceedBtn listener
+            } // END if (proceedBtn)
+        } // END renderSeatMapUI
 
-        // 1. Synchronously render default 180 seats matrix IMMEDIATELY (0ms delay)
+        // Render default seat matrix
         const defaultSeats = [];
         const cols = ['A', 'B', 'C', 'D', 'E', 'F'];
-        for (let r = 1; r <= 30; r++) {
+        for (let r = 1; r <= 20; r++) {
             for (let col of cols) {
                 const isBusiness = r <= 3;
-                const isExit = r === 10;
-                const isWindow = col === 'A' || col === 'F';
-                const isAisle = col === 'C' || col === 'D';
-                const seatType = isWindow ? 'WINDOW' : (isAisle ? 'AISLE' : 'MIDDLE');
-                const seatClass = isBusiness ? 'BUSINESS' : (isExit ? 'PREMIUM' : 'ECONOMY');
-                const surcharge = isBusiness ? 1500 : (isExit ? 300 : (isWindow ? 150 : 0));
+                const seatType = (col === 'A' || col === 'F') ? 'WINDOW' : ((col === 'C' || col === 'D') ? 'AISLE' : 'MIDDLE');
+                const seatClass = isBusiness ? 'BUSINESS' : 'ECONOMY';
                 defaultSeats.push({
                     seatNo: `${r}${col}`,
                     row: r,
                     col: col,
                     seatClass: seatClass,
                     seatType: seatType,
-                    priceSurcharge: surcharge,
+                    priceSurcharge: isBusiness ? 2500 : 0,
                     status: 'AVAILABLE',
-                    finalPrice: 4500.0 + surcharge
+                    finalPrice: isBusiness ? 6000.0 : 3500.0
                 });
             }
         }
 
-        renderSeatMapUI({}, defaultSeats, []);
+        renderSeatMapUI({}, defaultSeats, registeredCustomersList);
 
-        // 2. Fetch live data from backend API and update seat status
         try {
             const res = await fetch(`/api/flight-seats/${targetId}`, { credentials: "same-origin" });
             if (res.ok) {
                 const data = await res.json();
                 const realFd = data.flightDetails || {};
                 const realSeats = (data.seats && data.seats.length > 0) ? data.seats : defaultSeats;
-                const realPassengers = data.passengers || [];
-                renderSeatMapUI(realFd, realSeats, realPassengers);
+                renderSeatMapUI(realFd, realSeats, registeredCustomersList);
             }
         } catch (err) {
             console.warn("Could not fetch flight seats from API, keeping default matrix:", err);
         }
+    } // END renderSeatMapBookingView
+
+
+    // FUNCTION TO DISPLAY OFFICIAL PRINTABLE E-TICKET & BOARDING PASS MODAL
+    function showPlaneTicketModal(t) {
+        const existingTicket = document.getElementById("planeTicketOverlay");
+    if (existingTicket) existingTicket.remove();
+
+    const seatNumbersStr = t.passengers.map(p => p.seatNo).join(", ");
+    const passengersRows = t.passengers.map(p => `
+            <div style="display: flex; justify-content: space-between; font-size: 12px; color: #0f172a; padding: 4px 0; border-bottom: 1px solid #e2e8f0;">
+                <span><b>Seat ${p.seatNo}</b> - ${p.passengerName} (${p.seatClass})</span>
+                <span style="font-weight: 700;">PNR: ${p.pnrNo} | \u20B9${p.finalPrice.toLocaleString('en-IN')}</span>
+            </div>
+        `).join('');
+
+    const changeAmount = Math.max(0, t.howMuchPaid - t.totalPayable);
+
+    const ticketHtml = `
+            <div class="plane-ticket-overlay" id="planeTicketOverlay">
+                <div class="plane-boarding-pass-card">
+                    <!-- HEADER STRIP -->
+                    <div class="ticket-header-strip">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <div style="font-size: 28px;">\u2708\uFE0F</div>
+                            <div>
+                                <div style="font-size: 18px; font-weight: 900; letter-spacing: 1px;">AOS AIRLINES</div>
+                                <div style="font-size: 11px; opacity: 0.85;">Official Flight E-Ticket & Boarding Pass</div>
+                            </div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div style="font-size: 10px; opacity: 0.8; text-transform: uppercase;">Booking Reference (PNR)</div>
+                            <div class="ticket-pnr-badge">${t.pnrNo}</div>
+                        </div>
+                    </div>
+
+                    <!-- MAIN TICKET CONTENT -->
+                    <div class="ticket-body-grid">
+                        <div class="ticket-main-section">
+                            <!-- ROUTE DISPLAY -->
+                            <div class="ticket-route-display">
+                                <div style="text-align: center;">
+                                    <div class="ticket-city-code">${t.sourceCode}</div>
+                                    <div style="font-size: 11px; font-weight: 700; color: #64748b;">${t.sourceCity}</div>
+                                </div>
+                                <div style="text-align: center; flex: 1; padding: 0 16px;">
+                                    <div style="font-size: 11px; font-weight: 800; color: #0284c7;">${t.flightNo} (${t.flightName})</div>
+                                    <div style="border-top: 2px dashed #0284c7; margin: 6px 0; position: relative;">
+                                        <span style="position: absolute; top: -10px; left: 45%; background: #f1f5f9; padding: 0 4px; font-size: 12px;">\u2708\uFE0F</span>
+                                    </div>
+                                    <div style="font-size: 10px; color: #64748b;">Non-stop Direct Flight</div>
+                                </div>
+                                <div style="text-align: center;">
+                                    <div class="ticket-city-code">${t.destCode}</div>
+                                    <div style="font-size: 11px; font-weight: 700; color: #64748b;">${t.destCity}</div>
+                                </div>
+                            </div>
+
+                            <!-- FLIGHT INFO GRID -->
+                            <div class="ticket-info-grid">
+                                <div class="ticket-field">
+                                    <span class="ticket-label">Flight Date</span>
+                                    <span class="ticket-val">${t.flightDate}</span>
+                                </div>
+                                <div class="ticket-field">
+                                    <span class="ticket-label">Departure</span>
+                                    <span class="ticket-val">${t.departureTime}</span>
+                                </div>
+                                <div class="ticket-field">
+                                    <span class="ticket-label">Arrival</span>
+                                    <span class="ticket-val">${t.arrivalTime}</span>
+                                </div>
+                                <div class="ticket-field">
+                                    <span class="ticket-label">Gate / Terminal</span>
+                                    <span class="ticket-val">Gate T2-04</span>
+                                </div>
+                                <div class="ticket-field">
+                                    <span class="ticket-label">Baggage Allowance</span>
+                                    <span class="ticket-val">25 Kg Check-in</span>
+                                </div>
+                                <div class="ticket-field">
+                                    <span class="ticket-label">Booking Time</span>
+                                    <span class="ticket-val" style="font-size: 11px;">${t.bookingTimestamp}</span>
+                                </div>
+                            </div>
+
+                            <!-- PASSENGERS & SEATS SECTION -->
+                            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px; margin-bottom: 16px;">
+                                <div style="font-size: 11px; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 6px;">
+                                    \uD83D\uDC65 Registered Customer & Passenger Roster
+                                </div>
+                                <div style="font-size: 12px; font-weight: 800; color: #0284c7; margin-bottom: 4px;">
+                                    Registered Booked By: ${t.primaryCustName} (ID: ${t.primaryCustId} | Mobile: ${t.primaryCustMobile})
+                                </div>
+                                ${passengersRows}
+                            </div>
+
+                            <!-- CASH RECEIPT & BILL BREAKDOWN -->
+                            <div style="background: #f0fdf4; border: 1.5px solid #059669; border-radius: 10px; padding: 12px; display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <div style="font-size: 11px; font-weight: 800; color: #065f46; text-transform: uppercase;">Financial Cash Receipt & Invoice</div>
+                                    <div style="font-size: 12px; color: #047857; margin-top: 2px;">
+                                        Payment Method: <b>${t.paymentMethod}</b> | Total Fare: <b>\u20B9${t.totalPayable.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</b>
+                                    </div>
+                                    <div style="font-size: 11px; color: #047857;">
+                                        Cash Received: <b>\u20B9${t.howMuchPaid.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</b> | Change Returned: <b>\u20B9${changeAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</b>
+                                    </div>
+                                </div>
+                                <div class="ticket-paid-stamp">
+                                    PAID \u2705
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- TICKET STUB / BOARDING PASS SIDEBAR -->
+                        <div class="ticket-stub-section">
+                            <div>
+                                <div style="font-size: 12px; font-weight: 900; color: #0f172a; border-bottom: 2px solid #0f172a; padding-bottom: 4px; margin-bottom: 12px;">
+                                    BOARDING PASS
+                                </div>
+                                <div class="ticket-field" style="margin-bottom: 10px;">
+                                    <span class="ticket-label">Passenger</span>
+                                    <span class="ticket-val">${t.primaryCustName}</span>
+                                </div>
+                                <div class="ticket-field" style="margin-bottom: 10px;">
+                                    <span class="ticket-label">Flight</span>
+                                    <span class="ticket-val">${t.flightNo}</span>
+                                </div>
+                                <div class="ticket-field" style="margin-bottom: 10px;">
+                                    <span class="ticket-label">Seat(s)</span>
+                                    <span class="ticket-val" style="font-size: 18px; color: #0284c7;">${seatNumbersStr}</span>
+                                </div>
+                                <div class="ticket-field" style="margin-bottom: 10px;">
+                                    <span class="ticket-label">Boarding Time</span>
+                                    <span class="ticket-val">07:15 AM</span>
+                                </div>
+                            </div>
+
+                            <!-- BARCODE GRAPHIC -->
+                            <div style="text-align: center; margin-top: 16px;">
+                                <div style="font-family: monospace; font-size: 24px; letter-spacing: 4px; font-weight: 900; color: #0f172a; user-select: none;">
+                                    |||||||||||||||||||||||||
+                                </div>
+                                <div style="font-size: 9px; color: #64748b; font-weight: 700; margin-top: 2px;">PNR: ${t.pnrNo} | SECURITY VERIFIED</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- FOOTER ACTION BAR -->
+                    <div class="ticket-footer-bar">
+                        <div style="font-size: 11px; color: #64748b; font-weight: 700;">
+                            AOS Operations Suite - Official Boarding Pass & Tax Invoice
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <button id="printPlaneTicketBtn" style="padding: 8px 16px; border-radius: 8px; border: none; background: #0284c7; color: #fff; font-weight: 800; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                                \uD83D\uDDA8\uFE0F Print Ticket / Save PDF
+                            </button>
+                            <button id="closePlaneTicketBtn" style="padding: 8px 16px; border-radius: 8px; border: 1px solid #cbd5e1; background: #ffffff; color: #334155; font-weight: 800; font-size: 13px; cursor: pointer;">
+                                Close Ticket
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+    document.body.insertAdjacentHTML("beforeend", ticketHtml);
+
+    document.getElementById("closePlaneTicketBtn")?.addEventListener("click", () => {
+        document.getElementById("planeTicketOverlay")?.remove();
+    });
+
+    document.getElementById("printPlaneTicketBtn")?.addEventListener("click", () => {
+        window.print();
+    });
     }
 
+
     function renderCreateDynamicPriceForm() {
+        const mainContent = getMainContentEl();
         if (!mainContent) return;
 
-        const todayStr = new Date().toISOString().split('T')[0];
-        const nowStr = new Date().toISOString().slice(0, 16);
+    const todayStr = new Date().toISOString().split('T')[0];
+    const nowStr = new Date().toISOString().slice(0, 16);
 
-        mainContent.innerHTML = `
+    mainContent.innerHTML = `
             <div class="welcome-banner">
-                <h1>Flight Dynamic Pricing Management 💸</h1>
+                <h1>Flight Dynamic Pricing Management \uD83D\uDCB8</h1>
                 <p>Configure dynamic pricing rules, seat capacities, departure & arrival times using procedure <code>AIRLINE_FLIGHT_DYNAMIC_PRICE_CREATE_USP</code>.</p>
             </div>
 
@@ -2731,7 +3255,7 @@ async function initDashboard() {
                         </div>
 
                         <div class="input-group full-width">
-                            <label>Current Ticket Price (₹)</label>
+                            <label>Current Ticket Price (\u20B9)</label>
                             <input type="number" id="dpCurrentPrice" step="0.01" value="4500.00" placeholder="e.g. 4500.00" required>
                             <div id="dpRouteDistanceBadge" style="display: none; margin-top: 8px; font-size: 12px; background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; padding: 8px 12px; border-radius: 8px;"></div>
                         </div>
@@ -2748,11 +3272,11 @@ async function initDashboard() {
             <div class="existing-cities-container macOS-card" style="margin-top: 24px; padding: 20px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
                     <div>
-                        <h3 style="font-weight: 600; font-size: 16px; margin: 0;">Dynamic Pricing Master Records 🏷️</h3>
+                        <h3 style="font-weight: 600; font-size: 16px; margin: 0;">Dynamic Pricing Master Records \uD83C\uDFF7\uFE0F</h3>
                         <p style="font-size: 12px; color: var(--text-muted); margin: 2px 0 0 0;">Overview of active dynamic flight rates & seat availability</p>
                     </div>
                     <div style="display: flex; align-items: center; gap: 10px;">
-                        <input type="text" id="dpSearchInput" placeholder="🔍 Search flight, airport, city..." style="padding: 8px 14px; border-radius: 8px; border: 1px solid var(--border-color); font-size: 13px; outline: none; background: rgba(255,255,255,0.6); min-width: 220px;">
+                        <input type="text" id="dpSearchInput" placeholder="\uD83D\uDD0D Search flight, airport, city..." style="padding: 8px 14px; border-radius: 8px; border: 1px solid var(--border-color); font-size: 13px; outline: none; background: rgba(255,255,255,0.6); min-width: 220px;">
                         <span id="dpCountBadge" class="badge blue" style="font-size: 12px;">0 Records</span>
                     </div>
                 </div>
@@ -2768,7 +3292,7 @@ async function initDashboard() {
                                 <th style="padding: 12px 14px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Destination Route</th>
                                 <th style="padding: 12px 14px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Flight Date</th>
                                 <th style="padding: 12px 14px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Seats (Avail/Total)</th>
-                                <th style="padding: 12px 14px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Price (₹)</th>
+                                <th style="padding: 12px 14px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Price (\u20B9)</th>
                                 <th style="padding: 12px 14px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Status</th>
                                 <th style="padding: 12px 14px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Action</th>
                             </tr>
@@ -2783,233 +3307,239 @@ async function initDashboard() {
             </div>
         `;
 
-        const form = document.getElementById("createDynamicPriceForm");
-        const flightSelect = document.getElementById("dpFlightSelect");
-        const sourceSelect = document.getElementById("dpSourceAirportSelect");
-        const destSelect = document.getElementById("dpDestAirportSelect");
-        const flightDateInput = document.getElementById("dpFlightDate");
-        const depTimeInput = document.getElementById("dpDepartureTime");
-        const arrTimeInput = document.getElementById("dpArrivalTime");
-        const totalSeatsInput = document.getElementById("dpTotalSeats");
-        const availSeatsInput = document.getElementById("dpAvailableSeats");
-        const currentPriceInput = document.getElementById("dpCurrentPrice");
-        const msgDiv = document.getElementById("dpFormMessage");
-        const tableBody = document.getElementById("dpTableBody");
-        const searchInput = document.getElementById("dpSearchInput");
-        const countBadge = document.getElementById("dpCountBadge");
+    const form = document.getElementById("createDynamicPriceForm");
+    const flightSelect = document.getElementById("dpFlightSelect");
+    const sourceSelect = document.getElementById("dpSourceAirportSelect");
+    const destSelect = document.getElementById("dpDestAirportSelect");
+    const flightDateInput = document.getElementById("dpFlightDate");
+    const depTimeInput = document.getElementById("dpDepartureTime");
+    const arrTimeInput = document.getElementById("dpArrivalTime");
+    const totalSeatsInput = document.getElementById("dpTotalSeats");
+    const availSeatsInput = document.getElementById("dpAvailableSeats");
+    const currentPriceInput = document.getElementById("dpCurrentPrice");
+    const msgDiv = document.getElementById("dpFormMessage");
+    const tableBody = document.getElementById("dpTableBody");
+    const searchInput = document.getElementById("dpSearchInput");
+    const countBadge = document.getElementById("dpCountBadge");
 
-        async function updateDistanceFare() {
-            const srcId = sourceSelect.value;
-            const dstId = destSelect.value;
-            const routeBadge = document.getElementById("dpRouteDistanceBadge");
+    async function updateDistanceFare() {
+        const srcId = sourceSelect.value;
+        const dstId = destSelect.value;
+        const routeBadge = document.getElementById("dpRouteDistanceBadge");
 
-            if (srcId && dstId && srcId !== dstId) {
-                try {
-                    const res = await fetch(`/api/calculate-route-fare?sourceId=${srcId}&destId=${dstId}`);
-                    const data = await res.json();
-                    if (res.ok && data.suggestedPrice) {
-                        currentPriceInput.value = data.suggestedPrice.toFixed(2);
-                        if (routeBadge) {
-                            routeBadge.style.display = "block";
-                            routeBadge.innerHTML = `📍 <strong>Route Distance:</strong> ${data.distanceKm} km | <strong>Distance-Based Fare (₹${data.ratePerKm}/km):</strong> <span style="color:#059669; font-weight:800;">₹${data.suggestedPrice.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>`;
-                        }
+        if (srcId && dstId && srcId !== dstId) {
+            try {
+                const res = await fetch(`/api/calculate-route-fare?sourceId=${srcId}&destId=${dstId}`);
+                const data = await res.json();
+                if (res.ok && data.suggestedPrice) {
+                    currentPriceInput.value = data.suggestedPrice.toFixed(2);
+                    if (routeBadge) {
+                        routeBadge.style.display = "block";
+                        routeBadge.innerHTML = `\uD83D\uDCCD <strong>Route Distance:</strong> ${data.distanceKm} km | <strong>Distance-Based Fare (\u20B9${data.ratePerKm}/km):</strong> <span style="color:#059669; font-weight:800;">\u20B9${data.suggestedPrice.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>`;
                     }
-                } catch (e) {
-                    console.warn("Distance fare error:", e);
                 }
+            } catch (e) {
+                console.warn("Distance fare error:", e);
             }
         }
+    }
 
-        sourceSelect.addEventListener("change", updateDistanceFare);
-        destSelect.addEventListener("change", updateDistanceFare);
+    sourceSelect.addEventListener("change", updateDistanceFare);
+    destSelect.addEventListener("change", updateDistanceFare);
 
-        let allDynamicPrices = [];
+    let allDynamicPrices = [];
 
-        function renderRows(records) {
-            countBadge.textContent = `${records.length} Record${records.length === 1 ? '' : 's'}`;
+    function renderRows(records) {
+        countBadge.textContent = `${records.length} Record${records.length === 1 ? '' : 's'}`;
 
-            if (records && records.length > 0) {
-                tableBody.innerHTML = records.map(r => `
+        if (records && records.length > 0) {
+            tableBody.innerHTML = records.map(r => `
                     <tr style="border-bottom: 1px solid rgba(0,0,0,0.05);">
                         <td style="padding: 12px 14px;"><strong>#${r.dynamicPriceId}</strong></td>
                         <td style="padding: 12px 14px;"><span class="badge blue" style="font-weight: 600;">${r.flightNo}</span><br><span style="font-size: 11px; color: var(--text-muted);">${r.flightName || ''}</span></td>
-                        <td style="padding: 12px 14px; font-weight: 500;">${r.companyName || '—'}</td>
+                        <td style="padding: 12px 14px; font-weight: 500;">${r.companyName || '\u2014'}</td>
                         <td style="padding: 12px 14px;"><span style="font-weight: 600; color: #0D8ABC;">${r.sourceAirportCode || r.sourceAirportId}</span><br><span style="font-size: 11px; color: var(--text-muted);">${r.sourceCityName || r.sourceAirportName || ''}</span></td>
                         <td style="padding: 12px 14px;"><span style="font-weight: 600; color: #FF9500;">${r.destAirportCode || r.destAirportId}</span><br><span style="font-size: 11px; color: var(--text-muted);">${r.destCityName || r.destAirportName || ''}</span></td>
-                        <td style="padding: 12px 14px; font-size: 12px; white-space: nowrap;">📅 ${r.flightDate || ''}</td>
+                        <td style="padding: 12px 14px; font-size: 12px; white-space: nowrap;">\uD83D\uDCC5 ${r.flightDate || ''}</td>
                         <td style="padding: 12px 14px;"><span class="badge green">${r.availableSeats} / ${r.totalSeats}</span></td>
-                        <td style="padding: 12px 14px; font-weight: 700; color: #34C759;">₹${Number(r.currentPrice).toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
+                        <td style="padding: 12px 14px; font-weight: 700; color: #34C759;">\u20B9${Number(r.currentPrice).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
                         <td style="padding: 12px 14px;"><span class="badge green">${r.isActive === 'Y' ? 'ACTIVE' : 'INACTIVE'}</span></td>
                         <td style="padding: 12px 14px;">
                             <button class="select-seats-btn" data-dpid="${r.dynamicPriceId}" style="padding: 6px 12px; border-radius: 6px; border: none; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #fff; font-weight: 700; font-size: 12px; cursor: pointer; box-shadow: 0 2px 6px rgba(16,185,129,0.3);">
-                                🎫 Book Seats
+                                \uD83C\uDFAB Book Seats
                             </button>
                         </td>
                     </tr>
                 `).join("");
 
-                // Attach click listeners for Book Seats button
-                tableBody.querySelectorAll(".select-seats-btn").forEach(btn => {
-                    btn.addEventListener("click", (e) => {
-                        const dpId = e.currentTarget.dataset.dpid;
-                        if (dpId) {
-                            renderSeatMapBookingView(parseInt(dpId));
-                        }
-                    });
+            // Attach click listeners for Book Seats button
+            tableBody.querySelectorAll(".select-seats-btn").forEach(btn => {
+                btn.addEventListener("click", (e) => {
+                    const dpId = e.currentTarget.dataset.dpid;
+                    if (dpId) {
+                        renderSeatMapBookingView(parseInt(dpId));
+                    }
                 });
-            } else {
-                tableBody.innerHTML = `
+            });
+        } else {
+            tableBody.innerHTML = `
                     <tr>
                         <td colspan="10" style="text-align: center; padding: 24px; color: var(--text-muted);">No dynamic pricing records found.</td>
                     </tr>
                 `;
-            }
         }
+    }
 
-        if (searchInput) {
-            searchInput.addEventListener("input", (e) => {
-                const query = e.target.value.toLowerCase().trim();
-                const filtered = allDynamicPrices.filter(r =>
-                    String(r.dynamicPriceId).includes(query) ||
-                    (r.flightNo || '').toLowerCase().includes(query) ||
-                    (r.companyName || '').toLowerCase().includes(query) ||
-                    (r.sourceAirportCode || '').toLowerCase().includes(query) ||
-                    (r.sourceCityName || '').toLowerCase().includes(query) ||
-                    (r.destAirportCode || '').toLowerCase().includes(query) ||
-                    (r.destCityName || '').toLowerCase().includes(query) ||
-                    (r.flightDate || '').toLowerCase().includes(query)
-                );
-                renderRows(filtered);
+    if (searchInput) {
+        searchInput.addEventListener("input", (e) => {
+            const query = e.target.value.toLowerCase().trim();
+            const filtered = allDynamicPrices.filter(r =>
+                String(r.dynamicPriceId).includes(query) ||
+                (r.flightNo || '').toLowerCase().includes(query) ||
+                (r.companyName || '').toLowerCase().includes(query) ||
+                (r.sourceAirportCode || '').toLowerCase().includes(query) ||
+                (r.sourceCityName || '').toLowerCase().includes(query) ||
+                (r.destAirportCode || '').toLowerCase().includes(query) ||
+                (r.destCityName || '').toLowerCase().includes(query) ||
+                (r.flightDate || '').toLowerCase().includes(query)
+            );
+            renderRows(filtered);
+        });
+    }
+
+    async function loadDynamicPriceData() {
+        try {
+            const res = await fetch("/api/admin/create-dynamic-price", {
+                method: "GET",
+                credentials: "same-origin"
             });
-        }
+            const data = await res.json();
 
-        async function loadDynamicPriceData() {
-            try {
-                const res = await fetch("/api/admin/create-dynamic-price", {
-                    method: "GET",
-                    credentials: "same-origin"
-                });
-                const data = await res.json();
-
-                if (res.ok) {
-                    if (data.flights && data.flights.length > 0) {
-                        flightSelect.innerHTML = '<option value="" disabled selected>Select Flight</option>' +
-                            data.flights.map(f => `<option value="${f.flightId}">${f.flightNo} - ${f.flightName || 'Flight'}</option>`).join("");
-                    } else {
-                        flightSelect.innerHTML = '<option value="" disabled>No flights found</option>';
-                    }
-
-                    if (data.airports && data.airports.length > 0) {
-                        const airportOptions = '<option value="" disabled selected>Select Airport</option>' +
-                            data.airports.map(a => `<option value="${a.airportId}">${a.airportCode} (${a.airportName} - ${a.cityName})</option>`).join("");
-                        sourceSelect.innerHTML = airportOptions;
-                        destSelect.innerHTML = airportOptions;
-                    } else {
-                        sourceSelect.innerHTML = '<option value="" disabled>No airports found</option>';
-                        destSelect.innerHTML = '<option value="" disabled>No airports found</option>';
-                    }
-
-                    allDynamicPrices = data.dynamicPrices || [];
-                    renderRows(allDynamicPrices);
+            if (res.ok) {
+                if (data.flights && data.flights.length > 0) {
+                    flightSelect.innerHTML = '<option value="" disabled selected>Select Flight</option>' +
+                        data.flights.map(f => `<option value="${f.flightId}">${f.flightNo} - ${f.flightName || 'Flight'}</option>`).join("");
+                } else {
+                    flightSelect.innerHTML = '<option value="" disabled>No flights found</option>';
                 }
-            } catch (err) {
-                console.error("Error loading dynamic price data:", err);
-                tableBody.innerHTML = `
+
+                if (data.airports && data.airports.length > 0) {
+                    const airportOptions = '<option value="" disabled selected>Select Airport</option>' +
+                        data.airports.map(a => `<option value="${a.airportId}">${a.airportCode} (${a.airportName} - ${a.cityName})</option>`).join("");
+                    sourceSelect.innerHTML = airportOptions;
+                    destSelect.innerHTML = airportOptions;
+                } else {
+                    sourceSelect.innerHTML = '<option value="" disabled>No airports found</option>';
+                    destSelect.innerHTML = '<option value="" disabled>No airports found</option>';
+                }
+
+                allDynamicPrices = data.dynamicPrices || [];
+                renderRows(allDynamicPrices);
+            }
+        } catch (err) {
+            console.error("Error loading dynamic price data:", err);
+            tableBody.innerHTML = `
                     <tr>
                         <td colspan="9" style="text-align: center; padding: 24px; color: #FF3B30;">Failed to load dynamic price records.</td>
                     </tr>
                 `;
-            }
+        }
+    }
+
+    loadDynamicPriceData();
+
+    form.onsubmit = async (e) => {
+        e.preventDefault();
+
+        const flightId = flightSelect.value;
+        const sourceAirportId = sourceSelect.value;
+        const destAirportId = destSelect.value;
+        const flightDate = flightDateInput.value;
+        const departureTime = depTimeInput.value;
+        const arrivalTime = arrTimeInput.value;
+        const totalSeats = totalSeatsInput.value;
+        const availableSeats = availSeatsInput.value;
+        const currentPrice = currentPriceInput.value;
+
+        if (!flightId || !sourceAirportId || !destAirportId || !flightDate || !departureTime || !arrivalTime) {
+            msgDiv.textContent = "\u274C Please fill in all required fields.";
+            msgDiv.className = "form-message error";
+            return;
         }
 
-        loadDynamicPriceData();
+        if (sourceAirportId === destAirportId) {
+            msgDiv.textContent = "\u274C Source and Destination airports cannot be the same.";
+            msgDiv.className = "form-message error";
+            return;
+        }
 
-        form.onsubmit = async (e) => {
-            e.preventDefault();
+        msgDiv.textContent = "Calling stored procedure AIRLINE_FLIGHT_DYNAMIC_PRICE_CREATE_USP...";
+        msgDiv.className = "form-message info";
 
-            const flightId = flightSelect.value;
-            const sourceAirportId = sourceSelect.value;
-            const destAirportId = destSelect.value;
-            const flightDate = flightDateInput.value;
-            const departureTime = depTimeInput.value;
-            const arrivalTime = arrTimeInput.value;
-            const totalSeats = totalSeatsInput.value;
-            const availableSeats = availSeatsInput.value;
-            const currentPrice = currentPriceInput.value;
+        try {
+            const res = await fetch("/api/admin/create-dynamic-price", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    flightId: parseInt(flightId),
+                    sourceAirportId: parseInt(sourceAirportId),
+                    destAirportId: parseInt(destAirportId),
+                    flightDate: flightDate,
+                    departureTime: departureTime,
+                    arrivalTime: arrivalTime,
+                    totalSeats: parseInt(totalSeats),
+                    availableSeats: parseInt(availableSeats),
+                    currentPrice: parseFloat(currentPrice)
+                }),
+                credentials: "same-origin"
+            });
 
-            if (!flightId || !sourceAirportId || !destAirportId || !flightDate || !departureTime || !arrivalTime) {
-                msgDiv.textContent = "❌ Please fill in all required fields.";
-                msgDiv.className = "form-message error";
-                return;
-            }
+            const result = await res.json();
 
-            if (sourceAirportId === destAirportId) {
-                msgDiv.textContent = "❌ Source and Destination airports cannot be the same.";
-                msgDiv.className = "form-message error";
-                return;
-            }
-
-            msgDiv.textContent = "Calling stored procedure AIRLINE_FLIGHT_DYNAMIC_PRICE_CREATE_USP...";
-            msgDiv.className = "form-message info";
-
-            try {
-                const res = await fetch("/api/admin/create-dynamic-price", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        flightId: parseInt(flightId),
-                        sourceAirportId: parseInt(sourceAirportId),
-                        destAirportId: parseInt(destAirportId),
-                        flightDate: flightDate,
-                        departureTime: departureTime,
-                        arrivalTime: arrivalTime,
-                        totalSeats: parseInt(totalSeats),
-                        availableSeats: parseInt(availableSeats),
-                        currentPrice: parseFloat(currentPrice)
-                    }),
-                    credentials: "same-origin"
-                });
-
-                const result = await res.json();
-
-                if (res.ok) {
-                    msgDiv.textContent = "✅ " + (result.message || "Dynamic Price Saved Successfully!");
-                    msgDiv.className = "form-message success";
-                    if (result.dynamicPrices) {
-                        allDynamicPrices = result.dynamicPrices;
-                        renderRows(allDynamicPrices);
-                    } else {
-                        loadDynamicPriceData();
-                    }
+            if (res.ok) {
+                msgDiv.textContent = "\u2705 " + (result.message || "Dynamic Price Saved Successfully!");
+                msgDiv.className = "form-message success";
+                if (result.dynamicPrices) {
+                    allDynamicPrices = result.dynamicPrices;
+                    renderRows(allDynamicPrices);
                 } else {
-                    msgDiv.textContent = "⚠️ " + (result.message || "Failed to save dynamic price");
-                    msgDiv.className = "form-message error";
+                    loadDynamicPriceData();
                 }
-            } catch (err) {
-                console.error("Save dynamic price error:", err);
-                msgDiv.textContent = "❌ Server or connection error.";
+            } else {
+                msgDiv.textContent = "\u26A0\uFE0F " + (result.message || "Failed to save dynamic price");
                 msgDiv.className = "form-message error";
             }
-        };
+        } catch (err) {
+            console.error("Save dynamic price error:", err);
+            msgDiv.textContent = "\u274C Server or connection error.";
+            msgDiv.className = "form-message error";
+        }
+    };
     }
 
     async function loadUserCards() {
         const grid = document.getElementById("usersGrid");
         if (!grid) return;
 
+        grid.innerHTML = `
+            <div style="grid-column: 1/-1; text-align: center; padding: 30px; color: var(--text-muted);">
+                Loading system user directory...
+            </div>
+        `;
+
         try {
             const res = await fetch("/api/users", { credentials: "same-origin" });
             if (!res.ok) {
-                grid.innerHTML = `<div class="empty-search-state"><span>⚠️</span><p>Unable to load system users (HTTP ${res.status}).</p></div>`;
+                grid.innerHTML = `<div class="empty-search-state"><span>\u26A0\uFE0F</span><p>Unable to load system users (HTTP ${res.status}).</p></div>`;
                 return;
             }
             const data = await res.json();
-            const users = data.users || data;
+            const users = Array.isArray(data) ? data : (data.users || []);
 
             if (Array.isArray(users) && users.length > 0) {
                 allUsers = users;
                 grid.innerHTML = users.map(u => {
-                    const dbUserId = u.userId || u.USER_ID || u[0];
+                    const dbUserId = u.userId || u.USER_ID || u.dbUserId || u[0];
                     const username = u.username || u.userName || u.USERNAME || u[1] || '';
                     const mobile = u.mobileNo || u.MOBILENO || u[2] || 'N/A';
                     const passportImg = u.passportImg || u.PASSPORT_IMG || u[3];
@@ -3026,24 +3556,28 @@ async function initDashboard() {
                         }
                     }
 
-                    const avatarSrc = photoUrl ? photoUrl : (passportImg ? `/api/passport-photo?id=${dbUserId}` : `https://ui-avatars.com/api/?name=${encodeURIComponent(cleanName)}&background=0D8ABC&color=fff`);
+                    const myId = (currentUser && (currentUser.dbUserId || currentUser.userId)) ? (currentUser.dbUserId || currentUser.userId) : 10000001;
+                    const isSelf = String(dbUserId) === String(myId);
+
+                    const defaultAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(cleanName)}&background=${isSelf ? '007AFF' : '8E8E93'}&color=fff`;
+                    const avatarSrc = photoUrl ? photoUrl : (passportImg ? `/api/passport-photo?id=${dbUserId}` : defaultAvatar);
 
                     let roleClass = 'user';
                     if (roleName.includes('ADMIN')) roleClass = 'admin';
                     else if (roleName.includes('OPERATOR')) roleClass = 'operator';
 
                     return `
-                        <div class="user-glass-card ${currentUser && (currentUser.dbUserId == dbUserId || currentUser.userId == dbUserId) ? 'my-profile-card' : ''}">
+                        <div class="user-glass-card ${isSelf ? 'my-profile-card' : ''}">
                             <div class="user-card-header">
                                 <div class="user-avatar-container">
                                     <img src="${avatarSrc}" 
                                          alt="${cleanName}" 
                                          class="user-avatar-circle"
-                                         onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(cleanName)}&background=0D8ABC&color=fff'">
+                                         onerror="this.src='${defaultAvatar}'">
                                     <span class="status-badge-dot ${isActive ? 'active' : 'inactive'}" title="${isActive ? 'Active User' : 'Inactive User'}"></span>
                                 </div>
                                 <div class="user-name-role">
-                                    <h4>${cleanName}</h4>
+                                    <h4>${cleanName}${isSelf ? ' (You)' : ''}</h4>
                                     <span class="user-role-badge ${roleClass}">${roleName}</span>
                                 </div>
                             </div>
@@ -3062,18 +3596,18 @@ async function initDashboard() {
                                 </div>
                                 <div class="detail-field">
                                     <span class="detail-label">Account Status</span>
-                                    <span class="detail-value">${isActive ? 'Active' : 'Inactive'}</span>
+                                    <span class="detail-value" style="color: ${isActive ? '#34C759' : '#8E8E93'}; font-weight: 700;">${isActive ? 'Active' : 'Inactive'}</span>
                                 </div>
                             </div>
                         </div>
                     `;
                 }).join("");
             } else {
-                grid.innerHTML = `<div class="empty-search-state"><span>👥</span><p>No registered system users found.</p></div>`;
+                grid.innerHTML = `<div class="empty-search-state"><span>\uD83D\uDC65</span><p>No registered system users found.</p></div>`;
             }
         } catch (err) {
             console.error("Failed to load user cards:", err);
-            grid.innerHTML = `<div class="empty-search-state"><span>⚠️</span><p>Error connecting to server to load users.</p></div>`;
+            grid.innerHTML = `<div class="empty-search-state"><span>\u26A0\uFE0F</span><p>Error connecting to server to load users.</p></div>`;
         }
     }
 
@@ -3095,81 +3629,106 @@ async function initDashboard() {
         } catch (err) {
             console.error("Error loading dashboard stats:", err);
         }
+
+        // Active crew count fallback
+        try {
+            const resCrew = await fetch("/api/active-crew-count", { credentials: "same-origin" });
+            if (resCrew.ok) {
+                const dataCrew = await resCrew.json();
+                const crewCount = dataCrew.activeCrewCount ?? dataCrew.p_active_cnt ?? 0;
+                const activeCrewCountEl = document.getElementById("activeCrewCount");
+                if (activeCrewCountEl && (crewCount > 0 || activeCrewCountEl.textContent === "0")) {
+                    activeCrewCountEl.textContent = crewCount;
+                }
+            }
+        } catch (err) {
+            console.warn("Crew count fallback error:", err);
+        }
     }
 
 
-
     function renderPlaceholderPage(menu) {
+        const mainContent = getMainContentEl();
         if (!mainContent) return;
-
         mainContent.innerHTML = `
             <div class="welcome-banner">
                 <h1>${menu}</h1>
                 <p>The interface for ${menu} is under development.</p>
-            </div>
-        `;
+            </div>`;
     }
 
-    function bindMenuAction(menuName, li) {
-        // 1. Normalize: Remove extra whitespace and force lowercase
+    function navigateToMenu(menuName, li) {
         const label = (menuName || "").trim().toLowerCase();
+        if (li) setActiveMenu(li);
 
-        li.addEventListener("click", (e) => {
-            const anchor = e.target.closest("a");
-            if (!anchor) return;
-
-            e.preventDefault();
-            setActiveMenu(li);
-
-            // 2. Logic: Use clear, readable conditions
-            if (label === "dashboard") {
-                renderHomeDashboard();
-            }
-
-            // Handles "Assign User Role" or "Manage User Role"
-            else if (label.includes("assign") && label.includes("menu") && label.includes("role")) {
-                renderAssignMenuToRoleForm();
-            }
-            else if (label.includes("assign") && label.includes("role") && label.includes("user")) {
-                renderManageUserRoleForm();
-            }
-
-            else if (label.includes("create user")) {
-                renderCreateUserForm();
-            }
-            else if (label.includes("create role")) {
-                renderCreateRoleForm();
-            }
-            else if (label.includes("create menu")) {
-                renderCreateMenuForm();
-            }
-            else if (label.includes("create city")) {
-                renderCreateCityForm();
-            }
-            else if (label.includes("create airport")) {
-                renderCreateAirportForm();
-            }
-            else if (label.includes("seat") || label.includes("book ticket") || label.includes("booking")) {
-                renderSeatMapBookingView();
-            }
-            else if (label.includes("create dynamic price") || label.includes("dynamic price") || label.includes("price")) {
-                renderCreateDynamicPriceForm();
-            }
-            else if (label.includes("create flight company") || label.includes("flight company")) {
-                renderCreateFlightCompanyForm();
-            }
-            else if (label.includes("create flight") || label.includes("flight")) {
-                renderCreateFlightForm();
-            }
-            else if (label.includes("register customer") || label.includes("register passenger") || label.includes("customer registration") || label.includes("passenger registration") || label.includes("customer")) {
-                renderPassengerRegistrationForm();
-            }
-            else {
-                console.warn("Unhandled menu click:", label);
-                renderPlaceholderPage(menuName);
-            }
-        });
+        if (label.includes("dashboard")) {
+            renderHomeDashboard();
+        }
+        else if (label.includes("assign") && label.includes("menu") && label.includes("role")) {
+            renderAssignMenuToRoleForm();
+        }
+        else if (label.includes("assign") && label.includes("role") && label.includes("user")) {
+            renderManageUserRoleForm();
+        }
+        else if (label.includes("create user")) {
+            renderCreateUserForm();
+        }
+        else if (label.includes("create role")) {
+            renderCreateRoleForm();
+        }
+        else if (label.includes("create menu")) {
+            renderCreateMenuForm();
+        }
+        else if (label.includes("create city")) {
+            renderCreateCityForm();
+        }
+        else if (label.includes("create airport")) {
+            renderCreateAirportForm();
+        }
+        else if (label.includes("seat") || label.includes("book ticket") || label.includes("booking")) {
+            renderSeatMapBookingView();
+        }
+        else if (label.includes("create dynamic price") || label.includes("dynamic price") || label.includes("price")) {
+            renderCreateDynamicPriceForm();
+        }
+        else if (label.includes("create flight company") || label.includes("flight company")) {
+            renderCreateFlightCompanyForm();
+        }
+        else if (label.includes("create flight") || label.includes("flight")) {
+            renderCreateFlightForm();
+        }
+        else if (label.includes("register customer") || label.includes("register passenger") || label.includes("customer")) {
+            renderPassengerRegistrationForm();
+        }
+        else {
+            console.warn("Unhandled menu click:", label);
+            renderPlaceholderPage(menuName);
+        }
     }
+
+    window._aos_navigateToMenu = navigateToMenu;
+    if (window.aosPendingMenu) {
+        navigateToMenu(window.aosPendingMenu.menuName, window.aosPendingMenu.li);
+        window.aosPendingMenu = null;
+    }
+
+    // Document-wide event delegation for sidebar navigation
+    document.addEventListener("click", (e) => {
+        const link = e.target.closest(".menu-link");
+        if (!link) return;
+        
+        // Only target sidebar menu links
+        const sidebar = link.closest(".sidebar");
+        if (!sidebar) return;
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        const li = link.closest("li");
+        const menuName = link.getAttribute("data-menu") || link.textContent.trim();
+        navigateToMenu(menuName, li);
+    });
+
 
     function renderMenus(menus) {
         const navContainer = document.querySelector(".nav-links") || document.getElementById("navLinks");
@@ -3179,7 +3738,7 @@ async function initDashboard() {
         }
 
         navContainer.innerHTML = "";
-        
+
         const defaultAdminMenus = [
             "CREATE CITY",
             "CREATE AIRPORT",
@@ -3195,198 +3754,188 @@ async function initDashboard() {
         ];
 
         const activeMenus = (menus && menus.length > 0) ? menus : defaultAdminMenus;
-        console.log("menus length =", activeMenus.length, activeMenus);
 
         const dashboardLi = document.createElement("li");
         dashboardLi.classList.add("active");
-        dashboardLi.innerHTML = `<a href="#" class="menu-link" data-menu="DASHBOARD"><span class="icon">📊</span><span class="menu-text">Dashboard</span></a>`;
+        dashboardLi.innerHTML = `<a href="javascript:void(0)" class="menu-link" data-menu="DASHBOARD" onclick="window.aosNavigateTo('DASHBOARD', this); return false;"><span class="icon">\uD83D\uDCCA</span><span class="menu-text">Dashboard</span></a>`;
         navContainer.appendChild(dashboardLi);
-        bindMenuAction("DASHBOARD", dashboardLi);
 
-        if (activeMenus && activeMenus.length > 0) {
-            const uniqueMenus = [...new Set(activeMenus.map(m => (m || "").trim()).filter(Boolean))];
+        const uniqueMenus = [...new Set(activeMenus.map(m => (m || "").trim()).filter(Boolean))];
+        uniqueMenus.forEach(menu => {
+            if (menu.toUpperCase() === "DASHBOARD") return;
 
-            uniqueMenus.forEach((menu, index) => {
-                if (menu.toUpperCase() === "DASHBOARD") return;
+            let icon = "\uD83D\uDCC4";
+            const u = menu.toUpperCase();
+            if (u.includes("PRICE") || u.includes("DYNAMIC")) icon = "\uD83D\uDCB8";
+            else if (u.includes("CUSTOMER") || u.includes("PASSENGER")) icon = "\uD83C\uDFAB";
+            else if (u.includes("CREATE USER")) icon = "\uD83D\uDC64";
+            else if (u.includes("CITY")) icon = "\uD83C\uDFD9\uFE0F";
+            else if (u.includes("AIRPORT")) icon = "\u2708\uFE0F";
+            else if (u.includes("FLIGHT")) icon = "\u2708\uFE0F";
+            else if (u.includes("SEAT") || u.includes("BOOKING")) icon = "\uD83D\uDCBA";
+            else if (u.includes("MENU")) icon = "\uD83D\uDCCB";
+            else if (u.includes("ROLE") || u.includes("ASSIGN") || u.includes("USER")) icon = "\uD83D\uDC65";
 
-                let icon = "📄";
-                const upperMenu = menu.toUpperCase().trim();
-                if (upperMenu.includes("DASHBOARD")) icon = "📊";
-                else if (upperMenu.includes("PRICE") || upperMenu.includes("DYNAMIC")) icon = "💸";
-                else if (upperMenu.includes("CUSTOMER") || upperMenu.includes("PASSENGER")) icon = "🎫";
-                else if (upperMenu.includes("CREATE USER")) icon = "👤";
-                else if (upperMenu.includes("FLIGHT") || upperMenu.includes("AIRCRAFT")) icon = "✈️";
-                else if (upperMenu.includes("CREW") || upperMenu.includes("STAFF") || upperMenu.includes("EMPLOYEE") || upperMenu.includes("USER")) icon = "👥";
-                else if (upperMenu.includes("SCHEDULE") || upperMenu.includes("PLAN")) icon = "📅";
-                else if (upperMenu.includes("REPORT") || upperMenu.includes("STAT")) icon = "📈";
-                else if (upperMenu.includes("SCHEME")) icon = "📋";
-                else if (upperMenu.includes("APPLY") || upperMenu.includes("SCHOLARSHIP")) icon = "🎓";
-                else if (upperMenu.includes("VIEW") || upperMenu.includes("RENEW") || upperMenu.includes("APPLICATION")) icon = "🔍";
-                else if (upperMenu.includes("CITY")) icon = "🏙️";
-                else if (upperMenu.includes("AIRPORT")) icon = "✈️";
-
-                const li = document.createElement("li");
-                li.innerHTML = `<a href="#" class="menu-link" data-menu="${menu}"><span class="icon">${icon}</span><span class="menu-text">${menu}</span></a>`;
-                navContainer.appendChild(li);
-                bindMenuAction(menu, li);
-
-                console.log(`Rendered menu ${index + 1}:`, menu);
-            });
-        } else {
             const li = document.createElement("li");
-            li.innerHTML = `<a href="#" class="menu-link" data-menu="NO MENU"><span class="icon">⚠️</span><span class="menu-text">No Menu</span></a>`;
+            li.innerHTML = `<a href="javascript:void(0)" class="menu-link" data-menu="${menu}" onclick="window.aosNavigateTo('${menu}', this); return false;"><span class="icon">${icon}</span><span class="menu-text">${menu}</span></a>`;
             navContainer.appendChild(li);
+        });
+    }
+
+} // END initDashboard
+
+
+
+// ==========================================
+// FLOATING ROBO-CHATBOT INTERACTIVE LOGIC
+// ==========================================
+const chatbotFab = document.getElementById("chatbotFab");
+const chatbotWindow = document.getElementById("chatbotWindow");
+const chatbotClose = document.getElementById("chatbotClose");
+const chatbotMessages = document.getElementById("chatbotMessages");
+const chatbotInput = document.getElementById("chatbotInput");
+const chatbotSend = document.getElementById("chatbotSend");
+
+if (chatbotFab && chatbotWindow) {
+    chatbotFab.addEventListener("click", () => {
+        chatbotWindow.classList.toggle("hidden");
+        if (!chatbotWindow.classList.contains("hidden")) {
+            chatbotInput.focus();
         }
+    });
+}
 
-        console.log("Rendered nav HTML:", navContainer.innerHTML);
-    }
+if (chatbotClose && chatbotWindow) {
+    chatbotClose.addEventListener("click", (e) => {
+        e.stopPropagation();
+        chatbotWindow.classList.add("hidden");
+    });
+}
 
+function appendMessage(sender, text) {
+    if (!chatbotMessages) return;
+    const msgDiv = document.createElement("div");
+    msgDiv.className = `message ${sender}`;
 
+    // Escape HTML to prevent XSS, but convert newlines to <br>
+    const safeText = text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;")
+        .replace(/\n/g, "<br>");
 
-    // ==========================================
-    // FLOATING ROBO-CHATBOT INTERACTIVE LOGIC
-    // ==========================================
-    const chatbotFab = document.getElementById("chatbotFab");
-    const chatbotWindow = document.getElementById("chatbotWindow");
-    const chatbotClose = document.getElementById("chatbotClose");
-    const chatbotMessages = document.getElementById("chatbotMessages");
-    const chatbotInput = document.getElementById("chatbotInput");
-    const chatbotSend = document.getElementById("chatbotSend");
+    msgDiv.innerHTML = safeText;
+    chatbotMessages.appendChild(msgDiv);
+    chatbotMessages.scrollTop = chatbotMessages.scrollHeight;
+}
 
-    if (chatbotFab && chatbotWindow) {
-        chatbotFab.addEventListener("click", () => {
-            chatbotWindow.classList.toggle("hidden");
-            if (!chatbotWindow.classList.contains("hidden")) {
-                chatbotInput.focus();
-            }
-        });
-    }
-
-    if (chatbotClose && chatbotWindow) {
-        chatbotClose.addEventListener("click", (e) => {
-            e.stopPropagation();
-            chatbotWindow.classList.add("hidden");
-        });
-    }
-
-    function appendMessage(sender, text) {
-        if (!chatbotMessages) return;
-        const msgDiv = document.createElement("div");
-        msgDiv.className = `message ${sender}`;
-        
-        // Escape HTML to prevent XSS, but convert newlines to <br>
-        const safeText = text
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;")
-            .replace(/\n/g, "<br>");
-        
-        msgDiv.innerHTML = safeText;
-        chatbotMessages.appendChild(msgDiv);
-        chatbotMessages.scrollTop = chatbotMessages.scrollHeight;
-    }
-
-    function showTypingIndicator() {
-        if (!chatbotMessages) return null;
-        const indicatorDiv = document.createElement("div");
-        indicatorDiv.className = "message bot typing-indicator-container";
-        indicatorDiv.innerHTML = `
+function showTypingIndicator() {
+    if (!chatbotMessages) return null;
+    const indicatorDiv = document.createElement("div");
+    indicatorDiv.className = "message bot typing-indicator-container";
+    indicatorDiv.innerHTML = `
             <div class="typing-indicator">
                 <span></span>
                 <span></span>
                 <span></span>
             </div>
         `;
-        chatbotMessages.appendChild(indicatorDiv);
-        chatbotMessages.scrollTop = chatbotMessages.scrollHeight;
-        return indicatorDiv;
-    }
+    chatbotMessages.appendChild(indicatorDiv);
+    chatbotMessages.scrollTop = chatbotMessages.scrollHeight;
+    return indicatorDiv;
+}
 
-    async function handleSendMessage() {
-        if (!chatbotInput || !chatbotMessages) return;
-        const text = chatbotInput.value.trim();
-        if (!text) return;
+async function handleSendMessage() {
+    if (!chatbotInput || !chatbotMessages) return;
+    const text = chatbotInput.value.trim();
+    if (!text) return;
 
-        // Append user message
-        appendMessage("user", text);
-        chatbotInput.value = "";
+    // Append user message
+    appendMessage("user", text);
+    chatbotInput.value = "";
 
-        // Show typing indicator
-        const typingIndicator = showTypingIndicator();
+    // Show typing indicator
+    const typingIndicator = showTypingIndicator();
 
-        try {
-            const apiKey = localStorage.getItem("gemini_api_key") || "";
-            const response = await fetch("/api/chat", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({ message: text, apiKey: apiKey })
-            });
+    try {
+        const apiKey = localStorage.getItem("gemini_api_key") || "";
+        const response = await fetch("/api/chat", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ message: text, apiKey: apiKey })
+        });
 
-            if (typingIndicator) {
-                typingIndicator.remove();
-            }
-
-            const data = await response.json();
-            if (response.ok && data.response) {
-                appendMessage("bot", data.response);
-            } else {
-                appendMessage("bot", data.error || "Sorry, I encountered an error processing your request. Please try again.");
-            }
-        } catch (err) {
-            console.error("Chat error:", err);
-            if (typingIndicator) {
-                typingIndicator.remove();
-            }
-            appendMessage("bot", "Network error. Please make sure the backend server is running.");
+        if (typingIndicator) {
+            typingIndicator.remove();
         }
-    }
 
-    if (chatbotSend) {
-        chatbotSend.addEventListener("click", handleSendMessage);
-    }
-
-    if (chatbotInput) {
-        chatbotInput.addEventListener("keydown", (e) => {
-            if (e.key === "Enter") {
-                handleSendMessage();
-            }
-        });
-    }
-
-    // Settings Toggle and Save Logic
-    const chatbotSettingsToggle = document.getElementById("chatbotSettingsToggle");
-    const chatbotSettingsPanel = document.getElementById("chatbotSettingsPanel");
-    const chatbotApiKeyInput = document.getElementById("chatbotApiKeyInput");
-    const chatbotSaveSettingsBtn = document.getElementById("chatbotSaveSettingsBtn");
-
-    if (chatbotApiKeyInput) {
-        chatbotApiKeyInput.value = localStorage.getItem("gemini_api_key") || "";
-    }
-
-    if (chatbotSettingsToggle && chatbotSettingsPanel) {
-        chatbotSettingsToggle.addEventListener("click", (e) => {
-            e.stopPropagation();
-            chatbotSettingsPanel.classList.toggle("hidden");
-        });
-    }
-
-    if (chatbotSaveSettingsBtn && chatbotApiKeyInput && chatbotSettingsPanel) {
-        chatbotSaveSettingsBtn.addEventListener("click", (e) => {
-            e.stopPropagation();
-            const keyVal = chatbotApiKeyInput.value.trim();
-            localStorage.setItem("gemini_api_key", keyVal);
-            chatbotSettingsPanel.classList.add("hidden");
-            appendMessage("bot", "🔑 API Key updated successfully!");
-        });
+        const data = await response.json();
+        if (response.ok && data.response) {
+            appendMessage("bot", data.response);
+        } else {
+            appendMessage("bot", data.error || "Sorry, I encountered an error processing your request. Please try again.");
+        }
+    } catch (err) {
+        console.error("Chat error:", err);
+        if (typingIndicator) {
+            typingIndicator.remove();
+        }
+        appendMessage("bot", "Network error. Please make sure the backend server is running.");
     }
 }
 
-if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initDashboard);
-} else {
+if (chatbotSend) {
+    chatbotSend.addEventListener("click", handleSendMessage);
+}
+
+if (chatbotInput) {
+    chatbotInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+            handleSendMessage();
+        }
+    });
+}
+
+// Settings Toggle and Save Logic
+const chatbotSettingsToggle = document.getElementById("chatbotSettingsToggle");
+const chatbotSettingsPanel = document.getElementById("chatbotSettingsPanel");
+const chatbotApiKeyInput = document.getElementById("chatbotApiKeyInput");
+const chatbotSaveSettingsBtn = document.getElementById("chatbotSaveSettingsBtn");
+
+if (chatbotApiKeyInput) {
+    chatbotApiKeyInput.value = localStorage.getItem("gemini_api_key") || "";
+}
+
+if (chatbotSettingsToggle && chatbotSettingsPanel) {
+    chatbotSettingsToggle.addEventListener("click", (e) => {
+        e.stopPropagation();
+        chatbotSettingsPanel.classList.toggle("hidden");
+    });
+}
+
+if (chatbotSaveSettingsBtn && chatbotApiKeyInput && chatbotSettingsPanel) {
+    chatbotSaveSettingsBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const keyVal = chatbotApiKeyInput.value.trim();
+        localStorage.setItem("gemini_api_key", keyVal);
+        chatbotSettingsPanel.classList.add("hidden");
+        appendMessage("bot", "\uD83D\uDD11 API Key updated successfully!");
+    });
+}
+
+function safeInit() {
+    if (window._aos_initialized) return;
+    window._aos_initialized = true;
     initDashboard();
+}
+
+if (document.readyState !== "loading") {
+    safeInit();
+} else {
+    document.addEventListener("DOMContentLoaded", safeInit);
+    window.addEventListener("load", safeInit);
 }

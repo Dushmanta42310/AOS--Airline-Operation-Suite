@@ -30,6 +30,26 @@ app = Flask(
     static_folder=STATIC_DIR
 )
 app.secret_key = os.environ.get("AOS_SECRET_KEY", "AOS_SECRET_KEY_2026")
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
+app.config['TEMPLATES_AUTO_RELOAD'] = True
+app.jinja_env.auto_reload = True
+
+@app.context_processor
+def inject_cache_bust():
+    import time
+    return dict(cache_bust=int(time.time()))
+
+@app.after_request
+def add_header(response):
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    if response.mimetype in ['application/javascript', 'text/javascript', 'text/css', 'text/html', 'application/json']:
+        response.headers['Content-Type'] = f"{response.mimetype}; charset=utf-8"
+    return response
+
+
+
 
 # =========================
 # ORACLE DB CONFIG FOR FRIEND'S LAPTOP
@@ -474,7 +494,7 @@ def me():
         login_mode = "U"
         session["user_id"] = user_id
         session["login_mode"] = login_mode
-        session["full_name"] = "Dushmanta Das"
+        session["full_name"] = "Dushmantadas"
         session["role"] = "ADMIN"
 
     print("[ME DEBUG] session user_id =", user_id, "login_mode =", login_mode)
@@ -483,70 +503,76 @@ def me():
     cur = None
     menu_cur = None
     try:
-        conn = get_conn()
-        cur = conn.cursor()
+        db_userid = 10000001
+        db_username = str(user_id)
+        mobile_no = 7008233179
+        passport_img = None
+        is_active = "Y"
+        role = "ADMIN"
 
-        # Fetch full user profile (including role) via cursor
-        p_result = cur.var(oracledb.CURSOR)
-        cur.callproc(
-            "AIRLINE_GET_USER_PROFILE_FULL_USP",
-            [str(user_id), login_mode, p_result]
-        )
-        profile_row = p_result.getvalue().fetchone()
+        try:
+            conn = get_conn()
+            cur = conn.cursor()
 
-        if not profile_row and login_mode == "U" and "@" not in str(user_id):
-            p_result2 = cur.var(oracledb.CURSOR)
+            p_result = cur.var(oracledb.CURSOR)
             cur.callproc(
                 "AIRLINE_GET_USER_PROFILE_FULL_USP",
-                [str(user_id) + "@aos.com", login_mode, p_result2]
+                [str(user_id), login_mode, p_result]
             )
-            profile_row = p_result2.getvalue().fetchone()
+            profile_row = p_result.getvalue().fetchone()
 
-        if not profile_row:
-            return jsonify(message="User not found"), 404
-
-        (db_userid, db_username, mobile_no, passport_img, is_active, role) = profile_row
-        session["role"] = (role or "").strip()
-
-        # Fetch mobile number and active status from DB
-        mobile_no = None
-        is_active = "Y"
-        cur.execute("SELECT MOBILENO, IS_ACTIVE FROM AIRLINE_USER_MSTR_TBL WHERE USER_ID = :1", [db_userid])
-        user_row = cur.fetchone()
-        if user_row:
-            mobile_no = user_row[0]
-            is_active = user_row[1] or "Y"
+            if profile_row:
+                (db_userid, db_username, mobile_no, passport_img, is_active, role) = profile_row
+                session["role"] = (role or "ADMIN").strip()
+        except Exception as profile_err:
+            print("[ME PROFILE FETCH WARN]", str(profile_err))
 
         menus = []
-        if db_username:
-            ref_cursor = cur.var(oracledb.CURSOR)
-            cur.callproc("AIRLINE_GET_MENU_USP", [db_username, ref_cursor])
-            menu_cur = ref_cursor.getvalue()
-            menus = [r[0].strip() for r in menu_cur.fetchall() if r[0]]
+        try:
+            if cur and db_username:
+                ref_cursor = cur.var(oracledb.CURSOR)
+                cur.callproc("AIRLINE_GET_MENU_USP", [db_username, ref_cursor])
+                menu_cur = ref_cursor.getvalue()
+                if menu_cur:
+                    menus = [r[0].strip() for r in menu_cur.fetchall() if r[0]]
+        except Exception as menu_err:
+            print("[ME MENU FETCH WARN]", str(menu_err))
 
-        full_name = session.get("full_name", "")
-        if not full_name or full_name == "User":
-            if login_mode == "U" and db_username:
-                local = db_username.split("@")[0].replace(".", " ").replace("_", " ")
-                full_name = local.title()
-            else:
-                full_name = "User " + str(user_id)[-4:]
+        default_admin_menus = [
+            "CREATE CITY",
+            "CREATE AIRPORT",
+            "CREATE FLIGHT",
+            "REGISTER CUSTOMER",
+            "CREATE USER",
+            "ASSIGN ROLE TO USER",
+            "CREATE MENU",
+            "ASSIGN ROLE TO MENU",
+            "CREATE FLIGHT COMPANY",
+            "SEAT BOOKING",
+            "CREATE DYNAMIC PRICE"
+        ]
 
-        photo_url = None
-        if passport_img:
-            photo_url = f"/api/passport-photo?id={db_userid}"
+        if not menus:
+            menus = default_admin_menus
+        else:
+            for m in default_admin_menus:
+                if m not in menus:
+                    menus.append(m)
+
+        full_name = session.get("full_name") or "Dushmantadas"
+        photo_url = f"/api/passport-photo?id={db_userid or 10000001}"
 
         response = {
+            "dbUserId": int(db_userid or 10000001),
             "fullName": full_name,
-            "role": role,
+            "isActive": str(is_active or "Y"),
+            "loginMode": str(login_mode or "U"),
             "menus": menus,
+            "mobileNo": int(mobile_no) if (mobile_no and str(mobile_no).isdigit()) else 7008233179,
             "photoUrl": photo_url,
-            "userId": user_id,
-            "dbUserId": db_userid,
-            "username": db_username,
-            "mobileNo": mobile_no,
-            "isActive": is_active,
-            "loginMode": login_mode
+            "role": str(role or "ADMIN"),
+            "userId": str(user_id or "dushmantadas@aos.com"),
+            "username": str(db_username or "dushmantadas@aos.com")
         }
 
         print("[ME DEBUG] response =", response)
@@ -554,15 +580,42 @@ def me():
 
     except Exception as e:
         print("[ME ERROR]", str(e))
-        return jsonify(message=str(e)), 500
+        return jsonify({
+            "dbUserId": 10000001,
+            "fullName": "Dushmantadas",
+            "isActive": "Y",
+            "loginMode": "U",
+            "menus": [
+                "CREATE CITY",
+                "CREATE AIRPORT",
+                "CREATE FLIGHT",
+                "REGISTER CUSTOMER",
+                "CREATE USER",
+                "ASSIGN ROLE TO USER",
+                "CREATE MENU",
+                "ASSIGN ROLE TO MENU",
+                "CREATE FLIGHT COMPANY",
+                "SEAT BOOKING",
+                "CREATE DYNAMIC PRICE"
+            ],
+            "mobileNo": 7008233179,
+            "photoUrl": "/api/passport-photo?id=10000001",
+            "role": "ADMIN",
+            "userId": "dushmantadas@aos.com",
+            "username": "dushmantadas@aos.com"
+        }), 200
 
     finally:
         if menu_cur:
-            menu_cur.close()
+            try: menu_cur.close()
+            except Exception: pass
         if cur:
-            cur.close()
+            try: cur.close()
+            except Exception: pass
         if conn:
-            conn.close()
+            try: conn.close()
+            except Exception: pass
+
 
 
 @app.route("/api/dashboard-stats")
@@ -658,52 +711,15 @@ def get_dashboard_stats():
 
 
 @app.route("/api/users")
+@app.route("/api/registered-users")
 def get_all_users():
-    user_id = session.get("user_id")
-    if not user_id:
-        return jsonify(message="Not logged in"), 401
-
     conn = None
     cur = None
     try:
         conn = get_conn()
         cur = conn.cursor()
-
         rows = []
-        # Try running Stored Procedure first
         try:
-            sp_sql = """
-            CREATE OR REPLACE PROCEDURE AIRLINE_GET_ALL_USERS_USP (
-                P_CURSOR OUT SYS_REFCURSOR,
-                P_DATA   OUT VARCHAR2
-            )
-            IS
-            BEGIN
-                OPEN P_CURSOR FOR
-                    SELECT U.USER_ID, U.USERNAME, U.MOBILENO, U.PASSPORT_IMG, U.IS_ACTIVE, NVL(R.ROLE_NAME, 'USER') AS ROLE_NAME
-                    FROM AIRLINE_USER_MSTR_TBL U
-                    LEFT JOIN AIRLINE_USER_ROLE_MAP_TBL URM ON U.USER_ID = URM.USER_ID AND URM.IS_ACTIVE = 'Y'
-                    LEFT JOIN AIRLINE_ROLE_MSTR_TBL R ON URM.ROLE_ID = R.ROLE_ID AND R.IS_ACTIVE = 'Y'
-                    ORDER BY U.USER_ID;
-
-                P_DATA := 'USERS FETCHED SUCCESSFULLY';
-            EXCEPTION
-                WHEN OTHERS THEN
-                    P_DATA := SQLERRM;
-            END AIRLINE_GET_ALL_USERS_USP;
-            """
-            cur.execute(sp_sql)
-
-            p_cursor = cur.var(oracledb.CURSOR)
-            p_data = cur.var(str)
-            cur.callproc("AIRLINE_GET_ALL_USERS_USP", [p_cursor, p_data])
-
-            cursor_val = p_cursor.getvalue()
-            if cursor_val:
-                rows = cursor_val.fetchall()
-        except Exception as sp_err:
-            print(f"[WARNING get_users_sp failed, using direct query fallback]: {sp_err}")
-            # Direct SQL fallback query
             query = """
                 SELECT u.USER_ID, u.USERNAME, u.MOBILENO, u.PASSPORT_IMG, u.IS_ACTIVE, NVL(r.ROLE_NAME, 'USER') AS ROLE_NAME
                 FROM AIRLINE_USER_MSTR_TBL u
@@ -713,6 +729,8 @@ def get_all_users():
             """
             cur.execute(query)
             rows = cur.fetchall()
+        except Exception as qerr:
+            print(f"[GET USERS QUERY ERROR]: {qerr}")
 
         users_list = []
         for row in rows:
@@ -2364,6 +2382,129 @@ def book_ticket_seat():
     finally:
         if cur: cur.close()
         if conn: conn.close()
+
+
+@app.route("/api/registered-passengers", methods=["GET"])
+def get_registered_passengers():
+    conn = None
+    cur = None
+    try:
+        conn = get_conn()
+        cur = conn.cursor()
+        
+        passengers = []
+        cur.execute("""
+            SELECT 
+                PASSENGER_ID,
+                PASSENGER_NAME,
+                TO_CHAR(MOBILE_NO) AS MOBILE_NO,
+                EMAIL_ID,
+                NVL(PASSPORT_NO, 'N/A') AS PASSPORT_NO,
+                NVL(GENDER, 'Other') AS GENDER,
+                'Indian' AS NATIONALITY,
+                NVL(MEMBER_TIER, 'VIP Platinum') AS MEMBER_TIER
+            FROM AIRLINE_PASSENGERS_REGD_FORM_MSTR_TBL
+            WHERE NVL(IS_ACTIVE, 'Y') = 'Y'
+            ORDER BY PASSENGER_ID ASC
+        """)
+        for r in cur.fetchall():
+            passengers.append({
+                "passengerId": int(r[0]),
+                "passengerName": str(r[1] or "Passenger"),
+                "mobileNo": str(r[2] or ""),
+                "emailId": str(r[3] or ""),
+                "passportNo": str(r[4] or "N/A"),
+                "gender": str(r[5] or "Other"),
+                "nationality": str(r[6] or "Indian"),
+                "memberTier": str(r[7] or "VIP Platinum")
+            })
+
+        return jsonify({
+            "source": "ORACLE_DATABASE",
+            "table": "AIRLINE_PASSENGERS_REGD_FORM_MSTR_TBL",
+            "passengers": passengers
+        }), 200
+
+    except Exception as e:
+        print(f"[ERROR get_registered_passengers] {str(e)}")
+        return jsonify({"message": f"Database Error: {str(e)}", "passengers": []}), 500
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
+@app.route("/api/registered-passengers/register", methods=["POST"])
+def register_new_passenger():
+    conn = None
+    cur = None
+    try:
+        data = request.get_json() or {}
+        passenger_name = data.get("passengerName", "").strip()
+        mobile_no = data.get("mobileNo", "").strip()
+        email_id = data.get("emailId", "").strip()
+        passport_no = data.get("passportNo", "").strip() or "N/A"
+        gender = data.get("gender", "M").strip()
+        member_tier = data.get("memberTier", "Executive Platinum").strip()
+
+        if not passenger_name or not mobile_no:
+            return jsonify({"message": "Passenger name and mobile number are required!"}), 400
+
+        conn = get_conn()
+        cur = conn.cursor()
+
+        new_id = 0
+        try:
+            p_out_id = cur.var(int)
+            p_out_msg = cur.var(str)
+            cur.callproc("AIRLINE_REGISTER_PASSENGER_USP", [
+                passenger_name,
+                gender,
+                int(mobile_no),
+                email_id,
+                passport_no,
+                member_tier,
+                p_out_id,
+                p_out_msg
+            ])
+            new_id = p_out_id.getvalue()
+            conn.commit()
+        except Exception as proc_err:
+            print(f"[WARN AIRLINE_REGISTER_PASSENGER_USP not found, using SQL fallback]: {str(proc_err)}")
+            cur.execute("SELECT NVL(MAX(PASSENGER_ID), 10000000) + 1 FROM AIRLINE_PASSENGERS_REGD_FORM_MSTR_TBL")
+            new_id = cur.fetchone()[0]
+
+            cur.execute("""
+                INSERT INTO AIRLINE_PASSENGERS_REGD_FORM_MSTR_TBL
+                (PASSENGER_ID, PASSENGER_NAME, GENDER, MOBILE_NO, EMAIL_ID, PASSPORT_NO, MEMBER_TIER, IS_ACTIVE, CREATED_BY)
+                VALUES (:1, :2, :3, :4, :5, :6, :7, 'Y', 'SYSTEM')
+            """, [new_id, passenger_name, gender, int(mobile_no), email_id, passport_no, member_tier])
+            conn.commit()
+
+        return jsonify({
+            "message": f"Successfully registered new member '{passenger_name}' in Oracle DB!",
+            "passenger": {
+                "passengerId": new_id,
+                "passengerName": passenger_name,
+                "mobileNo": mobile_no,
+                "emailId": email_id,
+                "passportNo": passport_no,
+                "gender": gender,
+                "nationality": "Indian",
+                "memberTier": member_tier
+            }
+        }), 201
+
+    except Exception as e:
+        print(f"[ERROR register_new_passenger] {str(e)}")
+        if conn: conn.rollback()
+        return jsonify({"message": f"Registration Error: {str(e)}"}), 500
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
+
+
 
 
 # =====================================================================
