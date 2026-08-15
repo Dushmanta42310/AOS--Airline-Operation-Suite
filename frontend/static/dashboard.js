@@ -1288,6 +1288,12 @@ async function initDashboard() {
         window.removeEventListener("message", handleIframeMessage);
         window.addEventListener("message", handleIframeMessage);
 
+        if (globeIframe) {
+            globeIframe.onload = () => {
+                sendAirportsToGlobe();
+            };
+        }
+
         async function loadCitiesAndAirports() {
             try {
                 // Fetch cities from the city proc and airports from the airport proc in parallel
@@ -1530,6 +1536,12 @@ async function initDashboard() {
 
         window.removeEventListener("message", handleIframeMessage);
         window.addEventListener("message", handleIframeMessage);
+
+        if (globeIframe) {
+            globeIframe.onload = () => {
+                sendAirportsToGlobe();
+            };
+        }
 
         async function loadCitiesAndAirports() {
             try {

@@ -52,8 +52,7 @@
             color: #F1F5F9;
         }
     </style>
-    <!-- Import Three.js and Globe.gl from unpkg CDN -->
-    <script src="https://unpkg.com/three@0.147.0/build/three.min.js"></script>
+    <!-- Import Globe.gl from unpkg CDN -->
     <script src="https://unpkg.com/globe.gl@2.32.1/dist/globe.gl.min.js"></script>
 </head>
 <body>
@@ -80,21 +79,37 @@
         };
 
         // Initialize Globe
-        const globe = Globe()(document.getElementById('globeViz'))
+        const globeContainer = document.getElementById('globeViz');
+        const globe = Globe()(globeContainer)
             .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-night.jpg')
             .bumpImageUrl('https://unpkg.com/three-globe/example/img/earth-topology.png')
-            .backgroundImageUrl('//unpkg.com/three-globe/example/img/night-sky.png')
+            .backgroundImageUrl('https://unpkg.com/three-globe/example/img/night-sky.png')
             .showAtmosphere(true)
             .atmosphereColor('#007AFF')
             .atmosphereAltitude(0.15);
 
+        // Adjust canvas dimensions dynamically on resize
+        function resizeGlobe() {
+            if (globe && globeContainer) {
+                const w = window.innerWidth || globeContainer.clientWidth || 600;
+                const h = window.innerHeight || globeContainer.clientHeight || 500;
+                globe.width(w);
+                globe.height(h);
+            }
+        }
+        window.addEventListener('resize', resizeGlobe);
+        setTimeout(resizeGlobe, 100);
+        setTimeout(resizeGlobe, 500);
+
         // Adjust rotation speed and enable zoom
         const controls = globe.controls();
-        controls.autoRotate = true;
-        controls.autoRotateSpeed = 0.04;
-        controls.enableZoom = true;
-        controls.minDistance = 120;
-        controls.maxDistance = 600;
+        if (controls) {
+            controls.autoRotate = true;
+            controls.autoRotateSpeed = 0.04;
+            controls.enableZoom = true;
+            controls.minDistance = 120;
+            controls.maxDistance = 600;
+        }
 
         let globalAirports = [];
         let activeAirports = [];
