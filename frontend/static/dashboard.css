@@ -1609,13 +1609,14 @@ body {
     box-shadow: 0 4px 10px rgba(22, 163, 74, 0.4) !important;
 }
 
-/* Booked Seats - Muted Grey with X mark */
+/* Booked Seats - Muted Grey with red X mark */
 .seat-btn.booked {
-    background: #cbd5e1 !important;
-    border: 1px solid #94a3b8 !important;
-    color: #475569 !important;
+    background: #f1f5f9 !important;
+    border: 1.5px solid #cbd5e1 !important;
+    color: #dc2626 !important;
     cursor: not-allowed !important;
     font-weight: 900 !important;
+    pointer-events: none !important;
 }
 
 /* RIGHT PANEL SUMMARY CARD MATCHING SCREENSHOT */

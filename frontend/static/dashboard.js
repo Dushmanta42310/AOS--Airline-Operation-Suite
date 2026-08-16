@@ -2486,15 +2486,18 @@ async function initDashboard() {
 
                 const renderSeatBtn = (s, colName) => {
                     if (!s) return `<div style="width:36px;"></div>`;
-                    const isBooked = s.status === 'BOOKED' || s.status === 'OCCUPIED' || s.status === 'PAID';
+                    const sNo = String(s.seatNo || '').trim().toUpperCase();
+                    const stUpper = String(s.status || '').trim().toUpperCase();
+                    const isBookedInSet = window._aos_bookedSeatsSet && window._aos_bookedSeatsSet.has(sNo);
+                    const isBooked = isBookedInSet || stUpper === 'BOOKED' || stUpper === 'OCCUPIED' || stUpper === 'PAID' || stUpper === 'CONFIRMED' || stUpper.includes('BOOK');
                     const isBusiness = s.seatClass === 'BUSINESS';
                     const btnClass = `seat-btn ${isBooked ? 'booked' : 'available'} ${isBusiness ? 'business-seat' : ''}`;
                     const shortcut = getSeatShortcut(s);
 
                     return `
-                        <button class="${btnClass}" id="seatBtn_${s.seatNo}" data-seat="${s.seatNo}" data-price="${s.finalPrice}" data-surcharge="${s.priceSurcharge}" data-type="${s.seatType}" data-class="${s.seatClass}" ${isBooked ? 'disabled' : ''}>
-                            ${isBooked ? '<span style="font-size:12px;">X</span>' : `
-                                <span class="seat-num-text">${s.seatNo}</span>
+                        <button class="${btnClass}" id="seatBtn_${sNo}" data-seat="${sNo}" data-price="${s.finalPrice}" data-surcharge="${s.priceSurcharge}" data-type="${s.seatType}" data-class="${s.seatClass}" ${isBooked ? 'disabled style="pointer-events:none; opacity:0.85;"' : ''}>
+                            ${isBooked ? '<span style="font-size:13px; font-weight:900; color:#dc2626;">X</span>' : `
+                                <span class="seat-num-text">${sNo}</span>
                                 <span class="seat-shortcut-text">${shortcut}</span>
                             `}
                         </button>
@@ -2763,12 +2766,27 @@ async function initDashboard() {
                                         </button>
                                     </div>
 
+                                    <!-- DROPDOWN SELECT EXISTING REGISTERED CUSTOMER -->
+                                    <div class="existing-cust-select-row" style="margin-bottom: 8px;">
+                                        <label style="font-size: 11px; font-weight: 800; color: #0369a1; display: block; margin-bottom: 3px;">
+                                            👤 Select Existing Registered Customer:
+                                        </label>
+                                        <select class="existing-cust-dropdown" id="selectExistingCust_${seatNo}" style="width: 100%; padding: 8px; border-radius: 8px; border: 1.5px solid #0284c7; font-size: 12px; font-weight: 700; color: #0f172a; background: #ffffff;">
+                                            <option value="">-- Select Existing Customer from Database --</option>
+                                            ${registeredCustomersList.map(c => `
+                                                <option value="${c.passengerId}" ${pass.passengerId === c.passengerId ? 'selected' : ''}>
+                                                    ID: ${c.passengerId} | ${c.passengerName} (${c.mobileNo}) - ${c.memberTier || 'Standard'} [Passport: ${c.passportNo || 'N/A'}]
+                                                </option>
+                                            `).join('')}
+                                        </select>
+                                    </div>
+
                                     <!-- PASSPORT / NAME / MOBILE AUTO-SUGGEST SEARCH INPUT -->
                                     <div class="seat-cust-search-row">
                                         <label style="font-size: 11px; font-weight: 700; color: #475569; display: block; margin-bottom: 2px;">
-                                            \uD83D\uDD0D Search Passport No / Customer:
+                                            🔍 Or Search Passport / Customer:
                                         </label>
-                                        <input type="text" class="passport-search-input" id="passportSearch_${seatNo}" placeholder="Type Passport No (e.g. Z9842103), Name or Mobile..." value="${pass.passportNo && pass.passportNo !== 'N/A' ? pass.passportNo + ' (' + pass.passengerName + ')' : pass.passengerName}" autocomplete="off">
+                                        <input type="text" class="passport-search-input" id="passportSearch_${seatNo}" placeholder="Type Passport No, Name or Mobile..." value="${pass.passportNo && pass.passportNo !== 'N/A' ? pass.passportNo + ' (' + pass.passengerName + ')' : pass.passengerName}" autocomplete="off">
                                         <div class="search-suggestions-box" id="suggestionsBox_${seatNo}" style="display: none;"></div>
                                     </div>
 
@@ -2785,7 +2803,7 @@ async function initDashboard() {
                                     <!-- INLINE REGISTRATION FORM FOR THIS SEAT (MATCHES REGD CUSTOMER FORM MENU) -->
                                     <div class="seat-reg-form" id="seatRegForm_${seatNo}" style="display: none; background: #f8fafc; border: 1.5px solid #0284c7; border-radius: 12px; padding: 14px; margin-top: 10px;">
                                         <div style="font-size: 13px; font-weight: 800; color: #0284c7; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
-                                            <span>\u2795</span> Register New Customer for Seat ${seatNo}
+                                            <span>➕</span> Register New Customer for Seat ${seatNo}
                                         </div>
 
                                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
@@ -2821,7 +2839,7 @@ async function initDashboard() {
 
                                         <!-- MEMBERSHIP OPTION FIELD AT BOTTOM OF CUSTOMER REGISTRATION FORM -->
                                         <div class="membership-field-group" style="margin-top: 6px;">
-                                            <label style="font-size: 11px; font-weight: 800; color: #0369a1; display: block; margin-bottom: 4px;">\uD83C\uDFC5 Select Frequent Flyer Membership Tier (Membership Fee & Discount):</label>
+                                            <label style="font-size: 11px; font-weight: 800; color: #0369a1; display: block; margin-bottom: 4px;">🏆 Select Frequent Flyer Membership Tier (Membership Fee & Discount):</label>
                                             <select id="regTier_${seatNo}" style="width: 100%; padding: 7px; border-radius: 6px; border: 1px solid #0284c7; font-size: 11px; font-weight: 800; color: #0f172a; background: #ffffff;">
                                                 <option value="No Membership" ${(!pass.memberTier || pass.memberTier === 'No Membership') ? 'selected' : ''}>❌ No Membership (Regular Customer) — Free (₹0 Fee / 0% Discount)</option>
                                                 <option value="Executive Platinum" ${pass.memberTier === 'Executive Platinum' ? 'selected' : ''}>🏅 Executive Platinum (15% Flight Discount) — Fee: ₹1,500/yr</option>
@@ -2844,12 +2862,27 @@ async function initDashboard() {
 
                         // Event Listeners for each per-seat card
                         selectedSeatsMap.forEach((seatData, seatNo) => {
+                            const existingSelect = document.getElementById(`selectExistingCust_${seatNo}`);
                             const toggleBtn = document.getElementById(`toggleSeatRegBtn_${seatNo}`);
                             const regForm = document.getElementById(`seatRegForm_${seatNo}`);
                             const searchInput = document.getElementById(`passportSearch_${seatNo}`);
                             const sugBox = document.getElementById(`suggestionsBox_${seatNo}`);
                             const saveBtn = document.getElementById(`saveCustBtn_${seatNo}`);
                             const msgDiv = document.getElementById(`seatRegMsg_${seatNo}`);
+
+                            if (existingSelect) {
+                                existingSelect.addEventListener("change", () => {
+                                    const selectedId = parseInt(existingSelect.value);
+                                    if (selectedId) {
+                                        const matchedPass = registeredCustomersList.find(c => c.passengerId === selectedId);
+                                        if (matchedPass) {
+                                            seatPassengerMap.set(seatNo, { ...matchedPass });
+                                            renderPerSeatPassengerCards();
+                                            updatePriceCalculations();
+                                        }
+                                    }
+                                });
+                            }
 
                             if (toggleBtn && regForm) {
                                 toggleBtn.addEventListener("click", () => {
@@ -3045,7 +3078,7 @@ async function initDashboard() {
                             const bookedPnrs = [];
                             const ticketPassengerList = [];
 
-                            for (const [seatNo, seatData] of selectedSeatsMap.entries()) {
+                            const bookingPromises = Array.from(selectedSeatsMap.entries()).map(async ([seatNo, seatData]) => {
                                 try {
                                     const pass = seatPassengerMap.get(seatNo) || {};
                                     const discPct = getTierDiscountPct(pass.memberTier);
@@ -3085,17 +3118,24 @@ async function initDashboard() {
                                             finalPrice: seatNetPrice
                                         });
 
+                                        if (!window._aos_bookedSeatsSet) window._aos_bookedSeatsSet = new Set();
+                                        window._aos_bookedSeatsSet.add(String(seatNo).trim().toUpperCase());
+
                                         if (seatData.btnElement) {
                                             seatData.btnElement.classList.remove('in-transition', 'selected', 'available');
                                             seatData.btnElement.classList.add('booked');
                                             seatData.btnElement.disabled = true;
-                                            seatData.btnElement.innerHTML = `<span style="font-size:12px;">X</span>`;
+                                            seatData.btnElement.style.pointerEvents = 'none';
+                                            seatData.btnElement.style.opacity = '0.85';
+                                            seatData.btnElement.innerHTML = `<span style="font-size:13px; font-weight:900; color:#dc2626;">X</span>`;
                                         }
                                     }
                                 } catch (err) {
                                     console.error("Error booking seat:", err);
                                 }
-                            }
+                            });
+
+                            await Promise.all(bookingPromises);
 
                             if (bookedPnrs.length > 0) {
                                 modalOverlay.remove();
@@ -3196,6 +3236,18 @@ async function initDashboard() {
             }
         }
 
+        // Fetch booked seats set FIRST before rendering initial UI
+        try {
+            const bookedRes = await fetch(`/api/booked-seat-list/${targetId}`, { credentials: "same-origin" });
+            if (bookedRes.ok) {
+                const bookedData = await bookedRes.json();
+                const list = bookedData.bookedSeats || [];
+                window._aos_bookedSeatsSet = new Set(list.map(s => String(s).trim().toUpperCase()));
+            }
+        } catch (bookedErr) {
+            console.warn("[AOS] Could not fetch booked seat list:", bookedErr);
+        }
+
         renderSeatMapUI(initialFd, defaultSeats, registeredCustomersList);
 
         try {
@@ -3215,21 +3267,45 @@ async function initDashboard() {
     // FUNCTION TO DISPLAY OFFICIAL PRINTABLE E-TICKET & BOARDING PASS MODAL
     function showPlaneTicketModal(t) {
         const existingTicket = document.getElementById("planeTicketOverlay");
-    if (existingTicket) existingTicket.remove();
+        if (existingTicket) existingTicket.remove();
 
-    const seatNumbersStr = t.passengers.map(p => p.seatNo).join(", ");
-    const passengersRows = t.passengers.map(p => `
+        // Calculate dynamic valid boarding time (45 minutes prior to flight departure, or sysdate time)
+        const calcBoardingTime = (depStr) => {
+            if (depStr) {
+                const match = String(depStr).match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+                if (match) {
+                    let h = parseInt(match[1], 10);
+                    let m = parseInt(match[2], 10);
+                    const ap = match[3] ? match[3].toUpperCase() : null;
+                    if (ap === 'PM' && h < 12) h += 12;
+                    if (ap === 'AM' && h === 12) h = 0;
+                    
+                    const d = new Date();
+                    d.setHours(h, m, 0);
+                    d.setMinutes(d.getMinutes() - 45);
+                    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+                }
+            }
+            const now = new Date();
+            return now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+        };
+
+        const boardingTimeVal = calcBoardingTime(t.departureTime);
+        const primaryCustIdVal = t.primaryCustId || 10000001;
+
+        const seatNumbersStr = t.passengers.map(p => p.seatNo).join(", ");
+        const passengersRows = t.passengers.map(p => `
             <div style="display: flex; justify-content: space-between; font-size: 12px; color: #0f172a; padding: 4px 0; border-bottom: 1px solid #e2e8f0;">
                 <span><b>Seat ${p.seatNo}</b> - ${p.passengerName} (${p.seatClass})</span>
                 <span style="font-weight: 700;">PNR: ${p.pnrNo} | \u20B9${p.finalPrice.toLocaleString('en-IN')}</span>
             </div>
         `).join('');
 
-    const totalPayableVal = t.totalPayable || t.netPayable || t.baseTotal || 0;
-    const howMuchPaidVal = t.howMuchPaid || totalPayableVal;
-    const changeAmount = Math.max(0, howMuchPaidVal - totalPayableVal);
+        const totalPayableVal = t.totalPayable || t.netPayable || t.baseTotal || 0;
+        const howMuchPaidVal = t.howMuchPaid || totalPayableVal;
+        const changeAmount = Math.max(0, howMuchPaidVal - totalPayableVal);
 
-    const ticketHtml = `
+        const ticketHtml = `
             <div class="plane-ticket-overlay" id="planeTicketOverlay">
                 <div class="plane-boarding-pass-card">
                     <!-- HEADER STRIP -->
@@ -3303,7 +3379,7 @@ async function initDashboard() {
                                     👥 Registered Customer & Passenger Roster
                                 </div>
                                 <div style="font-size: 12px; font-weight: 800; color: #0284c7; margin-bottom: 4px;">
-                                    Registered Booked By: ${t.primaryCustName} (ID: ${t.primaryCustId} | Mobile: ${t.primaryCustMobile})
+                                    Registered Booked By: ${t.primaryCustName} (ID: ${primaryCustIdVal} | Mobile: ${t.primaryCustMobile || 'N/A'})
                                 </div>
                                 ${passengersRows}
                             </div>
@@ -3313,10 +3389,10 @@ async function initDashboard() {
                                 <div>
                                     <div style="font-size: 11px; font-weight: 800; color: #065f46; text-transform: uppercase;">Financial Cash Receipt & Invoice</div>
                                     <div style="font-size: 12px; color: #047857; margin-top: 2px;">
-                                        Payment Method: <b>${t.paymentMethod}</b> | Total Fare: <b>₹${totalPayableVal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</b>
+                                        Payment Method: <b>${t.paymentMethod}</b> | Total Fare: <b>\u20B9${totalPayableVal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</b>
                                     </div>
                                     <div style="font-size: 11px; color: #047857;">
-                                        Cash Received: <b>₹${howMuchPaidVal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</b> | Change Returned: <b>₹${changeAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</b>
+                                        Cash Received: <b>\u20B9${howMuchPaidVal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</b> | Change Returned: <b>\u20B9${changeAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</b>
                                     </div>
                                 </div>
                                 <div class="ticket-paid-stamp">
@@ -3345,7 +3421,7 @@ async function initDashboard() {
                                 </div>
                                 <div class="ticket-field" style="margin-bottom: 10px;">
                                     <span class="ticket-label">Boarding Time</span>
-                                    <span class="ticket-val">07:15 AM</span>
+                                    <span class="ticket-val">${boardingTimeVal}</span>
                                 </div>
                             </div>
 
@@ -3380,52 +3456,59 @@ async function initDashboard() {
             </div>
         `;
 
-    document.body.insertAdjacentHTML("beforeend", ticketHtml);
+        document.body.insertAdjacentHTML("beforeend", ticketHtml);
 
-    document.getElementById("closePlaneTicketBtn")?.addEventListener("click", () => {
-        document.getElementById("planeTicketOverlay")?.remove();
-    });
+        document.getElementById("closePlaneTicketBtn")?.addEventListener("click", () => {
+            document.getElementById("planeTicketOverlay")?.remove();
+        });
 
-    const triggerPdfDownload = () => {
-        const ticketCard = document.querySelector(".plane-boarding-pass-card");
-        if (!ticketCard) return;
+        const triggerPdfDownload = () => {
+            const ticketCard = document.querySelector(".plane-boarding-pass-card");
+            if (!ticketCard) return;
 
-        if (typeof html2pdf !== 'undefined') {
-            const btn = document.getElementById("downloadPlaneTicketPdfBtn");
-            if (btn) btn.textContent = "\u23F3 Downloading PDF...";
+            const footerBar = ticketCard.querySelector(".ticket-footer-bar");
+            if (footerBar) footerBar.style.display = "none"; // Hide action buttons in PDF document
 
-            const opt = {
-                margin:       0.2,
-                filename:     `BoardingPass_${t.pnrNo || 'TICKET'}.pdf`,
-                image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2, useCORS: true },
-                jsPDF:        { unit: 'in', format: 'letter', orientation: 'landscape' }
-            };
+            if (typeof html2pdf !== 'undefined') {
+                const btn = document.getElementById("downloadPlaneTicketPdfBtn");
+                if (btn) btn.textContent = "⏳ Downloading PDF...";
 
-            html2pdf().set(opt).from(ticketCard).save().then(() => {
-                if (btn) btn.textContent = "\u2705 PDF Downloaded!";
-                setTimeout(() => {
-                    if (btn) btn.textContent = "\uD83D\uDCE5 Download Boarding Pass PDF";
-                }, 3000);
-            }).catch(err => {
-                console.error("PDF generation error:", err);
+                const opt = {
+                    margin:       [0.15, 0.15, 0.15, 0.15],
+                    filename:     `BoardingPass_${t.pnrNo || 'TICKET'}.pdf`,
+                    image:        { type: 'jpeg', quality: 0.92 },
+                    html2canvas:  { scale: 1.2, useCORS: true, logging: false, allowTaint: true },
+                    jsPDF:        { unit: 'in', format: 'letter', orientation: 'landscape' }
+                };
+
+                html2pdf().set(opt).from(ticketCard).save().then(() => {
+                    if (footerBar) footerBar.style.display = "flex"; // Restore buttons in modal UI
+                    if (btn) btn.textContent = "✅ PDF Downloaded!";
+                    setTimeout(() => {
+                        if (btn) btn.textContent = "📥 Download Boarding Pass PDF";
+                    }, 3000);
+                }).catch(err => {
+                    if (footerBar) footerBar.style.display = "flex";
+                    console.error("PDF generation error:", err);
+                    window.print();
+                });
+            } else {
+                if (footerBar) footerBar.style.display = "flex";
                 window.print();
-            });
-        } else {
+            }
+        };
+
+        document.getElementById("downloadPlaneTicketPdfBtn")?.addEventListener("click", triggerPdfDownload);
+
+        document.getElementById("printPlaneTicketBtn")?.addEventListener("click", () => {
+            const ticketCard = document.querySelector(".plane-boarding-pass-card");
+            const footerBar = ticketCard ? ticketCard.querySelector(".ticket-footer-bar") : null;
+            if (footerBar) footerBar.style.display = "none";
             window.print();
-        }
-    };
-
-    document.getElementById("downloadPlaneTicketPdfBtn")?.addEventListener("click", triggerPdfDownload);
-
-    document.getElementById("printPlaneTicketBtn")?.addEventListener("click", () => {
-        window.print();
-    });
-
-    // Automatically trigger Chrome PDF Download directly to PC as soon as ticket modal appears
-    setTimeout(() => {
-        triggerPdfDownload();
-    }, 450);
+            setTimeout(() => {
+                if (footerBar) footerBar.style.display = "flex";
+            }, 1000);
+        });
     }
 
 
@@ -3672,12 +3755,20 @@ async function initDashboard() {
 
                 allDynamicPrices = data.dynamicPrices || [];
                 renderRows(allDynamicPrices);
+            } else {
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="10" style="text-align: center; padding: 24px; color: #FF3B30; font-weight: 700;">
+                            ⚠️ ${data.message || 'Unable to load dynamic pricing records.'}
+                        </td>
+                    </tr>
+                `;
             }
         } catch (err) {
             console.error("Error loading dynamic price data:", err);
             tableBody.innerHTML = `
                     <tr>
-                        <td colspan="9" style="text-align: center; padding: 24px; color: #FF3B30;">Failed to load dynamic price records.</td>
+                        <td colspan="10" style="text-align: center; padding: 24px; color: #FF3B30;">Failed to load dynamic price records.</td>
                     </tr>
                 `;
         }
