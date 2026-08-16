@@ -2050,16 +2050,17 @@ async function initDashboard() {
                         <div class="input-group" style="grid-column: span 2; background: #f0f9ff; border: 1.5px solid #0284c7; padding: 12px 16px; border-radius: 10px; margin-top: 6px;">
                             <label style="font-weight: 800; color: #0369a1; font-size: 13px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center;">
                                 <span>\uD83C\uDFC5 Select Frequent Flyer Membership Tier & Fee (Annual Pass):</span>
-                                <span style="background: #0284c7; color: #fff; font-size: 11px; padding: 3px 8px; border-radius: 6px; font-weight: 800;">Oracle DB Linked</span>
+                                <span style="background: #0284c7; color: #fff; font-size: 11px; padding: 3px 8px; border-radius: 6px; font-weight: 800;">Live System Linked</span>
                             </label>
                             <select name="memberTier" id="mainMemberTierSelect" style="width: 100%; padding: 10px; border-radius: 8px; border: 1.5px solid #0284c7; font-weight: 800; font-size: 13px; color: #0f172a; background: #ffffff;">
-                                <option value="Executive Platinum" selected>Executive Platinum (15% Flight Discount) \u2014 Membership Fee: \u20B91,500/year</option>
-                                <option value="Gold Elite">Gold Elite (10% Flight Discount) \u2014 Membership Fee: \u20B91,000/year</option>
-                                <option value="Silver Preferred">Silver Preferred (5% Flight Discount) \u2014 Membership Fee: \u20B9500/year</option>
-                                <option value="Standard">Standard Member (0% Flight Discount) \u2014 Free (\u20B90)</option>
+                                <option value="No Membership" selected>❌ No Membership (Regular Customer) — Free (₹0 Fee / 0% Discount)</option>
+                                <option value="Executive Platinum">🏅 Executive Platinum (15% Flight Discount) — Fee: ₹1,500/year</option>
+                                <option value="Gold Elite">🥇 Gold Elite (10% Flight Discount) — Fee: ₹1,000/year</option>
+                                <option value="Silver Preferred">🥈 Silver Preferred (5% Flight Discount) — Fee: ₹500/year</option>
+                                <option value="Standard">👤 Standard Member (0% Flight Discount) — Free (₹0)</option>
                             </select>
                             <div style="font-size: 11px; color: #0369a1; margin-top: 6px; font-weight: 600;">
-                                \u2728 Membership fee details & discount tier will be saved to Oracle DB parent-child mapping tables.
+                                \u2728 Membership fee details & discount tier will be saved with your customer profile.
                             </div>
                         </div>
                     </div>
@@ -2082,6 +2083,20 @@ async function initDashboard() {
             e.preventDefault();
 
             const formData = new FormData(form);
+            const tierVal = formData.get("memberTier") || "Executive Platinum";
+            const tierFees = {
+                "Executive Platinum": 1500,
+                "Gold Elite": 1000,
+                "Silver Preferred": 500
+            };
+            const fee = tierFees[tierVal] || 0;
+            if (fee > 0) {
+                const confirmPay = confirm(`Membership Fee Confirmation:\n\nThe selected membership tier '${tierVal}' is not assigned for free. An annual membership fee of \u20B9${fee.toLocaleString('en-IN')} is required.\n\nDo you want to collect cash payment of \u20B9${fee.toLocaleString('en-IN')} and activate this membership?`);
+                if (!confirmPay) {
+                    return;
+                }
+            }
+
             const payload = {
                 passengerName: formData.get("passengerName"),
                 gender: formData.get("gender"),
@@ -2089,7 +2104,7 @@ async function initDashboard() {
                 mobileNo: formData.get("mobileNo"),
                 emailId: formData.get("emailId"),
                 passportNo: formData.get("passportNo"),
-                memberTier: formData.get("memberTier") || "Executive Platinum"
+                memberTier: tierVal
             };
 
             msgDiv.textContent = "Registering customer...";
@@ -2132,17 +2147,17 @@ async function initDashboard() {
                 <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; flex-wrap: wrap; gap: 12px;">
                     <div>
                         <h1>Executive Aircraft Seating & Reservations \u2708\uFE0F</h1>
-                        <p>Multi-day flight schedule booking, live Oracle DB seat availability matrix & printable E-Tickets.</p>
+                        <p>Multi-day flight schedule booking, live seat availability matrix & printable E-Tickets.</p>
                     </div>
                     <button id="backToPricingBtn" style="padding: 10px 18px; border-radius: 8px; border: none; background: rgba(255,255,255,0.25); color: #fff; font-weight: 700; cursor: pointer; font-size: 13px; backdrop-filter: blur(8px);">\u2B05 Manage Dynamic Rates</button>
                 </div>
             </div>
 
-            <!-- SELECT PLANE / AIRCRAFT FROM DATABASE DROP-DOWN BAR -->
+            <!-- SELECT PLANE / AIRCRAFT DROP-DOWN BAR -->
             <div class="macOS-card" style="margin-bottom: 20px; padding: 16px 20px; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #ffffff; border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 12px; box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
                     <label for="planeSelectBar" style="font-weight: 800; font-size: 14px; color: #38bdf8; display: flex; align-items: center; gap: 8px;">
-                        <span>\u2708\uFE0F</span> Select Plane / Flight (From DB):
+                        <span>\u2708\uFE0F</span> Select Plane / Flight:
                     </label>
                     <span style="font-size: 11px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); padding: 4px 10px; border-radius: 6px; font-weight: 700;">
                         Live Fleet & Schedule Sync
@@ -2151,7 +2166,7 @@ async function initDashboard() {
                 <div style="display: flex; gap: 14px; align-items: center; flex-wrap: wrap;">
                     <div style="flex: 1; min-width: 300px;">
                         <select id="planeSelectBar" style="width: 100%; padding: 12px 16px; border-radius: 8px; border: 1.5px solid #0284c7; background: #020617; color: #ffffff; font-weight: 800; font-size: 14px; outline: none; cursor: pointer; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25);">
-                            <option value="" disabled selected>Loading registered planes from database...</option>
+                            <option value="" disabled selected>Loading registered planes...</option>
                         </select>
                     </div>
                     <div id="selectedPlaneBadge" style="display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; color: #f8fafc; background: rgba(255, 255, 255, 0.08); padding: 10px 16px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.15);">
@@ -2160,11 +2175,11 @@ async function initDashboard() {
                 </div>
             </div>
 
-            <!-- 7-DAY FLIGHT DATE SELECTOR TABS (SYSDATE ROLLING WINDOW) -->
+            <!-- 7-DAY FLIGHT DATE SELECTOR TABS -->
             <div class="macOS-card" style="margin-bottom: 20px; padding: 16px 20px;">
                 <div style="font-weight: 800; font-size: 14px; color: #0f172a; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
                     <span>\uD83D\uDCC5 7-Day Flight Schedule (SYSDATE Window: Aug 15 \u2013 Aug 21):</span>
-                    <span style="font-size: 11px; color: #0284c7; background: #e0f2fe; padding: 4px 10px; border-radius: 6px; font-weight: 700;">Live Oracle DB Sync</span>
+                    <span style="font-size: 11px; color: #0284c7; background: #e0f2fe; padding: 4px 10px; border-radius: 6px; font-weight: 700;">Live Schedule Sync</span>
                 </div>
                 <div class="date-schedule-tabs-container" id="flightDateTabsContainer">
                     <div style="font-size: 12px; color: #64748b;">Loading flight dates...</div>
@@ -2586,7 +2601,7 @@ async function initDashboard() {
                                     <div style="background: #f8fafc; border-radius: 12px; padding: 14px; margin-bottom: 16px; border: 1px solid #e2e8f0;">
                                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
                                             <label style="font-size: 12px; font-weight: 800; color: #0f172a;">
-                                                \uD83D\uDC64 Select Registered Customer (From DB):
+                                                \uD83D\uDC64 Select Registered Customer:
                                             </label>
                                             <button id="toggleNewCustFormBtn" type="button" style="background: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 6px; cursor: pointer;">
                                                 \u2795 Add New Customer / Member
@@ -2603,7 +2618,7 @@ async function initDashboard() {
 
                                         <!-- INLINE NEW CUSTOMER REGISTRATION FORM -->
                                         <div id="newMemberRegistrationCard" style="display: none; background: #ffffff; border: 1.5px solid #0284c7; border-radius: 12px; padding: 14px; margin-top: 10px;">
-                                            <div style="font-size: 13px; font-weight: 800; color: #0284c7; margin-bottom: 8px;">\u2795 Register New Customer in Oracle DB</div>
+                                            <div style="font-size: 13px; font-weight: 800; color: #0284c7; margin-bottom: 8px;">\u2795 Register New Customer</div>
                                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
                                                 <input type="text" id="newCustNameInput" placeholder="Full Name *" style="padding: 7px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 11px;">
                                                 <input type="text" id="newCustMobileInput" placeholder="Mobile Number *" style="padding: 7px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 11px;">
@@ -2624,7 +2639,7 @@ async function initDashboard() {
                                                 </select>
                                             </div>
                                             <button id="saveNewCustDbBtn" type="button" style="width: 100%; padding: 9px; border-radius: 8px; border: none; background: #0284c7; color: #fff; font-weight: 800; font-size: 12px; cursor: pointer;">
-                                                Save New Customer to DB \uD83D\uDCBE
+                                                Save New Customer
                                             </button>
                                             <div id="newCustMsg" style="font-size: 11px; margin-top: 6px;"></div>
                                         </div>
@@ -2751,7 +2766,7 @@ async function initDashboard() {
                                     <!-- PASSPORT / NAME / MOBILE AUTO-SUGGEST SEARCH INPUT -->
                                     <div class="seat-cust-search-row">
                                         <label style="font-size: 11px; font-weight: 700; color: #475569; display: block; margin-bottom: 2px;">
-                                            \uD83D\uDD0D Passport No / Customer DB Search:
+                                            \uD83D\uDD0D Search Passport No / Customer:
                                         </label>
                                         <input type="text" class="passport-search-input" id="passportSearch_${seatNo}" placeholder="Type Passport No (e.g. Z9842103), Name or Mobile..." value="${pass.passportNo && pass.passportNo !== 'N/A' ? pass.passportNo + ' (' + pass.passengerName + ')' : pass.passengerName}" autocomplete="off">
                                         <div class="search-suggestions-box" id="suggestionsBox_${seatNo}" style="display: none;"></div>
@@ -2770,7 +2785,7 @@ async function initDashboard() {
                                     <!-- INLINE REGISTRATION FORM FOR THIS SEAT (MATCHES REGD CUSTOMER FORM MENU) -->
                                     <div class="seat-reg-form" id="seatRegForm_${seatNo}" style="display: none; background: #f8fafc; border: 1.5px solid #0284c7; border-radius: 12px; padding: 14px; margin-top: 10px;">
                                         <div style="font-size: 13px; font-weight: 800; color: #0284c7; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
-                                            <span>\u2795</span> Register New Customer for Seat ${seatNo} (Oracle DB)
+                                            <span>\u2795</span> Register New Customer for Seat ${seatNo}
                                         </div>
 
                                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
@@ -2808,15 +2823,16 @@ async function initDashboard() {
                                         <div class="membership-field-group" style="margin-top: 6px;">
                                             <label style="font-size: 11px; font-weight: 800; color: #0369a1; display: block; margin-bottom: 4px;">\uD83C\uDFC5 Select Frequent Flyer Membership Tier (Membership Fee & Discount):</label>
                                             <select id="regTier_${seatNo}" style="width: 100%; padding: 7px; border-radius: 6px; border: 1px solid #0284c7; font-size: 11px; font-weight: 800; color: #0f172a; background: #ffffff;">
-                                                <option value="Executive Platinum" ${pass.memberTier === 'Executive Platinum' ? 'selected' : ''}>Executive Platinum (15% Flight Discount) \u2014 Fee: \u20B91,500/yr</option>
-                                                <option value="Gold Elite" ${pass.memberTier === 'Gold Elite' ? 'selected' : ''}>Gold Elite (10% Flight Discount) \u2014 Fee: \u20B91,000/yr</option>
-                                                <option value="Silver Preferred" ${pass.memberTier === 'Silver Preferred' ? 'selected' : ''}>Silver Preferred (5% Flight Discount) \u2014 Fee: \u20B9500/yr</option>
-                                                <option value="Standard" ${pass.memberTier === 'Standard' ? 'selected' : ''}>Standard Customer (0% Discount) \u2014 Free (\u20B90)</option>
+                                                <option value="No Membership" ${(!pass.memberTier || pass.memberTier === 'No Membership') ? 'selected' : ''}>❌ No Membership (Regular Customer) — Free (₹0 Fee / 0% Discount)</option>
+                                                <option value="Executive Platinum" ${pass.memberTier === 'Executive Platinum' ? 'selected' : ''}>🏅 Executive Platinum (15% Flight Discount) — Fee: ₹1,500/yr</option>
+                                                <option value="Gold Elite" ${pass.memberTier === 'Gold Elite' ? 'selected' : ''}>🥇 Gold Elite (10% Flight Discount) — Fee: ₹1,000/yr</option>
+                                                <option value="Silver Preferred" ${pass.memberTier === 'Silver Preferred' ? 'selected' : ''}>🥈 Silver Preferred (5% Flight Discount) — Fee: ₹500/yr</option>
+                                                <option value="Standard" ${pass.memberTier === 'Standard' ? 'selected' : ''}>👤 Standard Customer (0% Discount) — Free (₹0)</option>
                                             </select>
                                         </div>
 
                                         <button type="button" class="save-seat-cust-btn" id="saveCustBtn_${seatNo}" style="margin-top: 10px;">
-                                            Save Customer & Apply Membership to DB \uD83D\uDCBE
+                                            Save Customer & Apply Membership
                                         </button>
                                         <div id="seatRegMsg_${seatNo}" style="font-size: 11px; margin-top: 6px;"></div>
                                     </div>
@@ -2913,8 +2929,21 @@ async function initDashboard() {
                                         return;
                                     }
 
+                                    const tierFees = {
+                                        "Executive Platinum": 1500,
+                                        "Gold Elite": 1000,
+                                        "Silver Preferred": 500
+                                    };
+                                    const fee = tierFees[tierVal] || 0;
+                                    if (fee > 0) {
+                                        const confirmPay = confirm(`Membership Fee Confirmation:\n\nThe selected membership tier '${tierVal}' is not assigned for free. An annual membership fee of \u20B9${fee.toLocaleString('en-IN')} is required.\n\nDo you want to collect cash payment of \u20B9${fee.toLocaleString('en-IN')} and activate this membership?`);
+                                        if (!confirmPay) {
+                                            return;
+                                        }
+                                    }
+
                                     saveBtn.disabled = true;
-                                    saveBtn.textContent = "\u23F3 Saving to DB...";
+                                    saveBtn.textContent = "\u23F3 Saving...";
 
                                     try {
                                         const regRes = await fetch("/api/registered-passengers/register", {
@@ -2939,7 +2968,7 @@ async function initDashboard() {
                                             seatPassengerMap.set(seatNo, { ...p });
 
                                             if (msgDiv) {
-                                                msgDiv.textContent = `\uD83C\uDF89 ${p.passengerName} saved to DB with ${p.memberTier}!`;
+                                                msgDiv.textContent = `\uD83C\uDF89 ${p.passengerName} registered successfully with ${p.memberTier}!`;
                                                 msgDiv.style.color = "#16a34a";
                                             }
 
@@ -2948,7 +2977,7 @@ async function initDashboard() {
                                             updatePriceCalculations();
                                         } else {
                                             if (msgDiv) {
-                                                msgDiv.textContent = `\u274C ${regData.message || 'Error saving customer'}`;
+                                                msgDiv.textContent = `\u274C ${regData.message || 'Error registering customer'}`;
                                                 msgDiv.style.color = "#dc2626";
                                             }
                                         }
@@ -2956,7 +2985,7 @@ async function initDashboard() {
                                         console.error("Error saving seat customer:", err);
                                     } finally {
                                         saveBtn.disabled = false;
-                                        saveBtn.textContent = "Save Customer & Apply Membership to DB \uD83D\uDCBE";
+                                        saveBtn.textContent = "Save Customer & Apply Membership";
                                     }
                                 });
                             }
@@ -3071,7 +3100,7 @@ async function initDashboard() {
                             if (bookedPnrs.length > 0) {
                                 modalOverlay.remove();
                                 if (bookingMsg) {
-                                    bookingMsg.textContent = `\uD83C\uDF89 Tickets Issued & Confirmed in DB! PNRs: ${bookedPnrs.join(" | ")}`;
+                                    bookingMsg.textContent = `\uD83C\uDF89 Tickets Issued & Confirmed! PNRs: ${bookedPnrs.join(" | ")}`;
                                     bookingMsg.className = "form-message success";
                                 }
 
@@ -3196,7 +3225,9 @@ async function initDashboard() {
             </div>
         `).join('');
 
-    const changeAmount = Math.max(0, t.howMuchPaid - t.totalPayable);
+    const totalPayableVal = t.totalPayable || t.netPayable || t.baseTotal || 0;
+    const howMuchPaidVal = t.howMuchPaid || totalPayableVal;
+    const changeAmount = Math.max(0, howMuchPaidVal - totalPayableVal);
 
     const ticketHtml = `
             <div class="plane-ticket-overlay" id="planeTicketOverlay">
@@ -3204,7 +3235,7 @@ async function initDashboard() {
                     <!-- HEADER STRIP -->
                     <div class="ticket-header-strip">
                         <div style="display: flex; align-items: center; gap: 12px;">
-                            <div style="font-size: 28px;">\u2708\uFE0F</div>
+                            <div style="font-size: 28px;">✈️</div>
                             <div>
                                 <div style="font-size: 18px; font-weight: 900; letter-spacing: 1px;">AOS AIRLINES</div>
                                 <div style="font-size: 11px; opacity: 0.85;">Official Flight E-Ticket & Boarding Pass</div>
@@ -3228,7 +3259,7 @@ async function initDashboard() {
                                 <div style="text-align: center; flex: 1; padding: 0 16px;">
                                     <div style="font-size: 11px; font-weight: 800; color: #0284c7;">${t.flightNo} (${t.flightName})</div>
                                     <div style="border-top: 2px dashed #0284c7; margin: 6px 0; position: relative;">
-                                        <span style="position: absolute; top: -10px; left: 45%; background: #f1f5f9; padding: 0 4px; font-size: 12px;">\u2708\uFE0F</span>
+                                        <span style="position: absolute; top: -10px; left: 45%; background: #f1f5f9; padding: 0 4px; font-size: 12px;">✈️</span>
                                     </div>
                                     <div style="font-size: 10px; color: #64748b;">Non-stop Direct Flight</div>
                                 </div>
@@ -3269,7 +3300,7 @@ async function initDashboard() {
                             <!-- PASSENGERS & SEATS SECTION -->
                             <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px; margin-bottom: 16px;">
                                 <div style="font-size: 11px; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 6px;">
-                                    \uD83D\uDC65 Registered Customer & Passenger Roster
+                                    👥 Registered Customer & Passenger Roster
                                 </div>
                                 <div style="font-size: 12px; font-weight: 800; color: #0284c7; margin-bottom: 4px;">
                                     Registered Booked By: ${t.primaryCustName} (ID: ${t.primaryCustId} | Mobile: ${t.primaryCustMobile})
@@ -3282,10 +3313,10 @@ async function initDashboard() {
                                 <div>
                                     <div style="font-size: 11px; font-weight: 800; color: #065f46; text-transform: uppercase;">Financial Cash Receipt & Invoice</div>
                                     <div style="font-size: 12px; color: #047857; margin-top: 2px;">
-                                        Payment Method: <b>${t.paymentMethod}</b> | Total Fare: <b>\u20B9${t.totalPayable.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</b>
+                                        Payment Method: <b>${t.paymentMethod}</b> | Total Fare: <b>₹${totalPayableVal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</b>
                                     </div>
                                     <div style="font-size: 11px; color: #047857;">
-                                        Cash Received: <b>\u20B9${t.howMuchPaid.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</b> | Change Returned: <b>\u20B9${changeAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</b>
+                                        Cash Received: <b>₹${howMuchPaidVal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</b> | Change Returned: <b>₹${changeAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</b>
                                     </div>
                                 </div>
                                 <div class="ticket-paid-stamp">
@@ -3334,10 +3365,13 @@ async function initDashboard() {
                             AOS Operations Suite - Official Boarding Pass & Tax Invoice
                         </div>
                         <div style="display: flex; gap: 10px;">
-                            <button id="printPlaneTicketBtn" style="padding: 8px 16px; border-radius: 8px; border: none; background: #0284c7; color: #fff; font-weight: 800; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
-                                \uD83D\uDDA8\uFE0F Print Ticket / Save PDF
+                            <button id="downloadPlaneTicketPdfBtn" style="padding: 9px 18px; border-radius: 8px; border: none; background: #16a34a; color: #fff; font-weight: 900; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 4px 12px rgba(22, 163, 74, 0.35);">
+                                \uD83D\uDCE5 Download Boarding Pass PDF
                             </button>
-                            <button id="closePlaneTicketBtn" style="padding: 8px 16px; border-radius: 8px; border: 1px solid #cbd5e1; background: #ffffff; color: #334155; font-weight: 800; font-size: 13px; cursor: pointer;">
+                            <button id="printPlaneTicketBtn" style="padding: 9px 18px; border-radius: 8px; border: none; background: #0284c7; color: #fff; font-weight: 800; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                                \uD83D\uDDA8\uFE0F Print Ticket
+                            </button>
+                            <button id="closePlaneTicketBtn" style="padding: 9px 16px; border-radius: 8px; border: 1px solid #cbd5e1; background: #ffffff; color: #334155; font-weight: 800; font-size: 13px; cursor: pointer;">
                                 Close Ticket
                             </button>
                         </div>
@@ -3352,9 +3386,46 @@ async function initDashboard() {
         document.getElementById("planeTicketOverlay")?.remove();
     });
 
+    const triggerPdfDownload = () => {
+        const ticketCard = document.querySelector(".plane-boarding-pass-card");
+        if (!ticketCard) return;
+
+        if (typeof html2pdf !== 'undefined') {
+            const btn = document.getElementById("downloadPlaneTicketPdfBtn");
+            if (btn) btn.textContent = "\u23F3 Downloading PDF...";
+
+            const opt = {
+                margin:       0.2,
+                filename:     `BoardingPass_${t.pnrNo || 'TICKET'}.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true },
+                jsPDF:        { unit: 'in', format: 'letter', orientation: 'landscape' }
+            };
+
+            html2pdf().set(opt).from(ticketCard).save().then(() => {
+                if (btn) btn.textContent = "\u2705 PDF Downloaded!";
+                setTimeout(() => {
+                    if (btn) btn.textContent = "\uD83D\uDCE5 Download Boarding Pass PDF";
+                }, 3000);
+            }).catch(err => {
+                console.error("PDF generation error:", err);
+                window.print();
+            });
+        } else {
+            window.print();
+        }
+    };
+
+    document.getElementById("downloadPlaneTicketPdfBtn")?.addEventListener("click", triggerPdfDownload);
+
     document.getElementById("printPlaneTicketBtn")?.addEventListener("click", () => {
         window.print();
     });
+
+    // Automatically trigger Chrome PDF Download directly to PC as soon as ticket modal appears
+    setTimeout(() => {
+        triggerPdfDownload();
+    }, 450);
     }
 
 
