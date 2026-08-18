@@ -1,3 +1,33 @@
+// Theme Toggle Switch Handler (Black BG Dark / White BG Light)
+function initThemeToggle() {
+    const savedTheme = localStorage.getItem("aos_theme") || "dark";
+    applyTheme(savedTheme);
+
+    const toggleBtn = document.getElementById("themeToggleBtn");
+    if (toggleBtn) {
+        toggleBtn.addEventListener("click", () => {
+            const currentTheme = document.documentElement.getAttribute("data-theme") || "dark";
+            const newTheme = currentTheme === "dark" ? "light" : "dark";
+            applyTheme(newTheme);
+            localStorage.setItem("aos_theme", newTheme);
+        });
+    }
+}
+
+function applyTheme(theme) {
+    document.documentElement.setAttribute("data-theme", theme);
+    const textLabel = document.getElementById("themeToggleText");
+    if (textLabel) {
+        textLabel.textContent = theme === "dark" ? "DARK" : "LIGHT";
+    }
+}
+
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initThemeToggle);
+} else {
+    initThemeToggle();
+}
+
 // Global navigation dispatcher available instantly on script load
 window.aosPendingMenu = null;
 window.aosNavigateTo = function(menuName, element) {
@@ -157,7 +187,7 @@ async function initDashboard() {
                     emptyState.id = "usersEmptySearchState";
                     emptyState.className = "empty-search-state";
                     emptyState.innerHTML = `
-                        <span>\uD83D\uDD0D</span>
+                        <span><svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
                         <p>No user matches found for "${e.target.value}"</p>
                     `;
                     const grid = document.getElementById("usersGrid");
@@ -197,7 +227,7 @@ async function initDashboard() {
 
         mainContent.innerHTML = `
             <div class="welcome-banner">
-                <h1>Create New User \uD83D\uDC64</h1>
+                <h1>Create New User <svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></h1>
                 <p>Register a new employee into the Airline Operation Suite.</p>
             </div>
 
@@ -270,16 +300,16 @@ async function initDashboard() {
                 console.log("Create user response:", result);
 
                 if (res.ok) {
-                    msgDiv.textContent = "\u2705 " + result.message;
+                    msgDiv.innerHTML = `<svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> ` + result.message;
                     msgDiv.className = "form-message success";
                     form.reset();
                 } else {
-                    msgDiv.textContent = "\u274C " + (result.message || "Failed to create user");
+                    msgDiv.innerHTML = "&times; " + (result.message || "Failed to create user");
                     msgDiv.className = "form-message error";
                 }
             } catch (err) {
                 console.error("Create user error:", err);
-                msgDiv.textContent = "\u274C Error connecting to server.";
+                msgDiv.innerHTML = "&times; Error connecting to server.";
                 msgDiv.className = "form-message error";
             }
         };
@@ -291,7 +321,7 @@ async function initDashboard() {
 
         mainContent.innerHTML = `
         <div class="welcome-banner">
-            <h1>Create & Manage Roles \uD83D\uDD11</h1>
+            <h1>Create & Manage Roles <svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="7.5" cy="15.5" r="5.5"/><path d="M21 2l-9.6 9.6"/><path d="M15.5 7.5l3 3"/></svg></h1>
             <p>Create new administrative roles or remove existing ones.</p>
         </div>
 
@@ -392,18 +422,18 @@ async function initDashboard() {
                 const result = await res.json();
 
                 if (res.ok) {
-                    createMsg.textContent = "\u2705 " + result.message;
+                    createMsg.innerHTML = `<svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> ` + result.message;
                     createMsg.className = "form-message success";
                     roleNameInput.value = "";
                     // Refresh list
                     loadRoles();
                 } else {
-                    createMsg.textContent = "\u274C " + (result.message || "Failed to create role");
+                    createMsg.innerHTML = "&times; " + (result.message || "Failed to create role");
                     createMsg.className = "form-message error";
                 }
             } catch (err) {
                 console.error(err);
-                createMsg.textContent = "\u274C Error connecting to server.";
+                createMsg.innerHTML = "&times; Error connecting to server.";
                 createMsg.className = "form-message error";
             }
         };
@@ -432,17 +462,17 @@ async function initDashboard() {
                 const result = await res.json();
 
                 if (res.ok) {
-                    deleteMsg.textContent = "\u2705 " + result.message;
+                    deleteMsg.innerHTML = `<svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> ` + result.message;
                     deleteMsg.className = "form-message success";
                     // Refresh list
                     loadRoles();
                 } else {
-                    deleteMsg.textContent = "\u274C " + (result.message || "Failed to delete role");
+                    deleteMsg.innerHTML = "&times; " + (result.message || "Failed to delete role");
                     deleteMsg.className = "form-message error";
                 }
             } catch (err) {
                 console.error(err);
-                deleteMsg.textContent = "\u274C Error connecting to server.";
+                deleteMsg.innerHTML = "&times; Error connecting to server.";
                 deleteMsg.className = "form-message error";
             }
         };
@@ -454,7 +484,7 @@ async function initDashboard() {
 
         mainContent.innerHTML = `
         <div class="welcome-banner">
-            <h1>Create & Manage Menus \uD83D\uDCCB</h1>
+            <h1>Create & Manage Menus <svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg></h1>
             <p>Create new dashboard menus or remove existing ones.</p>
         </div>
 
@@ -555,18 +585,18 @@ async function initDashboard() {
                 const result = await res.json();
 
                 if (res.ok) {
-                    createMsg.textContent = "\u2705 " + result.message;
+                    createMsg.innerHTML = `<svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> ` + result.message;
                     createMsg.className = "form-message success";
                     menuNameInput.value = "";
                     // Refresh list
                     loadMenus();
                 } else {
-                    createMsg.textContent = "\u274C " + (result.message || "Failed to create menu");
+                    createMsg.innerHTML = "&times; " + (result.message || "Failed to create menu");
                     createMsg.className = "form-message error";
                 }
             } catch (err) {
                 console.error(err);
-                createMsg.textContent = "\u274C Error connecting to server.";
+                createMsg.innerHTML = "&times; Error connecting to server.";
                 createMsg.className = "form-message error";
             }
         };
@@ -595,17 +625,17 @@ async function initDashboard() {
                 const result = await res.json();
 
                 if (res.ok) {
-                    deleteMsg.textContent = "\u2705 " + result.message;
+                    deleteMsg.innerHTML = `<svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> ` + result.message;
                     deleteMsg.className = "form-message success";
                     // Refresh list
                     loadMenus();
                 } else {
-                    deleteMsg.textContent = "\u274C " + (result.message || "Failed to delete menu");
+                    deleteMsg.innerHTML = "&times; " + (result.message || "Failed to delete menu");
                     deleteMsg.className = "form-message error";
                 }
             } catch (err) {
                 console.error(err);
-                deleteMsg.textContent = "\u274C Error connecting to server.";
+                deleteMsg.innerHTML = "&times; Error connecting to server.";
                 deleteMsg.className = "form-message error";
             }
         };
@@ -618,7 +648,7 @@ async function initDashboard() {
 
         mainContent.innerHTML = `
             <div class="welcome-banner">
-                <h1>Role Management \uD83D\uDD10</h1>
+                <h1>Role Management <svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></h1>
                 <p>Assign or update application roles for the active system users.</p>
             </div>
 
@@ -645,7 +675,7 @@ async function initDashboard() {
                     </div>
 
                     <div id="roleDetailsBox" class="role-details-box hidden">
-                        <p class="role-status-info">\u2139\uFE0F Current Status: <span id="currentUserStatus">No Role Assigned</span></p>
+                        <p class="role-status-info"><svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg> Current Status: <span id="currentUserStatus">No Role Assigned</span></p>
                     </div>
 
                     <div class="form-footer">
@@ -690,7 +720,7 @@ async function initDashboard() {
             } catch (err) {
                 console.error(err);
                 if (msgDiv) {
-                    msgDiv.textContent = "\u274C Error loading user/role data.";
+                    msgDiv.innerHTML = "&times; Error loading user/role data.";
                     msgDiv.className = "form-message error";
                 }
             }
@@ -751,19 +781,19 @@ async function initDashboard() {
 
                 const result = await res.json();
                 if (res.ok) {
-                    msgDiv.textContent = "\u2705 " + result.message;
+                    msgDiv.innerHTML = `<svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> ` + result.message;
                     msgDiv.className = "form-message success";
 
                     const selectedRoleName = roleSelect.options[roleSelect.selectedIndex].text;
                     currentUserStatus.textContent = `Currently assigned to ${selectedRoleName}`;
                     submitBtn.textContent = "Update Role";
                 } else {
-                    msgDiv.textContent = "\u274C " + (result.message || "Failed to update role");
+                    msgDiv.innerHTML = "&times; " + (result.message || "Failed to update role");
                     msgDiv.className = "form-message error";
                 }
             } catch (err) {
                 console.error("Assign role error:", err);
-                msgDiv.textContent = "\u274C Error connecting to server.";
+                msgDiv.innerHTML = "&times; Error connecting to server.";
                 msgDiv.className = "form-message error";
             }
         };
@@ -783,7 +813,7 @@ async function initDashboard() {
         cleanName = cleanName.replace(/@aos\.com$/i, "").trim();
 
         if (welcomeBanner) {
-            welcomeBanner.innerHTML = `Welcome back to AOS \uD83D\uDC4B`;
+            welcomeBanner.innerHTML = `Welcome back to AOS `;
         }
 
         if (welcomeText) {
@@ -811,7 +841,7 @@ async function initDashboard() {
 
         mainContent.innerHTML = `
         <div class="welcome-banner">
-            <h1>Role Menu Mapping \uD83D\uDCCB</h1>
+            <h1>Role Menu Mapping <svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg></h1>
             <p>Manage and assign menu permissions to specific roles.</p>
         </div>
 
@@ -868,7 +898,7 @@ async function initDashboard() {
                     data.roles.map(r => `<option value="${r.roleId}">${r.roleName}</option>`).join("");
             } catch (err) {
                 console.error("Error loading roles:", err);
-                msg.textContent = "\u274C Error loading roles.";
+                msg.innerHTML = "&times; Error loading roles.";
                 msg.className = "form-message error";
                 msg.style.display = "block";
             }
@@ -888,7 +918,7 @@ async function initDashboard() {
                 renderLists();
             } catch (err) {
                 console.error("Error loading menus:", err);
-                msg.textContent = "\u274C Error loading menu mapping.";
+                msg.innerHTML = "&times; Error loading menu mapping.";
                 msg.className = "form-message error";
                 msg.style.display = "block";
             }
@@ -974,18 +1004,18 @@ async function initDashboard() {
                 if (res.ok) {
                     msg.style.display = "block";
                     msg.className = "form-message success";
-                    msg.textContent = `\u2705 Successfully added "${menuName}"`;
+                    msg.innerHTML = `<svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Successfully added "${menuName}"`;
                     await loadMenus(roleId);
                 } else {
                     msg.style.display = "block";
                     msg.className = "form-message error";
-                    msg.textContent = "\u274C " + (result.message || "Failed to add menu");
+                    msg.innerHTML = "&times; " + (result.message || "Failed to add menu");
                 }
             } catch (err) {
                 console.error("Assign menu error:", err);
                 msg.style.display = "block";
                 msg.className = "form-message error";
-                msg.textContent = "\u274C Error connecting to server.";
+                msg.innerHTML = "&times; Error connecting to server.";
             }
         });
 
@@ -1014,18 +1044,18 @@ async function initDashboard() {
                 if (res.ok) {
                     msg.style.display = "block";
                     msg.className = "form-message success";
-                    msg.textContent = `\u2705 Successfully removed "${menuItemName}"`;
+                    msg.innerHTML = `<svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Successfully removed "${menuItemName}"`;
                     await loadMenus(roleId);
                 } else {
                     msg.style.display = "block";
                     msg.className = "form-message error";
-                    msg.textContent = "\u274C " + (result.message || "Failed to remove menu");
+                    msg.innerHTML = "&times; " + (result.message || "Failed to remove menu");
                 }
             } catch (err) {
                 console.error("Remove menu error:", err);
                 msg.style.display = "block";
                 msg.className = "form-message error";
-                msg.textContent = "\u274C Error connecting to server.";
+                msg.innerHTML = "&times; Error connecting to server.";
             }
         }
         loadRoles();
@@ -1039,7 +1069,7 @@ async function initDashboard() {
 
         mainContent.innerHTML = `
         <div class="welcome-banner">
-            <h1>ASSIGN ROLE TO USER \uD83D\uDCCB</h1>
+            <h1>ASSIGN ROLE TO USER <svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg></h1>
             <p>Assign a role to an employee.</p>
         </div>
 
@@ -1095,7 +1125,7 @@ async function initDashboard() {
                 });
             } catch (err) {
                 console.error(err);
-                msgDiv.textContent = "\u274C Failed to load users and roles.";
+                msgDiv.innerHTML = "&times; Failed to load users and roles.";
                 msgDiv.className = "form-message error";
             }
         }
@@ -1108,7 +1138,7 @@ async function initDashboard() {
             const roleId = roleSelect.value;
 
             if (!roleId || !userId) {
-                msgDiv.textContent = "\u274C Please select User and Role.";
+                msgDiv.innerHTML = "&times; Please select User and Role.";
                 msgDiv.className = "form-message error";
                 return;
             }
@@ -1123,14 +1153,14 @@ async function initDashboard() {
 
                 const result = await res.json();
                 if (res.ok) {
-                    msgDiv.textContent = "\u2705 " + result.message;
+                    msgDiv.innerHTML = `<svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> ` + result.message;
                     msgDiv.className = "form-message success";
                 } else {
-                    msgDiv.textContent = "\u274C " + result.message;
+                    msgDiv.innerHTML = "&times; " + result.message;
                     msgDiv.className = "form-message error";
                 }
             } catch (err) {
-                msgDiv.textContent = "\u274C Server Error";
+                msgDiv.innerHTML = "&times; Server Error";
                 msgDiv.className = "form-message error";
             }
         });
@@ -1142,7 +1172,7 @@ async function initDashboard() {
 
         mainContent.innerHTML = `
         <div class="welcome-banner">
-            <h1>Create City \uD83C\uDFD9\uFE0F</h1>
+            <h1>Create City <svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"/><path d="M6 21V7l8-4v18"/><path d="M14 21V11l4-2v12"/></svg>\uFE0F</h1>
             <p>Add a new city to the airline operation route network or click on a location on the 3D Globe to load details.</p>
         </div>
 
@@ -1191,7 +1221,7 @@ async function initDashboard() {
 
                 <div class="existing-airports-card macOS-card" style="margin-top: 20px;">
                     <h3 style="margin-bottom: 12px; font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 8px;">
-                        <span>\uD83C\uDFD9\uFE0F</span> Registered Cities
+                        <span><svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"/><path d="M6 21V7l8-4v18"/><path d="M14 21V11l4-2v12"/></svg>\uFE0F</span> Registered Cities
                     </h3>
                     <div class="airport-list-wrapper" id="existingCitiesList">
                         <!-- Rendered items -->
@@ -1202,7 +1232,7 @@ async function initDashboard() {
             <div class="globe-column">
                 <div class="globe-card macOS-card">
                     <h3 style="margin-bottom: 12px; font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 8px;">
-                        <span>\uD83C\uDF10</span> Interactive Route Globe
+                        <span><svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/></svg></span> Interactive Route Globe
                     </h3>
                     <div class="globe-iframe-wrapper">
                         <iframe id="globeIframe" src="/static/globe.html" style="width: 100%; height: 400px; border: none; border-radius: 8px; background: #020617;"></iframe>
@@ -1340,17 +1370,17 @@ async function initDashboard() {
                 const result = await res.json();
 
                 if (res.ok) {
-                    msgDiv.textContent = "\u2705 " + result.message;
+                    msgDiv.innerHTML = `<svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> ` + result.message;
                     msgDiv.className = "form-message success";
                     form.reset();
                     await loadCitiesAndAirports();
                 } else {
-                    msgDiv.textContent = "\u274C " + (result.message || "Failed to create city");
+                    msgDiv.innerHTML = "&times; " + (result.message || "Failed to create city");
                     msgDiv.className = "form-message error";
                 }
             } catch (err) {
                 console.error(err);
-                msgDiv.textContent = "\u274C Error connecting to server.";
+                msgDiv.innerHTML = "&times; Error connecting to server.";
                 msgDiv.className = "form-message error";
             }
         };
@@ -1362,7 +1392,7 @@ async function initDashboard() {
 
         mainContent.innerHTML = `
         <div class="welcome-banner">
-            <h1>Create Airport \u2708\uFE0F</h1>
+            <h1>Create Airport <svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.8 19.2L16 11l3.5-3.5C20.1 6.9 20 5 18.6 3.6c-1.4-1.4-3.3-1.5-3.9-.9L11.2 6.2 3 4.4l-1 2 5.5 3.5L4 13.4l-2.5-.5-1 1 3.5 2.5 2.5 3.5 1-1-.5-2.5 3.5-3.5 3.5 5.5 2-1z"/></svg></h1>
             <p>Add a new airport to the route network or click on an existing one on the 3D Globe to load its details.</p>
         </div>
 
@@ -1410,7 +1440,7 @@ async function initDashboard() {
 
                 <div class="existing-airports-card macOS-card" style="margin-top: 20px;">
                     <h3 style="margin-bottom: 12px; font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 8px;">
-                        <span>\uD83D\uDCCB</span> Registered Airports
+                        <span><svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg></span> Registered Airports
                     </h3>
                     <div class="airport-list-wrapper" id="existingAirportsList">
                         <!-- Rendered items -->
@@ -1421,7 +1451,7 @@ async function initDashboard() {
             <div class="globe-column">
                 <div class="globe-card macOS-card">
                     <h3 style="margin-bottom: 12px; font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 8px;">
-                        <span>\uD83C\uDF10</span> Interactive Route Globe
+                        <span><svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/></svg></span> Interactive Route Globe
                     </h3>
                     <div class="globe-iframe-wrapper">
                         <iframe id="globeIframe" src="/static/globe.html" style="width: 100%; height: 400px; border: none; border-radius: 8px; background: #020617;"></iframe>
@@ -1525,7 +1555,7 @@ async function initDashboard() {
                                 citySelect.appendChild(opt);
                             }
                             citySelect.value = opt.value;
-                            msgDiv.textContent = `\u2139\uFE0F City "${airport.cityName}" is not registered in the database yet. It will be automatically registered when you click "Create Airport".`;
+                            msgDiv.innerHTML = `<svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg> City "${airport.cityName}" is not registered in the database yet. It will be automatically registered when you click "Create Airport".`;
                             msgDiv.className = "form-message info";
                             msgDiv.style.display = "block";
                         }
@@ -1569,7 +1599,7 @@ async function initDashboard() {
                 sendAirportsToGlobe();
             } catch (err) {
                 console.error("Error loading cities:", err);
-                msgDiv.textContent = "\u274C Failed to load screen data.";
+                msgDiv.innerHTML = "&times; Failed to load screen data.";
                 msgDiv.className = "form-message error";
             }
         }
@@ -1640,17 +1670,17 @@ async function initDashboard() {
                 const result = await res.json();
 
                 if (res.ok) {
-                    msgDiv.textContent = "\u2705 " + result.message;
+                    msgDiv.innerHTML = `<svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> ` + result.message;
                     msgDiv.className = "form-message success";
                     form.reset();
                     await loadCitiesAndAirports();
                 } else {
-                    msgDiv.textContent = "\u274C " + (result.message || "Failed to create airport");
+                    msgDiv.innerHTML = "&times; " + (result.message || "Failed to create airport");
                     msgDiv.className = "form-message error";
                 }
             } catch (err) {
                 console.error(err);
-                msgDiv.textContent = "\u274C Error: " + err.message;
+                msgDiv.innerHTML = "&times; Error: " + err.message;
                 msgDiv.className = "form-message error";
             }
         };
@@ -1663,7 +1693,7 @@ async function initDashboard() {
 
         mainContent.innerHTML = `
         <div class="welcome-banner">
-            <h1>Create Flight Company \u2708\uFE0F</h1>
+            <h1>Create Flight Company <svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.8 19.2L16 11l3.5-3.5C20.1 6.9 20 5 18.6 3.6c-1.4-1.4-3.3-1.5-3.9-.9L11.2 6.2 3 4.4l-1 2 5.5 3.5L4 13.4l-2.5-.5-1 1 3.5 2.5 2.5 3.5 1-1-.5-2.5 3.5-3.5 3.5 5.5 2-1z"/></svg></h1>
             <p>Add a new flight company to the airline operation database and view existing active ones.</p>
         </div>
 
@@ -1784,17 +1814,17 @@ async function initDashboard() {
                 const result = await res.json();
 
                 if (res.ok) {
-                    msgDiv.textContent = "\u2705 " + result.message;
+                    msgDiv.innerHTML = `<svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> ` + result.message;
                     msgDiv.className = "form-message success";
                     form.reset();
                     loadCompanies();
                 } else {
-                    msgDiv.textContent = "\u274C " + (result.message || "Failed to create flight company");
+                    msgDiv.innerHTML = "&times; " + (result.message || "Failed to create flight company");
                     msgDiv.className = "form-message error";
                 }
             } catch (err) {
                 console.error(err);
-                msgDiv.textContent = "\u274C Error connecting to server.";
+                msgDiv.innerHTML = "&times; Error connecting to server.";
                 msgDiv.className = "form-message error";
             }
         };
@@ -1806,7 +1836,7 @@ async function initDashboard() {
 
         mainContent.innerHTML = `
             <div class="welcome-banner">
-                <h1>Create New Flight \u2708\uFE0F</h1>
+                <h1>Create New Flight <svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.8 19.2L16 11l3.5-3.5C20.1 6.9 20 5 18.6 3.6c-1.4-1.4-3.3-1.5-3.9-.9L11.2 6.2 3 4.4l-1 2 5.5 3.5L4 13.4l-2.5-.5-1 1 3.5 2.5 2.5 3.5 1-1-.5-2.5 3.5-3.5 3.5 5.5 2-1z"/></svg></h1>
                 <p>Register a new flight using stored procedure <code>airline_flight_create_usp</code>.</p>
             </div>
 
@@ -1842,11 +1872,11 @@ async function initDashboard() {
             <div class="existing-cities-container macOS-card" style="margin-top: 24px; padding: 20px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
                     <div>
-                        <h3 style="font-weight: 600; font-size: 16px; margin: 0;">Registered Flights Table \u2708\uFE0F</h3>
+                        <h3 style="font-weight: 600; font-size: 16px; margin: 0;">Registered Flights Table <svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.8 19.2L16 11l3.5-3.5C20.1 6.9 20 5 18.6 3.6c-1.4-1.4-3.3-1.5-3.9-.9L11.2 6.2 3 4.4l-1 2 5.5 3.5L4 13.4l-2.5-.5-1 1 3.5 2.5 2.5 3.5 1-1-.5-2.5 3.5-3.5 3.5 5.5 2-1z"/></svg></h3>
                         <p style="font-size: 12px; color: var(--text-muted); margin: 2px 0 0 0;">Overview of all airline flights stored in database</p>
                     </div>
                     <div style="display: flex; align-items: center; gap: 10px;">
-                        <input type="text" id="flightSearchInput" placeholder="\uD83D\uDD0D Search flight, company..." style="padding: 8px 14px; border-radius: 8px; border: 1px solid var(--border-color); font-size: 13px; outline: none; background: rgba(255,255,255,0.6); min-width: 200px;">
+                        <input type="text" id="flightSearchInput" placeholder="<svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> Search flight, company..." style="padding: 8px 14px; border-radius: 8px; border: 1px solid var(--border-color); font-size: 13px; outline: none; background: rgba(255,255,255,0.6); min-width: 200px;">
                         <span id="flightCountBadge" class="badge blue" style="font-size: 12px;">0 Flights</span>
                     </div>
                 </div>
@@ -1956,7 +1986,7 @@ async function initDashboard() {
             const flightName = flightNameInput.value.trim();
 
             if (!flightNo || !companyId) {
-                msgDiv.textContent = "\u274C Flight Number and Company are required.";
+                msgDiv.innerHTML = "&times; Flight Number and Company are required.";
                 msgDiv.className = "form-message error";
                 return;
             }
@@ -1980,19 +2010,19 @@ async function initDashboard() {
                 const result = await res.json();
 
                 if (res.ok) {
-                    msgDiv.textContent = "\u2705 " + (result.message || "Data Inserted Sucessfully");
+                    msgDiv.innerHTML = `<svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> ` + (result.message || "Data Inserted Sucessfully");
                     msgDiv.className = "form-message success";
                     flightNoInput.value = "";
                     flightNameInput.value = "";
                     loadFlightData();
                     loadDashboardStats();
                 } else {
-                    msgDiv.textContent = "\u26A0\uFE0F " + (result.message || "Creation failed");
+                    msgDiv.innerHTML = `<svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> ` + (result.message || "Creation failed");
                     msgDiv.className = "form-message error";
                 }
             } catch (err) {
                 console.error("Create flight error:", err);
-                msgDiv.textContent = "\u274C Network error. Please try again.";
+                msgDiv.innerHTML = "&times; Network error. Please try again.";
                 msgDiv.className = "form-message error";
             }
         };
@@ -2004,7 +2034,7 @@ async function initDashboard() {
 
         mainContent.innerHTML = `
             <div class="welcome-banner">
-                <h1>Register Customer / Passenger \uD83C\uDFAB</h1>
+                <h1>Register Customer / Passenger <svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v2z"/></svg></h1>
                 <p>Register a new customer into the Airline Operation Suite database.</p>
             </div>
 
@@ -2049,7 +2079,7 @@ async function initDashboard() {
                         <!-- MEMBERSHIP TIER SELECTION WITH ANNUAL FEE -->
                         <div class="input-group" style="grid-column: span 2; background: #f0f9ff; border: 1.5px solid #0284c7; padding: 12px 16px; border-radius: 10px; margin-top: 6px;">
                             <label style="font-weight: 800; color: #0369a1; font-size: 13px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center;">
-                                <span>\uD83C\uDFC5 Select Frequent Flyer Membership Tier & Fee (Annual Pass):</span>
+                                <span> Select Frequent Flyer Membership Tier & Fee (Annual Pass):</span>
                                 <span style="background: #0284c7; color: #fff; font-size: 11px; padding: 3px 8px; border-radius: 6px; font-weight: 800;">Live System Linked</span>
                             </label>
                             <select name="memberTier" id="mainMemberTierSelect" style="width: 100%; padding: 10px; border-radius: 8px; border: 1.5px solid #0284c7; font-weight: 800; font-size: 13px; color: #0f172a; background: #ffffff;">
@@ -2060,7 +2090,7 @@ async function initDashboard() {
                                 <option value="Standard">👤 Standard Member (0% Flight Discount) — Free (₹0)</option>
                             </select>
                             <div style="font-size: 11px; color: #0369a1; margin-top: 6px; font-weight: 600;">
-                                \u2728 Membership fee details & discount tier will be saved with your customer profile.
+                                 Membership fee details & discount tier will be saved with your customer profile.
                             </div>
                         </div>
                     </div>
@@ -2123,16 +2153,16 @@ async function initDashboard() {
                 const result = await res.json();
 
                 if (res.ok) {
-                    msgDiv.textContent = "\u2705 " + (result.message || "Customer Registered Successfully!");
+                    msgDiv.innerHTML = `<svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> ` + (result.message || "Customer Registered Successfully!");
                     msgDiv.className = "form-message success";
                     form.reset();
                 } else {
-                    msgDiv.textContent = "\u274C " + (result.message || "Registration failed");
+                    msgDiv.innerHTML = "&times; " + (result.message || "Registration failed");
                     msgDiv.className = "form-message error";
                 }
             } catch (err) {
                 console.error("Passenger registration error:", err);
-                msgDiv.textContent = "\u274C Network error. Please try again.";
+                msgDiv.innerHTML = "&times; Network error. Please try again.";
                 msgDiv.className = "form-message error";
             }
         };
@@ -2146,7 +2176,7 @@ async function initDashboard() {
             <div class="welcome-banner" style="margin-bottom: 20px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; flex-wrap: wrap; gap: 12px;">
                     <div>
-                        <h1>Executive Aircraft Seating & Reservations \u2708\uFE0F</h1>
+                        <h1>Executive Aircraft Seating & Reservations <svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.8 19.2L16 11l3.5-3.5C20.1 6.9 20 5 18.6 3.6c-1.4-1.4-3.3-1.5-3.9-.9L11.2 6.2 3 4.4l-1 2 5.5 3.5L4 13.4l-2.5-.5-1 1 3.5 2.5 2.5 3.5 1-1-.5-2.5 3.5-3.5 3.5 5.5 2-1z"/></svg></h1>
                         <p>Multi-day flight schedule booking, live seat availability matrix & printable E-Tickets.</p>
                     </div>
                     <button id="backToPricingBtn" style="padding: 10px 18px; border-radius: 8px; border: none; background: rgba(255,255,255,0.25); color: #fff; font-weight: 700; cursor: pointer; font-size: 13px; backdrop-filter: blur(8px);">\u2B05 Manage Dynamic Rates</button>
@@ -2157,7 +2187,7 @@ async function initDashboard() {
             <div class="macOS-card" style="margin-bottom: 20px; padding: 16px 20px; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #ffffff; border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 12px; box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
                     <label for="planeSelectBar" style="font-weight: 800; font-size: 14px; color: #38bdf8; display: flex; align-items: center; gap: 8px;">
-                        <span>\u2708\uFE0F</span> Select Plane / Flight:
+                        <span><svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.8 19.2L16 11l3.5-3.5C20.1 6.9 20 5 18.6 3.6c-1.4-1.4-3.3-1.5-3.9-.9L11.2 6.2 3 4.4l-1 2 5.5 3.5L4 13.4l-2.5-.5-1 1 3.5 2.5 2.5 3.5 1-1-.5-2.5 3.5-3.5 3.5 5.5 2-1z"/></svg></span> Select Plane / Flight:
                     </label>
                     <span style="font-size: 11px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); padding: 4px 10px; border-radius: 6px; font-weight: 700;">
                         Live Fleet & Schedule Sync
@@ -2170,7 +2200,7 @@ async function initDashboard() {
                         </select>
                     </div>
                     <div id="selectedPlaneBadge" style="display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; color: #f8fafc; background: rgba(255, 255, 255, 0.08); padding: 10px 16px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.15);">
-                        <span>\uD83D\uEBEB Aircraft Selected:</span> <span id="planeBadgeText" style="color: #39FF14; font-weight: 800;">Air India AI-101 (Airbus A320)</span>
+                        <span><svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 22h20"/><path d="M12 2v10"/><path d="M12 6l8 4v2l-8-3-8 3V10l8-4z"/></svg> Aircraft Selected:</span> <span id="planeBadgeText" style="color: #39FF14; font-weight: 800;">Air India AI-101 (Airbus A320)</span>
                     </div>
                 </div>
             </div>
@@ -2178,7 +2208,7 @@ async function initDashboard() {
             <!-- 7-DAY FLIGHT DATE SELECTOR TABS -->
             <div class="macOS-card" style="margin-bottom: 20px; padding: 16px 20px;">
                 <div style="font-weight: 800; font-size: 14px; color: #0f172a; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
-                    <span>\uD83D\uDCC5 7-Day Flight Schedule (SYSDATE Window: Aug 15 \u2013 Aug 21):</span>
+                    <span><svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> 7-Day Flight Schedule (SYSDATE Window: Aug 15 \u2013 Aug 21):</span>
                     <span style="font-size: 11px; color: #0284c7; background: #e0f2fe; padding: 4px 10px; border-radius: 6px; font-weight: 700;">Live Schedule Sync</span>
                 </div>
                 <div class="date-schedule-tabs-container" id="flightDateTabsContainer">
@@ -2215,7 +2245,7 @@ async function initDashboard() {
             if (registeredPlanes.length > 0) {
                 planeSelectBar.innerHTML = registeredPlanes.map(p => `
                     <option value="${p.dynamicPriceId}" data-flightno="${p.flightNo}" data-company="${p.companyName}" data-model="${p.flightName}" data-route="${p.sourceCode} \u2794 ${p.destCode}">
-                        \u2708\uFE0F ${p.companyName} (${p.flightNo}) - ${p.flightName} | Route: ${p.sourceCode} \u2794 ${p.destCode} | Avail: ${p.availableSeats} seats | \u20B9${p.currentPrice.toLocaleString('en-IN')}
+                        <svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.8 19.2L16 11l3.5-3.5C20.1 6.9 20 5 18.6 3.6c-1.4-1.4-3.3-1.5-3.9-.9L11.2 6.2 3 4.4l-1 2 5.5 3.5L4 13.4l-2.5-.5-1 1 3.5 2.5 2.5 3.5 1-1-.5-2.5 3.5-3.5 3.5 5.5 2-1z"/></svg> ${p.companyName} (${p.flightNo}) - ${p.flightName} | Route: ${p.sourceCode} \u2794 ${p.destCode} | Avail: ${p.availableSeats} seats | \u20B9${p.currentPrice.toLocaleString('en-IN')}
                     </option>
                 `).join('');
 
@@ -2238,7 +2268,7 @@ async function initDashboard() {
                     loadSeatMap(selectedDpId);
                 });
             } else {
-                planeSelectBar.innerHTML = `<option value="16000011">\u2708\uFE0F Air India (AI-101) - Airbus A320 | DEL \u2794 BOM | Avail: 180 seats</option>`;
+                planeSelectBar.innerHTML = `<option value="16000011"><svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.8 19.2L16 11l3.5-3.5C20.1 6.9 20 5 18.6 3.6c-1.4-1.4-3.3-1.5-3.9-.9L11.2 6.2 3 4.4l-1 2 5.5 3.5L4 13.4l-2.5-.5-1 1 3.5 2.5 2.5 3.5 1-1-.5-2.5 3.5-3.5 3.5 5.5 2-1z"/></svg> Air India (AI-101) - Airbus A320 | DEL \u2794 BOM | Avail: 180 seats</option>`;
             }
         }
 
@@ -2298,7 +2328,7 @@ async function initDashboard() {
 
                 return `
                     <div class="date-schedule-tab ${isActive ? 'active' : ''}" data-dpid="${p.dynamicPriceId}">
-                        <span class="tab-date">\uD83D\uDCC5 ${monthDay}</span>
+                        <span class="tab-date"><svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> ${monthDay}</span>
                         <span class="tab-sub">${dayName} \u2022 ${p.flightNo}</span>
                     </div>
                 `;
@@ -2386,9 +2416,9 @@ async function initDashboard() {
                             <div class="airplane-fuselage-body">
                                 <!-- FRONT LAVATORY & CANTEEN AMENITIES -->
                                 <div class="plane-cabin-service-bar" style="margin-bottom: 12px; font-size: 11px;">
-                                    <span>\uD83D\uDEBD Lavatory</span>
-                                    <span>\u2615 Canteen / Galley</span>
-                                    <span>\uD83D\uDEBD Lavatory</span>
+                                    <span> Lavatory</span>
+                                    <span> Canteen / Galley</span>
+                                    <span> Lavatory</span>
                                 </div>
 
                                 <div class="seat-col-header-row" style="margin-top: 10px;">
@@ -2402,9 +2432,9 @@ async function initDashboard() {
 
                                 <!-- REAR LAVATORY & CANTEEN AMENITIES -->
                                 <div class="plane-cabin-service-bar" style="margin-top: 14px; font-size: 11px;">
-                                    <span>\uD83D\uDEBD Lavatory</span>
-                                    <span>\u2615 Canteen / Galley</span>
-                                    <span>\uD83D\uDEBD Lavatory</span>
+                                    <span> Lavatory</span>
+                                    <span> Canteen / Galley</span>
+                                    <span> Lavatory</span>
                                 </div>
                             </div>
                         </div>
@@ -2418,7 +2448,7 @@ async function initDashboard() {
                                 ${fd.sourceCode || 'BBI'} &nbsp;\u2794&nbsp; ${fd.destCode || 'DEL'}
                             </div>
                             <div class="flight-route-sub">
-                                ${fd.flightNo || 'AI-101'} \u2022 ${fd.flightName || 'Airbus A320 Neo'} \u2022 \uD83D\uDCC5 ${fd.flightDate || 'Date'}
+                                ${fd.flightNo || 'AI-101'} \u2022 ${fd.flightName || 'Airbus A320 Neo'} \u2022 <svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> ${fd.flightDate || 'Date'}
                             </div>
                         </div>
 
@@ -2462,7 +2492,7 @@ async function initDashboard() {
 
                         <!-- NOTICE BANNER -->
                         <div class="screenshot-notice-banner">
-                            <span>\u2139\uFE0F</span>
+                            <span><svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></span>
                             <span>You can select up to 6 seats per booking</span>
                         </div>
 
@@ -2556,7 +2586,7 @@ async function initDashboard() {
                             btn.classList.add('available');
                         } else {
                             if (selectedSeatsMap.size >= 6) {
-                                alert("\u2139\uFE0F You can select up to 6 seats per booking!");
+                                alert("You can select up to 6 seats per booking!");
                                 return;
                             }
                             selectedSeatsMap.set(seatNo, { seatNo, finalPrice, surcharge, seatType, seatClass, btnElement: btn });
@@ -2576,7 +2606,7 @@ async function initDashboard() {
                 proceedBtn.addEventListener("click", () => {
                     if (selectedSeatsMap.size === 0) {
                         if (bookingMsg) {
-                            bookingMsg.textContent = "\u26A0\uFE0F Please click available seats on the airplane layout to select your seats!";
+                            bookingMsg.innerHTML = `<svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> Please click available seats on the airplane layout to select your seats!`;
                             bookingMsg.className = "form-message error";
                         }
                         return;
@@ -2593,7 +2623,7 @@ async function initDashboard() {
                             <div class="payment-modal-card" style="max-width: 560px;">
                                 <div class="payment-modal-header">
                                     <div>
-                                        <div style="font-weight: 800; font-size: 16px;">\u2708\uFE0F Passenger Details & Checkout</div>
+                                        <div style="font-weight: 800; font-size: 16px;"><svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.8 19.2L16 11l3.5-3.5C20.1 6.9 20 5 18.6 3.6c-1.4-1.4-3.3-1.5-3.9-.9L11.2 6.2 3 4.4l-1 2 5.5 3.5L4 13.4l-2.5-.5-1 1 3.5 2.5 2.5 3.5 1-1-.5-2.5 3.5-3.5 3.5 5.5 2-1z"/></svg> Passenger Details & Checkout</div>
                                         <div style="font-size: 11px; opacity: 0.85;">Fill customer information & select membership tier discount</div>
                                     </div>
                                     <button id="closeCustomerModalBtn" style="background: none; border: none; color: #fff; font-size: 20px; cursor: pointer;">\u2715</button>
@@ -2604,10 +2634,10 @@ async function initDashboard() {
                                     <div style="background: #f8fafc; border-radius: 12px; padding: 14px; margin-bottom: 16px; border: 1px solid #e2e8f0;">
                                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
                                             <label style="font-size: 12px; font-weight: 800; color: #0f172a;">
-                                                \uD83D\uDC64 Select Registered Customer:
+                                                <svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> Select Registered Customer:
                                             </label>
                                             <button id="toggleNewCustFormBtn" type="button" style="background: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 6px; cursor: pointer;">
-                                                \u2795 Add New Customer / Member
+                                                + Add New Customer / Member
                                             </button>
                                         </div>
 
@@ -2621,7 +2651,7 @@ async function initDashboard() {
 
                                         <!-- INLINE NEW CUSTOMER REGISTRATION FORM -->
                                         <div id="newMemberRegistrationCard" style="display: none; background: #ffffff; border: 1.5px solid #0284c7; border-radius: 12px; padding: 14px; margin-top: 10px;">
-                                            <div style="font-size: 13px; font-weight: 800; color: #0284c7; margin-bottom: 8px;">\u2795 Register New Customer</div>
+                                            <div style="font-size: 13px; font-weight: 800; color: #0284c7; margin-bottom: 8px;">+ Register New Customer</div>
                                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
                                                 <input type="text" id="newCustNameInput" placeholder="Full Name *" style="padding: 7px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 11px;">
                                                 <input type="text" id="newCustMobileInput" placeholder="Mobile Number *" style="padding: 7px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 11px;">
@@ -2650,7 +2680,7 @@ async function initDashboard() {
                                         <!-- MEMBERSHIP TIER DISCOUNT SELECTION -->
                                         <div style="margin-top: 10px;">
                                             <label style="font-size: 12px; font-weight: 800; color: #0f172a; display: block; margin-bottom: 6px;">
-                                                \u2B50 Select Membership Tier Discount:
+                                                 Select Membership Tier Discount:
                                             </label>
                                             <select id="membershipTierSelect" style="width: 100%; padding: 9px 12px; border-radius: 8px; border: 1.5px solid #3b82f6; font-size: 12px; font-weight: 800; outline: none; background: #eff6ff; color: #1e3a8a;">
                                                 <option value="15" selected>Executive Platinum (15% Special Discount)</option>
@@ -2664,7 +2694,7 @@ async function initDashboard() {
                                     <!-- PASSENGER ROSTER FOR SELECTED SEATS -->
                                     <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px; margin-bottom: 16px;">
                                         <div style="font-weight: 800; font-size: 12px; color: #334155; margin-bottom: 10px; text-transform: uppercase; display: flex; justify-content: space-between; align-items: center;">
-                                            <span>\uD83D\uDC65 Passenger Details & Membership Tiers (${selectedSeatsMap.size} Seats):</span>
+                                            <span><svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> Passenger Details & Membership Tiers (${selectedSeatsMap.size} Seats):</span>
                                             <span style="font-size: 11px; color: #0284c7; font-weight: 700;">Search Passport / Register</span>
                                         </div>
                                         <div id="modalPassengerInputsContainer"></div>
@@ -2689,7 +2719,7 @@ async function initDashboard() {
                                     <!-- COUNTER CASH METHOD & PAID ACTION -->
                                     <div style="background: #ffffff; border: 1.5px solid #cbd5e1; border-radius: 12px; padding: 14px; margin-bottom: 16px;">
                                         <div style="font-weight: 800; font-size: 13px; color: #0f172a; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between;">
-                                            <span>\uD83D\uDCB5 Counter Cash Collection Details</span>
+                                            <span><svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2"/></svg> Counter Cash Collection Details</span>
                                             <span style="font-size: 10px; background: #16a34a; color: #fff; padding: 2px 6px; border-radius: 4px; font-weight: 700;">Counter Cash</span>
                                         </div>
                                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
@@ -2705,7 +2735,7 @@ async function initDashboard() {
                                     </div>
 
                                     <button id="finalPaidSubmitBtn" style="width: 100%; padding: 14px; border-radius: 12px; border: none; background: linear-gradient(135deg, #16a34a 0%, #15803d 100%); color: #fff; font-weight: 900; font-size: 16px; cursor: pointer; box-shadow: 0 4px 14px rgba(22, 163, 74, 0.4); text-transform: uppercase; letter-spacing: 1px;">
-                                        Paid & Generate Ticket PDF \uD83C\uDFAB
+                                        Paid & Generate Ticket PDF <svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v2z"/></svg>
                                     </button>
                                 </div>
                             </div>
@@ -2759,10 +2789,10 @@ async function initDashboard() {
                                 <div class="passenger-seat-card" id="seatCard_${seatNo}">
                                     <div class="seat-card-header">
                                         <div class="seat-title-tag">
-                                            \uD83D\uDCBA Seat ${seatNo} (${seatData.seatClass} - \u20B9${seatData.finalPrice.toLocaleString('en-IN')})
+                                            <svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 18v3M20 18v3M4 11V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v5M4 11h16M4 11v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg> Seat ${seatNo} (${seatData.seatClass} - \u20B9${seatData.finalPrice.toLocaleString('en-IN')})
                                         </div>
                                         <button type="button" class="register-seat-cust-btn" id="toggleSeatRegBtn_${seatNo}">
-                                            \u2795 Register Customer for Seat ${seatNo}
+                                            + Register Customer for Seat ${seatNo}
                                         </button>
                                     </div>
 
@@ -2956,7 +2986,7 @@ async function initDashboard() {
 
                                     if (!nameVal || !mobVal) {
                                         if (msgDiv) {
-                                            msgDiv.textContent = "\u26A0\uFE0F Passenger Name and Mobile Number are required!";
+                                            msgDiv.innerHTML = `<svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> Passenger Name and Mobile Number are required!`;
                                             msgDiv.style.color = "#dc2626";
                                         }
                                         return;
@@ -3001,7 +3031,7 @@ async function initDashboard() {
                                             seatPassengerMap.set(seatNo, { ...p });
 
                                             if (msgDiv) {
-                                                msgDiv.textContent = `\uD83C\uDF89 ${p.passengerName} registered successfully with ${p.memberTier}!`;
+                                                msgDiv.textContent = ` ${p.passengerName} registered successfully with ${p.memberTier}!`;
                                                 msgDiv.style.color = "#16a34a";
                                             }
 
@@ -3010,7 +3040,7 @@ async function initDashboard() {
                                             updatePriceCalculations();
                                         } else {
                                             if (msgDiv) {
-                                                msgDiv.textContent = `\u274C ${regData.message || 'Error registering customer'}`;
+                                                msgDiv.innerHTML = `&times; ${regData.message || 'Error registering customer'}`;
                                                 msgDiv.style.color = "#dc2626";
                                             }
                                         }
@@ -3066,7 +3096,7 @@ async function initDashboard() {
                         paidSubmitBtn.addEventListener("click", async () => {
                             const howMuchPaid = parseFloat(cashPaidInput ? cashPaidInput.value : currentNetPayable) || currentNetPayable;
                             if (howMuchPaid < currentNetPayable) {
-                                alert(`\u26A0\uFE0F Paid amount (\u20B9${howMuchPaid}) cannot be less than Net Payable Fare (\u20B9${currentNetPayable})!`);
+                                alert(`Paid amount (₹${howMuchPaid}) cannot be less than Net Payable Fare (₹${currentNetPayable})!`);
                                 return;
                             }
 
@@ -3140,7 +3170,7 @@ async function initDashboard() {
                             if (bookedPnrs.length > 0) {
                                 modalOverlay.remove();
                                 if (bookingMsg) {
-                                    bookingMsg.textContent = `\uD83C\uDF89 Tickets Issued & Confirmed! PNRs: ${bookedPnrs.join(" | ")}`;
+                                    bookingMsg.textContent = ` Tickets Issued & Confirmed! PNRs: ${bookedPnrs.join(" | ")}`;
                                     bookingMsg.className = "form-message success";
                                 }
 
@@ -3175,9 +3205,9 @@ async function initDashboard() {
 
                                 loadSeatMap(targetId);
                             } else {
-                                alert("\u274C Booking failed for selected seats.");
+                                alert(" Booking failed for selected seats.");
                                 paidSubmitBtn.disabled = false;
-                                paidSubmitBtn.textContent = "Paid & Generate Ticket PDF \uD83C\uDFAB";
+paidSubmitBtn.innerHTML = `Paid & Generate Ticket PDF <svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v2z"/></svg>`;
                             }
                         });
                     }
@@ -3199,7 +3229,7 @@ async function initDashboard() {
             : null;
 
         const activeTab = document.querySelector(".date-schedule-tab.active");
-        const activeTabDateText = activeTab ? activeTab.querySelector(".tab-date")?.textContent?.replace('\uD83D\uDCC5', '')?.trim() : null;
+        const activeTabDateText = activeTab ? activeTab.querySelector(".tab-date")?.textContent?.replace('<svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>', '')?.trim() : null;
 
         const initialFd = {
             dynamicPriceId: targetId,
@@ -3396,7 +3426,7 @@ async function initDashboard() {
                                     </div>
                                 </div>
                                 <div class="ticket-paid-stamp">
-                                    PAID \u2705
+                                    PAID <svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
                                 </div>
                             </div>
                         </div>
@@ -3442,10 +3472,10 @@ async function initDashboard() {
                         </div>
                         <div style="display: flex; gap: 10px;">
                             <button id="downloadPlaneTicketPdfBtn" style="padding: 9px 18px; border-radius: 8px; border: none; background: #16a34a; color: #fff; font-weight: 900; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 4px 12px rgba(22, 163, 74, 0.35);">
-                                \uD83D\uDCE5 Download Boarding Pass PDF
+                                <svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Download Boarding Pass PDF
                             </button>
                             <button id="printPlaneTicketBtn" style="padding: 9px 18px; border-radius: 8px; border: none; background: #0284c7; color: #fff; font-weight: 800; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
-                                \uD83D\uDDA8\uFE0F Print Ticket
+                                <svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>\uFE0F Print Ticket
                             </button>
                             <button id="closePlaneTicketBtn" style="padding: 9px 16px; border-radius: 8px; border: 1px solid #cbd5e1; background: #ffffff; color: #334155; font-weight: 800; font-size: 13px; cursor: pointer;">
                                 Close Ticket
@@ -3521,7 +3551,7 @@ async function initDashboard() {
 
     mainContent.innerHTML = `
             <div class="welcome-banner">
-                <h1>Flight Dynamic Pricing Management \uD83D\uDCB8</h1>
+                <h1>Flight Dynamic Pricing Management <svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></h1>
                 <p>Configure dynamic pricing rules, seat capacities, departure & arrival times using procedure <code>AIRLINE_FLIGHT_DYNAMIC_PRICE_CREATE_USP</code>.</p>
             </div>
 
@@ -3592,11 +3622,11 @@ async function initDashboard() {
             <div class="existing-cities-container macOS-card" style="margin-top: 24px; padding: 20px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
                     <div>
-                        <h3 style="font-weight: 600; font-size: 16px; margin: 0;">Dynamic Pricing Master Records \uD83C\uDFF7\uFE0F</h3>
+                        <h3 style="font-weight: 600; font-size: 16px; margin: 0;">Dynamic Pricing Master Records <svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>\uFE0F</h3>
                         <p style="font-size: 12px; color: var(--text-muted); margin: 2px 0 0 0;">Overview of active dynamic flight rates & seat availability</p>
                     </div>
                     <div style="display: flex; align-items: center; gap: 10px;">
-                        <input type="text" id="dpSearchInput" placeholder="\uD83D\uDD0D Search flight, airport, city..." style="padding: 8px 14px; border-radius: 8px; border: 1px solid var(--border-color); font-size: 13px; outline: none; background: rgba(255,255,255,0.6); min-width: 220px;">
+                        <input type="text" id="dpSearchInput" placeholder="<svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> Search flight, airport, city..." style="padding: 8px 14px; border-radius: 8px; border: 1px solid var(--border-color); font-size: 13px; outline: none; background: rgba(255,255,255,0.6); min-width: 220px;">
                         <span id="dpCountBadge" class="badge blue" style="font-size: 12px;">0 Records</span>
                     </div>
                 </div>
@@ -3655,7 +3685,7 @@ async function initDashboard() {
                     currentPriceInput.value = data.suggestedPrice.toFixed(2);
                     if (routeBadge) {
                         routeBadge.style.display = "block";
-                        routeBadge.innerHTML = `\uD83D\uDCCD <strong>Route Distance:</strong> ${data.distanceKm} km | <strong>Distance-Based Fare (\u20B9${data.ratePerKm}/km):</strong> <span style="color:#059669; font-weight:800;">\u20B9${data.suggestedPrice.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>`;
+                        routeBadge.innerHTML = `<svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg> <strong>Route Distance:</strong> ${data.distanceKm} km | <strong>Distance-Based Fare (\u20B9${data.ratePerKm}/km):</strong> <span style="color:#059669; font-weight:800;">\u20B9${data.suggestedPrice.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>`;
                     }
                 }
             } catch (e) {
@@ -3680,13 +3710,13 @@ async function initDashboard() {
                         <td style="padding: 12px 14px; font-weight: 500;">${r.companyName || '\u2014'}</td>
                         <td style="padding: 12px 14px;"><span style="font-weight: 600; color: #0D8ABC;">${r.sourceAirportCode || r.sourceAirportId}</span><br><span style="font-size: 11px; color: var(--text-muted);">${r.sourceCityName || r.sourceAirportName || ''}</span></td>
                         <td style="padding: 12px 14px;"><span style="font-weight: 600; color: #FF9500;">${r.destAirportCode || r.destAirportId}</span><br><span style="font-size: 11px; color: var(--text-muted);">${r.destCityName || r.destAirportName || ''}</span></td>
-                        <td style="padding: 12px 14px; font-size: 12px; white-space: nowrap;">\uD83D\uDCC5 ${r.flightDate || ''}</td>
+                        <td style="padding: 12px 14px; font-size: 12px; white-space: nowrap;"><svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> ${r.flightDate || ''}</td>
                         <td style="padding: 12px 14px;"><span class="badge green">${r.availableSeats} / ${r.totalSeats}</span></td>
                         <td style="padding: 12px 14px; font-weight: 700; color: #34C759;">\u20B9${Number(r.currentPrice).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
                         <td style="padding: 12px 14px;"><span class="badge green">${r.isActive === 'Y' ? 'ACTIVE' : 'INACTIVE'}</span></td>
                         <td style="padding: 12px 14px;">
                             <button class="select-seats-btn" data-dpid="${r.dynamicPriceId}" style="padding: 6px 12px; border-radius: 6px; border: none; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #fff; font-weight: 700; font-size: 12px; cursor: pointer; box-shadow: 0 2px 6px rgba(16,185,129,0.3);">
-                                \uD83C\uDFAB Book Seats
+                                <svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v2z"/></svg> Book Seats
                             </button>
                         </td>
                     </tr>
@@ -3790,13 +3820,13 @@ async function initDashboard() {
         const currentPrice = currentPriceInput.value;
 
         if (!flightId || !sourceAirportId || !destAirportId || !flightDate || !departureTime || !arrivalTime) {
-            msgDiv.textContent = "\u274C Please fill in all required fields.";
+            msgDiv.innerHTML = "&times; Please fill in all required fields.";
             msgDiv.className = "form-message error";
             return;
         }
 
         if (sourceAirportId === destAirportId) {
-            msgDiv.textContent = "\u274C Source and Destination airports cannot be the same.";
+            msgDiv.innerHTML = "&times; Source and Destination airports cannot be the same.";
             msgDiv.className = "form-message error";
             return;
         }
@@ -3825,7 +3855,7 @@ async function initDashboard() {
             const result = await res.json();
 
             if (res.ok) {
-                msgDiv.textContent = "\u2705 " + (result.message || "Dynamic Price Saved Successfully!");
+                msgDiv.innerHTML = `<svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> ` + (result.message || "Dynamic Price Saved Successfully!");
                 msgDiv.className = "form-message success";
                 if (result.dynamicPrices) {
                     allDynamicPrices = result.dynamicPrices;
@@ -3834,12 +3864,12 @@ async function initDashboard() {
                     loadDynamicPriceData();
                 }
             } else {
-                msgDiv.textContent = "\u26A0\uFE0F " + (result.message || "Failed to save dynamic price");
+                msgDiv.innerHTML = `<svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> ` + (result.message || "Failed to save dynamic price");
                 msgDiv.className = "form-message error";
             }
         } catch (err) {
             console.error("Save dynamic price error:", err);
-            msgDiv.textContent = "\u274C Server or connection error.";
+            msgDiv.innerHTML = "&times; Server or connection error.";
             msgDiv.className = "form-message error";
         }
     };
@@ -3858,7 +3888,7 @@ async function initDashboard() {
         try {
             const res = await fetch("/api/users", { credentials: "same-origin" });
             if (!res.ok) {
-                grid.innerHTML = `<div class="empty-search-state"><span>\u26A0\uFE0F</span><p>Unable to load system users (HTTP ${res.status}).</p></div>`;
+                grid.innerHTML = `<div class="empty-search-state"><span><svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span><p>Unable to load system users (HTTP ${res.status}).</p></div>`;
                 return;
             }
             const data = await res.json();
@@ -3931,11 +3961,11 @@ async function initDashboard() {
                     `;
                 }).join("");
             } else {
-                grid.innerHTML = `<div class="empty-search-state"><span>\uD83D\uDC65</span><p>No registered system users found.</p></div>`;
+                grid.innerHTML = `<div class="empty-search-state"><span><svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><p>No registered system users found.</p></div>`;
             }
         } catch (err) {
             console.error("Failed to load user cards:", err);
-            grid.innerHTML = `<div class="empty-search-state"><span>\u26A0\uFE0F</span><p>Error connecting to server to load users.</p></div>`;
+            grid.innerHTML = `<div class="empty-search-state"><span><svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span><p>Error connecting to server to load users.</p></div>`;
         }
     }
 
@@ -3986,19 +4016,20 @@ async function initDashboard() {
     }
 
     function navigateToMenu(menuName, li) {
+        console.log("[NAV] Navigating to menu:", menuName);
         const label = (menuName || "").trim().toLowerCase();
         if (li) setActiveMenu(li);
 
         if (label.includes("dashboard")) {
             renderHomeDashboard();
         }
-        else if (label.includes("assign") && label.includes("menu") && label.includes("role")) {
+        else if (label.includes("assign") && (label.includes("menu") || label.includes("role to menu"))) {
             renderAssignMenuToRoleForm();
         }
-        else if (label.includes("assign") && label.includes("role") && label.includes("user")) {
+        else if (label.includes("assign") && (label.includes("user") || label.includes("role to user"))) {
             renderManageUserRoleForm();
         }
-        else if (label.includes("create user")) {
+        else if (label.includes("create user") || label.includes("register user")) {
             renderCreateUserForm();
         }
         else if (label.includes("create role")) {
@@ -4007,25 +4038,25 @@ async function initDashboard() {
         else if (label.includes("create menu")) {
             renderCreateMenuForm();
         }
-        else if (label.includes("create city")) {
+        else if (label.includes("create city") || label.includes("city")) {
             renderCreateCityForm();
         }
-        else if (label.includes("create airport")) {
+        else if (label.includes("create airport") || label.includes("airport")) {
             renderCreateAirportForm();
         }
-        else if (label.includes("seat") || label.includes("book ticket") || label.includes("booking")) {
+        else if (label.includes("seat") || label.includes("booking") || label.includes("book ticket")) {
             renderSeatMapBookingView();
         }
-        else if (label.includes("create dynamic price") || label.includes("dynamic price") || label.includes("price")) {
+        else if (label.includes("dynamic price") || label.includes("price")) {
             renderCreateDynamicPriceForm();
         }
-        else if (label.includes("create flight company") || label.includes("flight company")) {
+        else if (label.includes("flight company") || label.includes("airline")) {
             renderCreateFlightCompanyForm();
         }
-        else if (label.includes("create flight") || label.includes("flight")) {
+        else if (label.includes("flight")) {
             renderCreateFlightForm();
         }
-        else if (label.includes("register customer") || label.includes("register passenger") || label.includes("customer")) {
+        else if (label.includes("customer") || label.includes("passenger")) {
             renderPassengerRegistrationForm();
         }
         else {
@@ -4057,7 +4088,6 @@ async function initDashboard() {
         navigateToMenu(menuName, li);
     });
 
-
     function renderMenus(menus) {
         const navContainer = document.querySelector(".nav-links") || document.getElementById("navLinks");
         if (!navContainer) {
@@ -4085,27 +4115,29 @@ async function initDashboard() {
 
         const dashboardLi = document.createElement("li");
         dashboardLi.classList.add("active");
-        dashboardLi.innerHTML = `<a href="javascript:void(0)" class="menu-link" data-menu="DASHBOARD" onclick="window.aosNavigateTo('DASHBOARD', this); return false;"><span class="icon">\uD83D\uDCCA</span><span class="menu-text">Dashboard</span></a>`;
+        dashboardLi.innerHTML = `<a href="javascript:void(0)" class="menu-link" data-menu="DASHBOARD" onclick="window.aosNavigateTo('DASHBOARD', this); return false;"><svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg><span class="menu-text">Dashboard</span></a>`;
         navContainer.appendChild(dashboardLi);
 
         const uniqueMenus = [...new Set(activeMenus.map(m => (m || "").trim()).filter(Boolean))];
         uniqueMenus.forEach(menu => {
             if (menu.toUpperCase() === "DASHBOARD") return;
 
-            let icon = "\uD83D\uDCC4";
+            let icon = `<svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>`;
             const u = menu.toUpperCase();
-            if (u.includes("PRICE") || u.includes("DYNAMIC")) icon = "\uD83D\uDCB8";
-            else if (u.includes("CUSTOMER") || u.includes("PASSENGER")) icon = "\uD83C\uDFAB";
-            else if (u.includes("CREATE USER")) icon = "\uD83D\uDC64";
-            else if (u.includes("CITY")) icon = "\uD83C\uDFD9\uFE0F";
-            else if (u.includes("AIRPORT")) icon = "\u2708\uFE0F";
-            else if (u.includes("FLIGHT")) icon = "\u2708\uFE0F";
-            else if (u.includes("SEAT") || u.includes("BOOKING")) icon = "\uD83D\uDCBA";
-            else if (u.includes("MENU")) icon = "\uD83D\uDCCB";
-            else if (u.includes("ROLE") || u.includes("ASSIGN") || u.includes("USER")) icon = "\uD83D\uDC65";
+            if (u.includes("PRICE") || u.includes("DYNAMIC")) icon = `<svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>`;
+            else if (u.includes("CUSTOMER") || u.includes("PASSENGER") || u.includes("REGISTER CUSTOMER")) icon = `<svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="16" y1="11" x2="22" y2="11"/></svg>`;
+            else if (u.includes("CREATE USER")) icon = `<svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
+            else if (u.includes("CITY")) icon = `<svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M6 21V7l8-4v18"/><path d="M14 21V11l4-2v12"/><path d="M9 9h2"/><path d="M9 13h2"/><path d="M9 17h2"/></svg>`;
+            else if (u.includes("AIRPORT")) icon = `<svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 22h20"/><path d="M12 2v10"/><path d="M12 6l8 4v2l-8-3-8 3V10l8-4z"/><path d="M9 16h6"/></svg>`;
+            else if (u.includes("FLIGHT COMPANY")) icon = `<svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>`;
+            else if (u.includes("FLIGHT")) icon = `<svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.8 19.2L16 11l3.5-3.5C20.1 6.9 20 5 18.6 3.6c-1.4-1.4-3.3-1.5-3.9-.9L11.2 6.2 3 4.4l-1 2 5.5 3.5L4 13.4l-2.5-.5-1 1 3.5 2.5 2.5 3.5 1-1-.5-2.5 3.5-3.5 3.5 5.5 2-1z"/></svg>`;
+            else if (u.includes("SEAT") || u.includes("BOOKING")) icon = `<svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v2z"/><line x1="13" y1="5" x2="13" y2="19" stroke-dasharray="2 2"/></svg>`;
+            else if (u.includes("ASSIGN") && u.includes("MENU")) icon = `<svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`;
+            else if (u.includes("ASSIGN") && u.includes("ROLE")) icon = `<svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>`;
+            else if (u.includes("MENU")) icon = `<svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>`;
 
             const li = document.createElement("li");
-            li.innerHTML = `<a href="javascript:void(0)" class="menu-link" data-menu="${menu}" onclick="window.aosNavigateTo('${menu}', this); return false;"><span class="icon">${icon}</span><span class="menu-text">${menu}</span></a>`;
+            li.innerHTML = `<a href="javascript:void(0)" class="menu-link" data-menu="${menu}" onclick="window.aosNavigateTo('${menu}', this); return false;">${icon}<span class="menu-text">${menu}</span></a>`;
             navContainer.appendChild(li);
         });
     }
@@ -4150,8 +4182,8 @@ function appendMessage(sender, text) {
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;")
+        .replace(new RegExp('"', "g"), "&quot;")
+        .replace(new RegExp("'", "g"), "&#039;")
         .replace(/\n/g, "<br>");
 
     msgDiv.innerHTML = safeText;
@@ -4251,7 +4283,7 @@ if (chatbotSaveSettingsBtn && chatbotApiKeyInput && chatbotSettingsPanel) {
         const keyVal = chatbotApiKeyInput.value.trim();
         localStorage.setItem("gemini_api_key", keyVal);
         chatbotSettingsPanel.classList.add("hidden");
-        appendMessage("bot", "\uD83D\uDD11 API Key updated successfully!");
+        appendMessage("bot", `<svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="7.5" cy="15.5" r="5.5"/><path d="M21 2l-9.6 9.6"/><path d="M15.5 7.5l3 3"/></svg> API Key updated successfully!`);
     });
 }
 

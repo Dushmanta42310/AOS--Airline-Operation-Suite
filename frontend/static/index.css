@@ -1,12 +1,12 @@
 :root {
-  --primary: #a11361;
-  --primary-dark: #7d0e4b;
-  --primary-soft: #f7e6ef;
-  --text: #20242c;
-  --muted: #6b7280;
-  --border: #e7e7e7;
+  --primary: #0284C7;
+  --primary-dark: #0369A1;
+  --primary-soft: rgba(2, 132, 199, 0.1);
+  --text: #0F172A;
+  --muted: #64748B;
+  --border: rgba(0, 0, 0, 0.08);
   --white: #ffffff;
-  --bg: #f5f6f8;
+  --bg: #0B0F17;
 }
 
 * {
@@ -51,18 +51,20 @@ select {
 
 .login-card,
 .visual-card {
-  background: #ffffff;
   border-radius: 28px;
   overflow: hidden;
   height: 100%;
-  box-shadow: 0 18px 50px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.7);
 }
 
 .login-card {
-  padding: 30px 28px 24px;
+  background: #0B0F17;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 32px 30px 26px;
   display: flex;
   flex-direction: column;
   min-height: 0;
+  color: #F8FAFC;
 }
 
 .brand-top {
@@ -73,16 +75,17 @@ select {
 }
 
 .logo-box {
-  width: 52px;
-  height: 52px;
-  border-radius: 16px;
-  background: linear-gradient(135deg, var(--primary), #cc3f82);
+  width: 50px;
+  height: 50px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #0284C7 0%, #0369A1 100%);
   color: #fff;
   display: grid;
   place-items: center;
-  font-size: 23px;
+  font-size: 22px;
   font-weight: 800;
   flex-shrink: 0;
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.4);
 }
 
 .brand-text h3,
@@ -92,17 +95,21 @@ select {
 
 .brand-text h3 {
   font-size: 20px;
+  font-weight: 700;
+  color: #F8FAFC;
 }
 
 .brand-text p {
-  color: var(--muted);
+  color: #94A3B8;
   font-size: 13px;
 }
 
 .login-card h1 {
-  margin: 0 0 18px;
-  font-size: 34px;
+  margin: 0 0 20px;
+  font-size: 32px;
+  font-weight: 700;
   line-height: 1.15;
+  color: #F8FAFC;
 }
 
 .message {
@@ -113,13 +120,15 @@ select {
 }
 
 .message.success {
-  background: #ecfdf3;
-  color: #166534;
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ADE80;
+  border: 1px solid rgba(34, 197, 94, 0.3);
 }
 
 .message.error {
-  background: #fef2f2;
-  color: #b91c1c;
+  background: rgba(239, 68, 68, 0.15);
+  color: #F87171;
+  border: 1px solid rgba(239, 68, 68, 0.3);
 }
 
 .panel-view {
@@ -137,11 +146,11 @@ select {
 }
 
 .form-scroll::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
 }
 
 .form-scroll::-webkit-scrollbar-thumb {
-  background: #d8b3c7;
+  background: rgba(255, 255, 255, 0.15);
   border-radius: 999px;
 }
 
@@ -151,49 +160,67 @@ select {
 
 .tabs {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   margin-bottom: 22px;
 }
 
 .tab {
   flex: 1;
-  border: 1px solid #ecd2df;
-  background: #fff;
-  color: var(--primary);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: #94A3B8;
   border-radius: 999px;
-  padding: 14px 14px;
-  font-size: 14px;
-  font-weight: 700;
+  padding: 12px 14px;
+  font-size: 13.5px;
+  font-weight: 600;
   cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tab:hover {
+  color: #F8FAFC;
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
 .tab.active {
-  background: var(--primary);
-  color: #fff;
-  border-color: var(--primary);
+  background: linear-gradient(135deg, #0284C7 0%, #0369A1 100%);
+  color: #FFFFFF;
+  border-color: #38BDF8;
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35);
 }
 
 .form {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
 }
 
 label {
-  font-size: 14px;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 600;
+  color: #CBD5E1;
   margin-top: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .input-wrap {
   min-height: 52px;
-  border: 1px solid var(--border);
-  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 0 16px;
-  background: #fff;
+  background: rgba(17, 24, 39, 0.8);
+  transition: all 0.2s ease;
+}
+
+.input-wrap:focus-within {
+  border-color: #38BDF8;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.25);
+  background: rgba(17, 24, 39, 0.95);
 }
 
 .input-wrap input,
@@ -202,12 +229,17 @@ label {
   border: none;
   outline: none;
   background: transparent;
-  font-size: 15px;
+  font-size: 14.5px;
+  color: #F8FAFC;
+}
+
+.input-wrap input::placeholder {
+  color: #64748B;
 }
 
 .form-select {
   appearance: none;
-  color: var(--text);
+  color: #F8FAFC;
   height: 52px;
 }
 
@@ -216,52 +248,70 @@ label {
   text-align: center;
   font-size: 16px;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #94A3B8;
+}
+
+.icon svg {
+  stroke: #94A3B8;
 }
 
 .otp-row {
   display: grid;
-  grid-template-columns: 1fr 138px;
+  grid-template-columns: 1fr 130px;
   gap: 12px;
   align-items: end;
 }
 
 .primary-btn,
 .secondary-btn {
-  height: 52px;
+  height: 50px;
   border: none;
-  border-radius: 16px;
-  font-size: 16px;
+  border-radius: 14px;
+  font-size: 15px;
   font-weight: 700;
   cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .primary-btn {
   margin-top: 10px;
-  background: var(--primary);
-  color: #fff;
+  background: linear-gradient(135deg, #0284C7 0%, #0369A1 100%);
+  color: #FFFFFF;
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35);
 }
 
 .primary-btn:hover {
-  background: var(--primary-dark);
+  background: linear-gradient(135deg, #0369A1 0%, #075985 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(2, 132, 199, 0.45);
 }
 
 .secondary-btn {
-  background: var(--primary-soft);
-  color: var(--primary);
+  background: rgba(56, 189, 248, 0.15);
+  color: #38BDF8;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+}
+
+.secondary-btn:hover {
+  background: rgba(56, 189, 248, 0.25);
+  color: #FFFFFF;
 }
 
 .switch-text {
   margin-top: 14px;
   text-align: center;
   font-size: 14px;
-  color: var(--muted);
+  color: #94A3B8;
   flex-shrink: 0;
 }
 
 .text-btn {
   border: none;
   background: transparent;
-  color: var(--primary);
+  color: #38BDF8;
   font-weight: 700;
   cursor: pointer;
   padding: 0;
@@ -273,6 +323,7 @@ label {
 
 .visual-card {
   position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .hero-image {
@@ -287,9 +338,9 @@ label {
   inset: 0;
   background: linear-gradient(
     90deg,
-    rgba(18, 18, 18, 0.58) 0%,
-    rgba(18, 18, 18, 0.24) 42%,
-    rgba(18, 18, 18, 0.1) 100%
+    rgba(11, 15, 23, 0.75) 0%,
+    rgba(11, 15, 23, 0.35) 42%,
+    rgba(11, 15, 23, 0.15) 100%
   );
 }
 
@@ -304,24 +355,26 @@ label {
 
 .eyebrow {
   display: inline-block;
-  font-size: 14px;
-  letter-spacing: 0.12em;
+  font-size: 13px;
+  letter-spacing: 0.15em;
   font-weight: 800;
-  color: #ffd8ea;
+  color: #38BDF8;
   margin-bottom: 16px;
 }
 
 .hero-text h2 {
   margin: 0 0 18px;
-  font-size: 64px;
+  font-size: 60px;
   line-height: 1.02;
+  font-weight: 800;
+  text-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
 }
 
 .hero-text p {
   margin: 0;
-  font-size: 20px;
+  font-size: 18px;
   line-height: 1.55;
-  color: rgba(255, 255, 255, 0.92);
+  color: rgba(255, 255, 255, 0.9);
   max-width: 440px;
 }
 
@@ -330,24 +383,28 @@ label {
   left: 42px;
   bottom: 34px;
   z-index: 2;
-  max-width: 340px;
-  background: rgba(255, 255, 255, 0.92);
-  border-radius: 22px;
+  max-width: 360px;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 20px;
   padding: 22px 24px;
-  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.4);
 }
 
 .quote-card h3 {
-  margin: 0 0 10px;
-  color: var(--primary);
-  font-size: 22px;
+  margin: 0 0 8px;
+  color: #38BDF8;
+  font-size: 20px;
+  font-weight: 700;
 }
 
 .quote-card p {
   margin: 0;
-  font-size: 14px;
+  font-size: 13.5px;
   line-height: 1.6;
-  color: #374151;
+  color: #CBD5E1;
 }
 
 /* Change/Forgot Password Link styling */
@@ -386,17 +443,19 @@ label {
 
 /* Modal Card */
 .modal-card {
-  background: var(--white);
+  background: #0B0F17;
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 24px;
   width: 100%;
   max-width: 440px;
   padding: 28px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8);
   position: relative;
   display: flex;
   flex-direction: column;
   gap: 16px;
   animation: modalScaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  color: #F8FAFC;
 }
 
 @keyframes modalScaleIn {
@@ -420,7 +479,7 @@ label {
   margin: 0;
   font-size: 22px;
   font-weight: 800;
-  color: var(--text);
+  color: #F8FAFC;
 }
 
 .close-btn {

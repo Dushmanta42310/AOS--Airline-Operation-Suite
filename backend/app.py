@@ -226,7 +226,8 @@ def get_client_ip():
 
 @app.route("/")
 def home():
-    return render_template("index.html")
+    import time
+    return render_template("index.html", cache_bust=int(time.time()))
 
 
 @app.route("/dashboard")
@@ -236,7 +237,8 @@ def dashboard():
         session["login_mode"] = "U"
         session["full_name"] = "Dushmanta Das"
         session["role"] = "ADMIN"
-    return render_template("dashboard.html")
+    import time
+    return render_template("dashboard.html", cache_bust=int(time.time()))
 
 
 @app.route("/api/send-otp", methods=["POST"])
