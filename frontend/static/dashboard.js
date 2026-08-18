@@ -277,13 +277,13 @@ async function initDashboard() {
                         </div>
                     </div>
 
-                    <div class="stat-card" style="cursor: pointer;" onclick="document.getElementById('chatbotFab')?.click();">
-                        <div class="icon-circle blue">
+                    <div class="stat-card" style="cursor: pointer;" onclick="window._aos_openTodayMessagesModal();" title="Click to view today's operational notifications">
+                        <div class="icon-circle red">
                             <svg class="stat-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                         </div>
                         <div class="stat-info">
-                            <h3>AI Assistance</h3>
-                            <h2>24/7 Live</h2>
+                            <h3>Today's Messages</h3>
+                            <h2 id="todayMessagesCount">0</h2>
                         </div>
                     </div>
                 </div>
@@ -4359,12 +4359,16 @@ async function initDashboard() {
                 const data = await res.json();
                 const activeFlightsCountEl = document.getElementById("activeFlightsCount");
                 const activeCrewCountEl = document.getElementById("activeCrewCount");
+                const todayMessagesCountEls = document.querySelectorAll("#todayMessagesCount");
 
                 if (activeFlightsCountEl && data.activeFlights !== undefined) {
                     activeFlightsCountEl.textContent = data.activeFlights;
                 }
                 if (activeCrewCountEl && data.activeCrew !== undefined) {
                     activeCrewCountEl.textContent = data.activeCrew;
+                }
+                if (data.todayMessages !== undefined) {
+                    todayMessagesCountEls.forEach(el => { el.textContent = data.todayMessages; });
                 }
             }
         } catch (err) {
@@ -4385,7 +4389,145 @@ async function initDashboard() {
         } catch (err) {
             console.warn("Crew count fallback error:", err);
         }
+
+        // Check for persistent popup alert for messages sent today
+        checkAndShowUrgentPopupAlert();
     }
+
+    // Check and trigger persistent popup alert until cross (X) is clicked
+    async function checkAndShowUrgentPopupAlert() {
+        try {
+            const res = await fetch("/api/messages/today", { credentials: "same-origin" });
+            if (!res.ok) return;
+            const data = await res.json();
+            const msgs = data.messages || [];
+
+            if (msgs.length === 0) return;
+
+            const latestMsg = msgs[0];
+            const dismissedKey = "aos_dismissed_msg_" + latestMsg.messageId;
+            if (sessionStorage.getItem(dismissedKey)) {
+                return; // User already acknowledged this message in this session
+            }
+
+            const overlay = document.getElementById("urgentMessagePopupOverlay");
+            if (!overlay) return;
+
+            const header = document.getElementById("popupAlertHeader");
+            const timeEl = document.getElementById("popupAlertTime");
+            const roleBadge = document.getElementById("popupAlertRoleBadge");
+            const prioBadge = document.getElementById("popupAlertPrioBadge");
+            const titleEl = document.getElementById("popupAlertTitle");
+            const bodyEl = document.getElementById("popupAlertBody");
+            const closeBtn = document.getElementById("closePopupAlertBtn");
+            const ackBtn = document.getElementById("ackPopupAlertBtn");
+
+            if (header) header.textContent = (latestMsg.priority === "URGENT") ? "🚨 Critical Operational Alert" : "📢 Admin Operational Notice";
+            if (timeEl) timeEl.textContent = latestMsg.sentTime || "Today";
+            if (roleBadge) roleBadge.textContent = latestMsg.targetRole || "ALL ROLES";
+            if (prioBadge) {
+                prioBadge.textContent = latestMsg.priority || "NORMAL";
+                if (latestMsg.priority === "URGENT") {
+                    prioBadge.style.background = "rgba(239, 68, 68, 0.2)";
+                    prioBadge.style.color = "#EF4444";
+                } else if (latestMsg.priority === "IMPORTANT") {
+                    prioBadge.style.background = "rgba(245, 158, 11, 0.2)";
+                    prioBadge.style.color = "#F59E0B";
+                } else {
+                    prioBadge.style.background = "rgba(56, 189, 248, 0.2)";
+                    prioBadge.style.color = "#38BDF8";
+                }
+            }
+            if (titleEl) titleEl.textContent = latestMsg.title || "Operational Notice";
+            if (bodyEl) bodyEl.textContent = latestMsg.body || "";
+
+            overlay.style.display = "flex";
+            overlay.classList.remove("hidden");
+
+            function dismissAlert() {
+                overlay.style.display = "none";
+                overlay.classList.add("hidden");
+                sessionStorage.setItem(dismissedKey, "true");
+            }
+
+            if (closeBtn) closeBtn.onclick = dismissAlert;
+            if (ackBtn) ackBtn.onclick = dismissAlert;
+
+        } catch (err) {
+            console.error("Error checking today message alerts:", err);
+        }
+    }
+
+    // Open Today's Messages Interactive Modal
+    window._aos_openTodayMessagesModal = async function() {
+        const overlay = document.getElementById("todayMessagesModalOverlay");
+        const listContainer = document.getElementById("todayMessagesListContainer");
+        const closeBtn = document.getElementById("closeTodayMessagesModalBtn");
+
+        if (!overlay || !listContainer) return;
+
+        overlay.style.display = "flex";
+        overlay.classList.remove("hidden");
+
+        if (closeBtn) {
+            closeBtn.onclick = () => {
+                overlay.style.display = "none";
+                overlay.classList.add("hidden");
+            };
+        }
+
+        listContainer.innerHTML = `<div style="text-align: center; padding: 30px; color: var(--text-muted);">Fetching today's messages...</div>`;
+
+        try {
+            const res = await fetch("/api/messages/today", { credentials: "same-origin" });
+            if (!res.ok) {
+                listContainer.innerHTML = `<div style="text-align: center; padding: 30px; color: #EF4444;">Failed to load messages (HTTP ${res.status}).</div>`;
+                return;
+            }
+
+            const data = await res.json();
+            const msgs = data.messages || [];
+
+            if (msgs.length === 0) {
+                listContainer.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: var(--text-muted);">
+                        <svg class="btn-svg" viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom: 12px; opacity: 0.5;"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                        <h4 style="color: var(--text-main); font-size: 15px; margin: 0 0 4px;">No Messages Sent Today</h4>
+                        <p style="font-size: 13px; margin: 0;">No active operational messages or announcements have been broadcast today.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            listContainer.innerHTML = msgs.map(m => {
+                let prioColor = "#10B981";
+                let prioBg = "rgba(16, 185, 129, 0.15)";
+                const p = (m.priority || "NORMAL").toUpperCase();
+                if (p === "URGENT") { prioColor = "#EF4444"; prioBg = "rgba(239, 68, 68, 0.2)"; }
+                else if (p === "IMPORTANT") { prioColor = "#F59E0B"; prioBg = "rgba(245, 158, 11, 0.2)"; }
+                else if (p === "INFO") { prioColor = "#38BDF8"; prioBg = "rgba(56, 189, 248, 0.15)"; }
+
+                return `
+                    <div class="user-glass-card" style="padding: 16px; border-radius: 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
+                            <div style="display: flex; gap: 8px; align-items: center;">
+                                <span class="user-role-badge" style="background: rgba(56, 189, 248, 0.15); color: #38BDF8; font-weight: 700;">${m.targetRole || 'ALL ROLES'}</span>
+                                <span style="display: inline-block; padding: 2px 7px; border-radius: 5px; font-size: 11px; font-weight: 700; background: ${prioBg}; color: ${prioColor};">${p}</span>
+                            </div>
+                            <span style="font-size: 12px; color: var(--text-muted);">${m.sentTime || 'Today'}</span>
+                        </div>
+                        <h4 style="font-size: 15px; font-weight: 700; color: var(--text-main); margin: 0 0 6px;">${m.title || 'Operational Notice'}</h4>
+                        <div style="font-size: 13.5px; line-height: 1.5; color: #CBD5E1; white-space: pre-wrap;">${m.body || ''}</div>
+                        <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 8px; text-align: right;">Dispatched by: <strong style="color: var(--text-main);">${m.sender || m.createdBy || 'ADMIN'}</strong></div>
+                    </div>
+                `;
+            }).join("");
+
+        } catch (err) {
+            console.error("Error fetching today messages modal:", err);
+            listContainer.innerHTML = `<div style="text-align: center; padding: 30px; color: #EF4444;">Server error loading today's messages.</div>`;
+        }
+    };
 
 
     function renderPlaceholderPage(menu) {
