@@ -1809,8 +1809,105 @@ def admin_create_dynamic_price():
         conn = get_conn()
         cur = conn.cursor()
 
-        # Seed 'CREATE DYNAMIC PRICE' menu if not exists
+        # Auto-ensure stored procedure AIRLINE_FLIGHT_DYNAMIC_PRICE_CREATE_USP and menu exist
         try:
+            sp_sql = """
+            CREATE OR REPLACE PROCEDURE AIRLINE_FLIGHT_DYNAMIC_PRICE_CREATE_USP (
+                P_FLIGHT_ID         IN NUMBER,
+                P_SOURCE_AIRPORT_ID IN NUMBER,
+                P_DEST_AIRPORT_ID   IN NUMBER,
+                P_FLIGHT_DATE       IN DATE,
+                P_DEPARTURE_TIME    IN DATE,
+                P_ARRIVAL_TIME      IN DATE,
+                P_TOTAL_SEATS       IN NUMBER,
+                P_AVAILABLE_SEATS   IN NUMBER,
+                P_CURRENT_PRICE     IN NUMBER,
+                P_CURSOR            OUT SYS_REFCURSOR,
+                P_DATA              OUT VARCHAR2
+            )
+            IS
+                V_COUNT NUMBER;
+                V_NEW_ID NUMBER;
+            BEGIN
+                SELECT COUNT(*) INTO V_COUNT 
+                FROM AIRLINE_FLIGHT_DYNAMIC_PRICE_MSTR_TBL
+                WHERE FLIGHT_ID = P_FLIGHT_ID 
+                  AND TRUNC(FLIGHT_DATE) = TRUNC(P_FLIGHT_DATE) 
+                  AND SOURCE_AIRPORT_ID = P_SOURCE_AIRPORT_ID 
+                  AND DEST_AIRPORT_ID = P_DEST_AIRPORT_ID;
+
+                IF V_COUNT > 0 THEN
+                    UPDATE AIRLINE_FLIGHT_DYNAMIC_PRICE_MSTR_TBL
+                    SET CURRENT_PRICE = P_CURRENT_PRICE,
+                        TOTAL_SEATS = P_TOTAL_SEATS,
+                        AVAILABLE_SEATS = P_AVAILABLE_SEATS,
+                        DEPARTURE_TIME = P_DEPARTURE_TIME,
+                        ARRIVAL_TIME = P_ARRIVAL_TIME,
+                        UPDATED_TIME = SYSTIMESTAMP
+                    WHERE FLIGHT_ID = P_FLIGHT_ID 
+                      AND TRUNC(FLIGHT_DATE) = TRUNC(P_FLIGHT_DATE) 
+                      AND SOURCE_AIRPORT_ID = P_SOURCE_AIRPORT_ID 
+                      AND DEST_AIRPORT_ID = P_DEST_AIRPORT_ID;
+                    
+                    P_DATA := 'Dynamic price rate updated successfully';
+                ELSE
+                    SELECT NVL(MAX(DYNAMIC_PRICE_ID), 16000000) + 1 INTO V_NEW_ID 
+                    FROM AIRLINE_FLIGHT_DYNAMIC_PRICE_MSTR_TBL;
+
+                    INSERT INTO AIRLINE_FLIGHT_DYNAMIC_PRICE_MSTR_TBL (
+                        DYNAMIC_PRICE_ID, FLIGHT_ID, SOURCE_AIRPORT_ID, DEST_AIRPORT_ID, 
+                        FLIGHT_DATE, DEPARTURE_TIME, ARRIVAL_TIME, TOTAL_SEATS, AVAILABLE_SEATS, 
+                        CURRENT_PRICE, IS_ACTIVE, CREATED_BY
+                    ) VALUES (
+                        V_NEW_ID, P_FLIGHT_ID, P_SOURCE_AIRPORT_ID, P_DEST_AIRPORT_ID, 
+                        P_FLIGHT_DATE, P_DEPARTURE_TIME, P_ARRIVAL_TIME, P_TOTAL_SEATS, P_AVAILABLE_SEATS, 
+                        P_CURRENT_PRICE, 'Y', 'SYSTEM'
+                    );
+
+                    P_DATA := 'Dynamic price rate created successfully';
+                END IF;
+                COMMIT;
+
+                OPEN P_CURSOR FOR
+                    SELECT 
+                        DP.DYNAMIC_PRICE_ID,
+                        DP.FLIGHT_ID,
+                        F.FLIGHT_NO,
+                        F.FLIGHT_NAME,
+                        C.COMPANY_NAME,
+                        C.COMPANY_CODE,
+                        DP.SOURCE_AIRPORT_ID,
+                        SA.AIRPORT_NAME AS SOURCE_AIRPORT_NAME,
+                        SA.AIRPORT_CODE AS SOURCE_AIRPORT_CODE,
+                        SC.CITY_NAME AS SOURCE_CITY_NAME,
+                        DP.DEST_AIRPORT_ID,
+                        DA.AIRPORT_NAME AS DEST_AIRPORT_NAME,
+                        DA.AIRPORT_CODE AS DEST_AIRPORT_CODE,
+                        DC.CITY_NAME AS DEST_CITY_NAME,
+                        TO_CHAR(DP.FLIGHT_DATE, 'YYYY-MM-DD') AS FLIGHT_DATE,
+                        TO_CHAR(DP.DEPARTURE_TIME, 'YYYY-MM-DD HH24:MI:SS') AS DEPARTURE_TIME,
+                        TO_CHAR(DP.ARRIVAL_TIME, 'YYYY-MM-DD HH24:MI:SS') AS ARRIVAL_TIME,
+                        DP.TOTAL_SEATS,
+                        DP.AVAILABLE_SEATS,
+                        DP.CURRENT_PRICE,
+                        DP.IS_ACTIVE
+                    FROM AIRLINE_FLIGHT_DYNAMIC_PRICE_MSTR_TBL DP
+                    LEFT JOIN AIRLINE_FLIGHT_MSTR_TBL F ON DP.FLIGHT_ID = F.FLIGHT_ID
+                    LEFT JOIN AIRLINE_FLIGHT_COMPANY_MSTR_TBL C ON F.COMPANY_ID = C.COMPANY_ID
+                    LEFT JOIN AIRLINE_AIRPORT_MSTR_TBL SA ON DP.SOURCE_AIRPORT_ID = SA.AIRPORT_ID
+                    LEFT JOIN AIRLINE_CITY_MSTR_TBL SC ON SA.CITY_ID = SC.CITY_ID
+                    LEFT JOIN AIRLINE_AIRPORT_MSTR_TBL DA ON DP.DEST_AIRPORT_ID = DA.AIRPORT_ID
+                    LEFT JOIN AIRLINE_CITY_MSTR_TBL DC ON DA.CITY_ID = DC.CITY_ID
+                    ORDER BY DP.DYNAMIC_PRICE_ID DESC;
+
+            EXCEPTION
+                WHEN OTHERS THEN
+                    ROLLBACK;
+                    P_DATA := SQLERRM;
+            END AIRLINE_FLIGHT_DYNAMIC_PRICE_CREATE_USP;
+            """
+            cur.execute(sp_sql)
+
             cur.execute("SELECT MENU_ID FROM AIRLINE_MENU_MSTR_TBL WHERE UPPER(MENU_NAME) = 'CREATE DYNAMIC PRICE'")
             menu_row = cur.fetchone()
             if not menu_row:
@@ -1831,7 +1928,7 @@ def admin_create_dynamic_price():
                     )
                 conn.commit()
         except Exception as seed_err:
-            print(f"[WARNING setup_dynamic_price_menu] {seed_err}")
+            print(f"[WARNING setup_dynamic_price_menu/sp] {seed_err}")
 
         # GET: return flights dropdown, airports dropdown, and dynamic prices list
         if request.method == "GET":
@@ -1969,7 +2066,11 @@ def admin_create_dynamic_price():
         if not dep_time_obj or not arr_time_obj:
             return jsonify({"message": "Invalid Departure/Arrival Time format."}), 400
 
+        p_cursor = cur.var(oracledb.CURSOR)
+        p_data = cur.var(str)
+        status_msg = ""
         sp_success = False
+
         try:
             cur.callproc("AIRLINE_FLIGHT_DYNAMIC_PRICE_CREATE_USP", [
                 int(flight_id),
@@ -1988,20 +2089,20 @@ def admin_create_dynamic_price():
             sp_success = True
             conn.commit()
         except Exception as sp_err:
-            print(f"[WARN AIRLINE_FLIGHT_DYNAMIC_PRICE_CREATE_USP failed/missing, using SQL fallback]: {sp_err}")
+            print(f"[WARN AIRLINE_FLIGHT_DYNAMIC_PRICE_CREATE_USP procedure error]: {sp_err}")
 
         if not sp_success:
             cur.execute("""
                 SELECT COUNT(*) FROM AIRLINE_FLIGHT_DYNAMIC_PRICE_MSTR_TBL
-                WHERE FLIGHT_ID = :1 AND FLIGHT_DATE = :2 AND SOURCE_AIRPORT_ID = :3 AND DEST_AIRPORT_ID = :4
+                WHERE FLIGHT_ID = :1 AND TRUNC(FLIGHT_DATE) = TRUNC(:2) AND SOURCE_AIRPORT_ID = :3 AND DEST_AIRPORT_ID = :4
             """, [int(flight_id), flight_date_obj, int(source_airport_id), int(dest_airport_id)])
 
             if cur.fetchone()[0] > 0:
                 cur.execute("""
                     UPDATE AIRLINE_FLIGHT_DYNAMIC_PRICE_MSTR_TBL
-                    SET CURRENT_PRICE = :1, TOTAL_SEATS = :2, AVAILABLE_SEATS = :3, UPDATED_TIME = SYSTIMESTAMP
-                    WHERE FLIGHT_ID = :4 AND FLIGHT_DATE = :5 AND SOURCE_AIRPORT_ID = :6 AND DEST_AIRPORT_ID = :7
-                """, [float(current_price), int(total_seats), int(available_seats), int(flight_id), flight_date_obj, int(source_airport_id), int(dest_airport_id)])
+                    SET CURRENT_PRICE = :1, TOTAL_SEATS = :2, AVAILABLE_SEATS = :3, DEPARTURE_TIME = :4, ARRIVAL_TIME = :5, UPDATED_TIME = SYSTIMESTAMP
+                    WHERE FLIGHT_ID = :6 AND TRUNC(FLIGHT_DATE) = TRUNC(:7) AND SOURCE_AIRPORT_ID = :8 AND DEST_AIRPORT_ID = :9
+                """, [float(current_price), int(total_seats), int(available_seats), dep_time_obj, arr_time_obj, int(flight_id), flight_date_obj, int(source_airport_id), int(dest_airport_id)])
                 status_msg = "Dynamic price record updated in Oracle DB!"
             else:
                 try:
@@ -2022,37 +2123,64 @@ def admin_create_dynamic_price():
 
         dynamic_prices = []
         try:
-            cursor_val = p_cursor.getvalue() if sp_success else None
-            if cursor_val:
-                for r in cursor_val.fetchall():
-                    dynamic_prices.append({
-                        "dynamicPriceId": r[0],
-                        "flightId": r[1],
-                        "flightNo": r[2],
-                        "flightName": r[3] or "",
-                        "companyName": r[4] or "",
-                        "companyCode": r[5] or "",
-                        "sourceAirportId": r[6],
-                        "sourceAirportName": r[7] or "",
-                        "sourceAirportCode": r[8] or "",
-                        "sourceCityName": r[9] or "",
-                        "destAirportId": r[10],
-                        "destAirportName": r[11] or "",
-                        "destAirportCode": r[12] or "",
-                        "destCityName": r[13] or "",
-                        "flightDate": r[14].strftime('%Y-%m-%d') if hasattr(r[14], 'strftime') else str(r[14]),
-                        "departureTime": r[15].strftime('%Y-%m-%d %H:%M:%S') if hasattr(r[15], 'strftime') else str(r[15]),
-                        "arrivalTime": r[16].strftime('%Y-%m-%d %H:%M:%S') if hasattr(r[16], 'strftime') else str(r[16]),
-                        "totalSeats": r[17],
-                        "availableSeats": r[18],
-                        "currentPrice": float(r[19]) if r[19] is not None else 0.0,
-                        "isActive": r[20] or "Y"
-                    })
+            cur.execute("""
+                SELECT 
+                    DP.DYNAMIC_PRICE_ID,
+                    DP.FLIGHT_ID,
+                    F.FLIGHT_NO,
+                    F.FLIGHT_NAME,
+                    C.COMPANY_NAME,
+                    C.COMPANY_CODE,
+                    DP.SOURCE_AIRPORT_ID,
+                    SA.AIRPORT_NAME  AS SOURCE_AIRPORT_NAME,
+                    SA.AIRPORT_CODE  AS SOURCE_AIRPORT_CODE,
+                    SC.CITY_NAME     AS SOURCE_CITY_NAME,
+                    DP.DEST_AIRPORT_ID,
+                    DA.AIRPORT_NAME  AS DEST_AIRPORT_NAME,
+                    DA.AIRPORT_CODE  AS DEST_AIRPORT_CODE,
+                    DC.CITY_NAME     AS DEST_CITY_NAME,
+                    TO_CHAR(DP.FLIGHT_DATE, 'YYYY-MM-DD') AS FLIGHT_DATE,
+                    TO_CHAR(DP.DEPARTURE_TIME, 'YYYY-MM-DD HH24:MI:SS') AS DEPARTURE_TIME,
+                    TO_CHAR(DP.ARRIVAL_TIME, 'YYYY-MM-DD HH24:MI:SS') AS ARRIVAL_TIME,
+                    DP.TOTAL_SEATS,
+                    DP.AVAILABLE_SEATS,
+                    DP.CURRENT_PRICE,
+                    DP.IS_ACTIVE
+                FROM AIRLINE_FLIGHT_DYNAMIC_PRICE_MSTR_TBL DP
+                LEFT JOIN AIRLINE_FLIGHT_MSTR_TBL F ON DP.FLIGHT_ID = F.FLIGHT_ID
+                LEFT JOIN AIRLINE_FLIGHT_COMPANY_MSTR_TBL C ON F.COMPANY_ID = C.COMPANY_ID
+                LEFT JOIN AIRLINE_AIRPORT_MSTR_TBL SA ON DP.SOURCE_AIRPORT_ID = SA.AIRPORT_ID
+                LEFT JOIN AIRLINE_CITY_MSTR_TBL SC ON SA.CITY_ID = SC.CITY_ID
+                LEFT JOIN AIRLINE_AIRPORT_MSTR_TBL DA ON DP.DEST_AIRPORT_ID = DA.AIRPORT_ID
+                LEFT JOIN AIRLINE_CITY_MSTR_TBL DC ON DA.CITY_ID = DC.CITY_ID
+                ORDER BY DP.DYNAMIC_PRICE_ID DESC
+            """)
+            for r in cur.fetchall():
+                dynamic_prices.append({
+                    "dynamicPriceId": r[0],
+                    "flightId": r[1],
+                    "flightNo": r[2],
+                    "flightName": r[3] or "",
+                    "companyName": r[4] or "",
+                    "companyCode": r[5] or "",
+                    "sourceAirportId": r[6],
+                    "sourceAirportName": r[7] or "",
+                    "sourceAirportCode": r[8] or "",
+                    "sourceCityName": r[9] or "",
+                    "destAirportId": r[10],
+                    "destAirportName": r[11] or "",
+                    "destAirportCode": r[12] or "",
+                    "destCityName": r[13] or "",
+                    "flightDate": r[14],
+                    "departureTime": r[15],
+                    "arrivalTime": r[16],
+                    "totalSeats": r[17],
+                    "availableSeats": r[18],
+                    "currentPrice": float(r[19]) if r[19] is not None else 0.0,
+                    "isActive": r[20] or "Y"
+                })
         except Exception:
             pass
-
-        if status_msg and "already exists" in status_msg.lower():
-            return jsonify({"message": status_msg, "dynamicPrices": dynamic_prices}), 400
 
         return jsonify({"message": status_msg or "Dynamic price created successfully!", "dynamicPrices": dynamic_prices}), 200
 

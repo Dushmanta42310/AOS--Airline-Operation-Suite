@@ -3626,7 +3626,7 @@ paidSubmitBtn.innerHTML = `Paid & Generate Ticket PDF <svg class="btn-svg" viewB
                         <p style="font-size: 12px; color: var(--text-muted); margin: 2px 0 0 0;">Overview of active dynamic flight rates & seat availability</p>
                     </div>
                     <div style="display: flex; align-items: center; gap: 10px;">
-                        <input type="text" id="dpSearchInput" placeholder="<svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> Search flight, airport, city..." style="padding: 8px 14px; border-radius: 8px; border: 1px solid var(--border-color); font-size: 13px; outline: none; background: rgba(255,255,255,0.6); min-width: 220px;">
+                        <input type="text" id="dpSearchInput" placeholder="Search flight, airport, city..." style="padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-input); font-size: 13px; outline: none; background: var(--bg-input); color: var(--text-input); min-width: 240px;">
                         <span id="dpCountBadge" class="badge blue" style="font-size: 12px;">0 Records</span>
                     </div>
                 </div>
