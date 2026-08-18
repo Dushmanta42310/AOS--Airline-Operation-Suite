@@ -130,8 +130,7 @@ async function initDashboard() {
             }
 
             renderMenus(data.menus || []);
-            // Update stats without re-wiping mainContent
-            loadDashboardStats();
+            renderHomeDashboard();
 
 
             if (data.photoUrl) {
@@ -227,6 +226,14 @@ async function initDashboard() {
         const isPassenger = currentUser && (currentUser.role === 'PASSENGER' || currentUser.role === 'CUSTOMER');
 
         if (isPassenger) {
+            let cleanName = (currentUser && currentUser.fullName) ? currentUser.fullName : "Passenger";
+            cleanName = cleanName.replace(/@aos\.com$/i, "").trim();
+            const myId = (currentUser && (currentUser.dbUserId || currentUser.userId)) ? (currentUser.dbUserId || currentUser.userId) : "10000003";
+            const myEmail = (currentUser && (currentUser.username || currentUser.userId)) ? (currentUser.username || currentUser.userId) : "passenger@aos.com";
+            const myMobile = (currentUser && currentUser.mobileNo) ? currentUser.mobileNo : "N/A";
+            const defaultAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(cleanName)}&background=007AFF&color=fff`;
+            const avatarSrc = (currentUser && currentUser.photoUrl) ? currentUser.photoUrl : defaultAvatar;
+
             mainContent.innerHTML = `
                 <div class="welcome-banner" style="background: linear-gradient(135deg, rgba(14, 165, 233, 0.15) 0%, rgba(2, 132, 199, 0.05) 100%); border: 1px solid rgba(56, 189, 248, 0.25);">
                     <div class="banner-text">
@@ -287,6 +294,52 @@ async function initDashboard() {
                         <button class="submit-btn" style="padding: 16px; font-size: 14px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 10px; background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);" onclick="window.aosNavigateTo('REGISTER CUSTOMER');">
                             <svg class="btn-svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="16" y1="11" x2="22" y2="11"/></svg> Update Passenger Registration
                         </button>
+                    </div>
+                </div>
+
+                <!-- Logged In Passenger Profile Card -->
+                <div class="user-cards-section" style="margin-top: 28px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                        <h3 style="font-size: 15px; font-weight: 700; color: var(--text-main); margin: 0; text-transform: uppercase; letter-spacing: 0.5px;">My Customer / Passenger Account</h3>
+                    </div>
+                    <div class="users-grid" style="display: grid; grid-template-columns: minmax(300px, 480px);">
+                        <div class="user-glass-card my-profile-card">
+                            <div class="user-card-header">
+                                <div class="user-avatar-container">
+                                    <img src="${avatarSrc}" 
+                                         alt="${cleanName}" 
+                                         class="user-avatar-circle"
+                                         onerror="this.src='${defaultAvatar}'">
+                                    <span class="status-badge-dot active" title="Active Customer"></span>
+                                </div>
+                                <div class="user-name-role">
+                                    <h4>${cleanName} (You)</h4>
+                                    <span class="user-role-badge" style="background: rgba(14, 165, 233, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); font-weight: 700;">PASSENGER</span>
+                                </div>
+                            </div>
+                            <div class="user-card-details">
+                                <div class="detail-field">
+                                    <span class="detail-label">Passenger ID</span>
+                                    <span class="detail-value">#${myId}</span>
+                                </div>
+                                <div class="detail-field">
+                                    <span class="detail-label">Username / Email</span>
+                                    <span class="detail-value" title="${myEmail}">${myEmail}</span>
+                                </div>
+                                <div class="detail-field">
+                                    <span class="detail-label">Mobile Number</span>
+                                    <span class="detail-value">${myMobile}</span>
+                                </div>
+                                <div class="detail-field">
+                                    <span class="detail-label">Membership Tier</span>
+                                    <span class="detail-value" style="color: #38bdf8; font-weight: 700;">VIP Platinum (15% Flight Discount)</span>
+                                </div>
+                                <div class="detail-field">
+                                    <span class="detail-label">Account Status</span>
+                                    <span class="detail-value" style="color: #34C759; font-weight: 700;">Active Customer</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             `;
