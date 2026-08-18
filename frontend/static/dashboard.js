@@ -313,7 +313,7 @@ async function initDashboard() {
                                     <span class="status-badge-dot active" title="Active Customer"></span>
                                 </div>
                                 <div class="user-name-role">
-                                    <h4>${cleanName} (You)</h4>
+                                    <h4>${cleanName}</h4>
                                     <span class="user-role-badge" style="background: rgba(14, 165, 233, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); font-weight: 700;">PASSENGER</span>
                                 </div>
                             </div>
