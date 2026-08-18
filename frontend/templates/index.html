@@ -31,10 +31,12 @@
 
         <div id="loginView" class="panel-view">
           <div class="form-scroll">
-            <div id="loginTabs" class="tabs" style="display: flex; gap: 6px; flex-wrap: wrap;">
-              <button id="mobileTab" class="tab active" type="button" style="flex: 1; min-width: 130px;">Mobile &amp; OTP</button>
-              <button id="userTab" class="tab" type="button" style="flex: 1; min-width: 140px;">Username &amp; Password</button>
-              <button id="topRegisterPassengerBtn" class="tab" type="button" style="flex: 1; min-width: 150px; background: linear-gradient(135deg, rgba(14, 165, 233, 0.15), rgba(2, 132, 199, 0.25)); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8; font-weight: 700;">+ Register Customer</button>
+            <div id="loginTabs" class="tabs">
+              <button id="mobileTab" class="tab active" type="button">Mobile &amp; OTP</button>
+              <button id="userTab" class="tab" type="button">Username &amp; Password</button>
+            </div>
+            <div style="text-align: right; margin-top: -12px; margin-bottom: 14px;">
+              <button id="topRegisterPassengerBtn" type="button" style="background: none; border: none; color: #38bdf8; font-size: 12.5px; font-weight: 600; cursor: pointer; text-decoration: underline; padding: 0;">+ New Customer? Register Here</button>
             </div>
 
             <form id="mobileForm" class="form">

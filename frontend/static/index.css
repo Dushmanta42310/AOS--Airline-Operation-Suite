@@ -228,9 +228,27 @@ label {
   width: 100%;
   border: none;
   outline: none;
-  background: transparent;
+  background: transparent !important;
+  background-color: transparent !important;
   font-size: 14.5px;
-  color: #F8FAFC;
+  color: #F8FAFC !important;
+}
+
+/* Eliminate white background on browser autofill */
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus, 
+input:-webkit-autofill:active,
+.input-wrap input:-webkit-autofill,
+.input-wrap input:-webkit-autofill:hover, 
+.input-wrap input:-webkit-autofill:focus, 
+.input-wrap input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #111827 inset !important;
+  -webkit-text-fill-color: #F8FAFC !important;
+  caret-color: #F8FAFC !important;
+  transition: background-color 5000s ease-in-out 0s;
+  background-color: transparent !important;
+  color: #F8FAFC !important;
 }
 
 .input-wrap input::placeholder {
