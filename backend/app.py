@@ -640,13 +640,11 @@ def me():
             "CREATE CITY",
             "CREATE AIRPORT",
             "CREATE FLIGHT",
-            "REGISTER CUSTOMER",
             "CREATE USER",
             "ASSIGN ROLE TO USER",
             "CREATE MENU",
             "ASSIGN ROLE TO MENU",
             "CREATE FLIGHT COMPANY",
-            "SEAT BOOKING",
             "CREATE DYNAMIC PRICE"
         ]
 
@@ -655,21 +653,12 @@ def me():
             "SEAT BOOKING"
         ]
 
+        # Only use default if the database returned zero mapped menus
         if not menus:
-            if user_role in ["PASSENGER", "CUSTOMER", "USER"]:
+            if user_role in ["PASSENGER", "CUSTOMER"]:
                 menus = default_passenger_menus
             else:
                 menus = default_admin_menus
-        else:
-            if user_role == "ADMIN":
-                for m in default_admin_menus:
-                    if m not in menus:
-                        menus.append(m)
-            elif user_role in ["PASSENGER", "CUSTOMER"]:
-                # Ensure passenger only has access to customer passenger menus
-                menus = [m for m in menus if m in ["REGISTER CUSTOMER", "SEAT BOOKING"]]
-                if not menus:
-                    menus = default_passenger_menus
 
         full_name = session.get("full_name") or str(user_id).split('@')[0].replace('.', ' ').replace('_', ' ').title()
         photo_url = f"/api/passport-photo?id={db_userid or 10000001}"
