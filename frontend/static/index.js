@@ -318,3 +318,115 @@ if (modalOtpForm) {
     }
   });
 }
+
+// ==========================================
+// PASSENGER REGISTRATION MODAL LOGIC
+// ==========================================
+const passengerRegisterModal = document.getElementById("passengerRegisterModal");
+const openPassengerRegisterModalBtn = document.getElementById("openPassengerRegisterModalBtn");
+const closePassengerRegisterModalBtn = document.getElementById("closePassengerRegisterModalBtn");
+const passengerRegisterForm = document.getElementById("passengerRegisterForm");
+const passengerRegMessageBox = document.getElementById("passengerRegMessageBox");
+const passengerRegSubmitBtn = document.getElementById("passengerRegSubmitBtn");
+
+function showPassRegMessage(type, text) {
+  if (passengerRegMessageBox) {
+    passengerRegMessageBox.className = `message ${type}`;
+    passengerRegMessageBox.textContent = text;
+    passengerRegMessageBox.classList.remove("hidden");
+  }
+}
+
+if (openPassengerRegisterModalBtn && passengerRegisterModal) {
+  openPassengerRegisterModalBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    passengerRegisterModal.classList.remove("hidden");
+    if (passengerRegMessageBox) passengerRegMessageBox.classList.add("hidden");
+  });
+}
+
+if (closePassengerRegisterModalBtn && passengerRegisterModal) {
+  closePassengerRegisterModalBtn.addEventListener("click", () => {
+    passengerRegisterModal.classList.add("hidden");
+  });
+}
+
+if (passengerRegisterForm) {
+  passengerRegisterForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const passengerName = document.getElementById("regFullName").value.trim();
+    const mobileNo = document.getElementById("regMobile").value.trim();
+    const emailId = document.getElementById("regEmail").value.trim();
+    const password = document.getElementById("regPassword").value.trim();
+    const passportNo = document.getElementById("regPassport").value.trim() || "N/A";
+    const mpin = document.getElementById("regMpin").value.trim() || "1234";
+    const memberTier = document.getElementById("regMemberTier").value || "Executive Platinum";
+
+    if (!passengerName || !mobileNo || !emailId || !password) {
+      showPassRegMessage("error", "Name, mobile, email, and password are required.");
+      return;
+    }
+
+    try {
+      passengerRegSubmitBtn.disabled = true;
+      passengerRegSubmitBtn.textContent = "Registering & Logging In...";
+
+      const res = await fetch(`${API_BASE}/registered-passengers/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({
+          passengerName,
+          mobileNo,
+          emailId,
+          password,
+          mpin,
+          passportNo,
+          memberTier
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Registration failed.");
+
+      showPassRegMessage("success", "Registration successful! Logging into Passenger Portal...");
+
+      // Automatically log the new passenger in
+      try {
+        const loginRes = await fetch(`${API_BASE}/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
+          body: JSON.stringify({
+            loginMode: "U",
+            username: emailId,
+            password: password
+          })
+        });
+        if (loginRes.ok) {
+          setTimeout(() => {
+            window.location.href = "/dashboard";
+          }, 1000);
+          return;
+        }
+      } catch (loginErr) {
+        console.warn("Auto-login fallback:", loginErr);
+      }
+
+      setTimeout(() => {
+        passengerRegisterModal.classList.add("hidden");
+        switchTab("user");
+        document.getElementById("username").value = emailId;
+        document.getElementById("password").value = password;
+        showMessage("success", "Registered successfully! Click Login to enter.");
+      }, 1500);
+
+    } catch (error) {
+      showPassRegMessage("error", error.message);
+    } finally {
+      passengerRegSubmitBtn.disabled = false;
+      passengerRegSubmitBtn.textContent = "Complete Registration & Login";
+    }
+  });
+}

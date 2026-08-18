@@ -2857,6 +2857,33 @@ def register_new_passenger():
             else:
                 print(f"[WARN AIRLINE_PASSENGER_MEMBERSHIP_MAP_TBL insert]: {map_err}")
 
+        password = str(data.get("password", "pass@123") or "pass@123").strip()
+        mpin_val = int(data.get("mpin", 1234) or 1234)
+
+        # Auto-create or update login user credentials in AIRLINE_USER_MSTR_TBL with PASSENGER role
+        try:
+            cur.execute("""
+                MERGE INTO AIRLINE_USER_MSTR_TBL target
+                USING (
+                    SELECT :1 AS USER_ID, :2 AS USERNAME, :3 AS MOBILENO, :4 AS PASSWD, :5 AS MPIN FROM DUAL
+                ) source ON (target.USER_ID = source.USER_ID OR target.MOBILENO = source.MOBILENO OR LOWER(target.USERNAME) = LOWER(source.USERNAME))
+                WHEN NOT MATCHED THEN
+                    INSERT (USER_ID, USERNAME, MOBILENO, PASSWD, MPIN, IS_ACTIVE, CREATED_BY, CREATED_IP)
+                    VALUES (source.USER_ID, source.USERNAME, source.MOBILENO, source.PASSWD, source.MPIN, 'Y', 'SYSTEM', '127.0.0.1')
+            """, [new_id, email_id, mobile_int, password, mpin_val])
+
+            cur.execute("""
+                MERGE INTO AIRLINE_USER_ROLE_MAP_TBL target
+                USING (
+                    SELECT :1 AS USER_ID, (SELECT ROLE_ID FROM AIRLINE_ROLE_MSTR_TBL WHERE UPPER(ROLE_NAME) = 'PASSENGER' AND ROWNUM = 1) AS ROLE_ID FROM DUAL
+                ) source ON (target.USER_ID = source.USER_ID AND target.ROLE_ID = source.ROLE_ID)
+                WHEN NOT MATCHED THEN
+                    INSERT (USER_ID, ROLE_ID, IS_ACTIVE, CREATED_BY, CREATED_IP)
+                    VALUES (source.USER_ID, source.ROLE_ID, 'Y', 'SYSTEM', '127.0.0.1')
+            """, [new_id])
+        except Exception as u_err:
+            print(f"[WARN passenger user/role auto-link]: {u_err}")
+
         conn.commit()
 
         return jsonify({

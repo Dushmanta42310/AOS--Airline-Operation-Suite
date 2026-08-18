@@ -82,6 +82,15 @@
 
               <button type="submit" class="primary-btn">Login</button>
             </form>
+
+            <div class="passenger-reg-prompt" style="margin-top: 18px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.08); text-align: center;">
+              <span style="font-size: 13px; color: var(--text-muted, #94a3b8);">Flying with us as a passenger?</span>
+              <div style="margin-top: 8px;">
+                <button type="button" id="openPassengerRegisterModalBtn" class="secondary-btn" style="width: 100%; font-weight: 700; background: linear-gradient(135deg, rgba(14, 165, 233, 0.15), rgba(2, 132, 199, 0.25)); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="16" y1="11" x2="22" y2="11"/></svg> Register as Passenger / Customer
+                </button>
+              </div>
+            </div>
           </div>
 
       </section>
@@ -106,6 +115,69 @@
         </div>
       </section>
     </div>
+
+    <!-- Passenger Registration Modal Overlay -->
+    <div id="passengerRegisterModal" class="modal-overlay hidden">
+      <div class="modal-card" style="max-width: 480px;">
+        <div class="modal-header">
+          <h2>Passenger Registration <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle;"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="16" y1="11" x2="22" y2="11"/></svg></h2>
+          <button id="closePassengerRegisterModalBtn" class="close-btn" type="button">&times;</button>
+        </div>
+
+        <div id="passengerRegMessageBox" class="message hidden"></div>
+
+        <form id="passengerRegisterForm" class="form" style="max-height: 70vh; overflow-y: auto; padding-right: 4px;">
+          <label for="regFullName">Full Name *</label>
+          <div class="input-wrap">
+            <span class="icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
+            <input type="text" id="regFullName" placeholder="e.g. Rajesh Kumar" required />
+          </div>
+
+          <label for="regMobile">Mobile Number *</label>
+          <div class="input-wrap">
+            <span class="icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg></span>
+            <input type="text" id="regMobile" maxlength="10" placeholder="10-digit mobile number" required />
+          </div>
+
+          <label for="regEmail">Email Address (Login Username) *</label>
+          <div class="input-wrap">
+            <span class="icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></span>
+            <input type="email" id="regEmail" placeholder="e.g. rajesh.k@example.com" required />
+          </div>
+
+          <label for="regPassword">Login Password *</label>
+          <div class="input-wrap">
+            <span class="icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
+            <input type="password" id="regPassword" placeholder="Create password" required />
+          </div>
+
+          <label for="regPassport">Passport Number (Optional)</label>
+          <div class="input-wrap">
+            <span class="icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v2z"/></svg></span>
+            <input type="text" id="regPassport" placeholder="e.g. L7712093" />
+          </div>
+
+          <label for="regMpin">4-Digit MPIN</label>
+          <div class="input-wrap">
+            <span class="icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></span>
+            <input type="password" id="regMpin" maxlength="4" placeholder="1234" value="1234" />
+          </div>
+
+          <label for="regMemberTier">Membership Tier</label>
+          <div class="input-wrap">
+            <select id="regMemberTier" style="width: 100%; padding: 10px 14px; border-radius: 8px; background: rgba(255,255,255,0.05); color: #fff; border: 1px solid rgba(255,255,255,0.15);">
+              <option value="Executive Platinum" selected style="background: #1e293b; color: #fff;">Executive Platinum (15% Discount)</option>
+              <option value="Gold Elite" style="background: #1e293b; color: #fff;">Gold Elite (10% Discount)</option>
+              <option value="Silver" style="background: #1e293b; color: #fff;">Silver (5% Discount)</option>
+              <option value="Standard Passenger" style="background: #1e293b; color: #fff;">Standard Passenger</option>
+            </select>
+          </div>
+
+          <button type="submit" id="passengerRegSubmitBtn" class="primary-btn" style="margin-top: 14px; background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);">Complete Registration &amp; Login</button>
+        </form>
+      </div>
+    </div>
+
     <!-- Change Password Modal Overlay -->
     <div id="changePasswordModal" class="modal-overlay hidden">
       <div class="modal-card">
