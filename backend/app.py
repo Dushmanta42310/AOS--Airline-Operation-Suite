@@ -590,6 +590,36 @@ def me():
             if profile_row:
                 (db_userid, db_username, mobile_no, passport_img, is_active, role) = profile_row
                 session["role"] = (role or "ADMIN").strip()
+            else:
+                # Direct lookup in AIRLINE_USER_MSTR_TBL
+                cur.execute("""
+                    SELECT u.USER_ID, u.USERNAME, u.MOBILENO, u.PASSPORT_IMG, u.IS_ACTIVE, NVL(r.ROLE_NAME, 'PASSENGER')
+                    FROM AIRLINE_USER_MSTR_TBL u
+                    LEFT JOIN AIRLINE_USER_ROLE_MAP_TBL urm ON u.USER_ID = urm.USER_ID
+                    LEFT JOIN AIRLINE_ROLE_MSTR_TBL r ON urm.ROLE_ID = r.ROLE_ID
+                    WHERE LOWER(u.USERNAME) = LOWER(:1) OR LOWER(u.USERNAME) LIKE LOWER(:2) OR TO_CHAR(u.MOBILENO) = :3
+                """, [str(user_id), f"{str(user_id)}@%", str(user_id)])
+                u_row = cur.fetchone()
+                if u_row:
+                    (db_userid, db_username, mobile_no, passport_img, is_active, role) = u_row
+                    session["role"] = (role or "PASSENGER").strip()
+                else:
+                    # Direct lookup in AIRLINE_PASSENGERS_REGD_FORM_MSTR_TBL
+                    cur.execute("""
+                        SELECT PASSENGER_ID, EMAIL_ID, MOBILE_NO, PASSPORT_NO, IS_ACTIVE, MEMBER_TIER, PASSENGER_NAME
+                        FROM AIRLINE_PASSENGERS_REGD_FORM_MSTR_TBL
+                        WHERE LOWER(EMAIL_ID) = LOWER(:1) OR TO_CHAR(MOBILE_NO) = :2 OR LOWER(PASSENGER_NAME) LIKE LOWER(:3)
+                    """, [str(user_id), str(user_id), f"%{str(user_id).split('@')[0]}%"])
+                    p_row = cur.fetchone()
+                    if p_row:
+                        db_userid = p_row[0]
+                        db_username = p_row[1] or str(user_id)
+                        mobile_no = p_row[2] or 0
+                        is_active = p_row[4] or "Y"
+                        role = "PASSENGER"
+                        full_name = p_row[6] or str(user_id).split('@')[0].title()
+                        session["full_name"] = full_name
+                        session["role"] = "PASSENGER"
         except Exception as profile_err:
             print("[ME PROFILE FETCH WARN]", str(profile_err))
 
@@ -604,7 +634,7 @@ def me():
         except Exception as menu_err:
             print("[ME MENU FETCH WARN]", str(menu_err))
 
-        user_role = (role or session.get("role") or "ADMIN").strip().upper()
+        user_role = (role or session.get("role") or "PASSENGER").strip().upper()
 
         default_admin_menus = [
             "CREATE CITY",
@@ -641,7 +671,7 @@ def me():
                 if not menus:
                     menus = default_passenger_menus
 
-        full_name = session.get("full_name") or "Dushmantadas"
+        full_name = session.get("full_name") or str(user_id).split('@')[0].replace('.', ' ').replace('_', ' ').title()
         photo_url = f"/api/passport-photo?id={db_userid or 10000001}"
 
         response = {
@@ -650,11 +680,11 @@ def me():
             "isActive": str(is_active or "Y"),
             "loginMode": str(login_mode or "U"),
             "menus": menus,
-            "mobileNo": int(mobile_no) if (mobile_no and str(mobile_no).isdigit()) else 7008233179,
+            "mobileNo": int(mobile_no) if (mobile_no and str(mobile_no).isdigit()) else 0,
             "photoUrl": photo_url,
-            "role": str(role or "ADMIN"),
-            "userId": str(user_id or "dushmantadas@aos.com"),
-            "username": str(db_username or "dushmantadas@aos.com")
+            "role": str(user_role),
+            "userId": str(user_id),
+            "username": str(db_username or user_id)
         }
 
         print("[ME DEBUG] response =", response)

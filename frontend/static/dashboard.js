@@ -4009,6 +4009,10 @@ async function initDashboard() {
     }
 
     async function loadUserCards() {
+        if (currentUser && (currentUser.role === 'PASSENGER' || currentUser.role === 'CUSTOMER')) {
+            return;
+        }
+
         const grid = document.getElementById("usersGrid");
         if (!grid) return;
 

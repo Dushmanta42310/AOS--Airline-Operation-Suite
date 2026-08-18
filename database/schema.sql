@@ -786,16 +786,16 @@ BEGIN
                 u.MOBILENO,
                 u.PASSPORT_IMG,
                 u.IS_ACTIVE,
-                r.ROLE_NAME
+                NVL(r.ROLE_NAME, 'USER')
         FROM    AIRLINE_USER_MSTR_TBL u
         LEFT JOIN AIRLINE_USER_ROLE_MAP_TBL urm
                ON u.USER_ID = urm.USER_ID
-              AND urm.IS_ACTIVE = 'Y'
+              AND (urm.IS_ACTIVE = 'Y' OR urm.IS_ACTIVE IS NULL)
         LEFT JOIN AIRLINE_ROLE_MSTR_TBL r
                ON urm.ROLE_ID = r.ROLE_ID
-              AND r.IS_ACTIVE = 'Y'
-        WHERE   ( P_LOGIN_MODE = 'U' AND LOWER(u.USERNAME) = LOWER(P_USER_IDENTIFIER) )
-           OR   ( P_LOGIN_MODE <> 'U' AND u.MOBILENO = TO_NUMBER(P_USER_IDENTIFIER) )
+              AND (r.IS_ACTIVE = 'Y' OR r.IS_ACTIVE IS NULL)
+        WHERE   ( P_LOGIN_MODE = 'U' AND (LOWER(u.USERNAME) = LOWER(P_USER_IDENTIFIER) OR LOWER(u.USERNAME) LIKE LOWER(P_USER_IDENTIFIER || '@%') OR TO_CHAR(u.USER_ID) = P_USER_IDENTIFIER) )
+           OR   ( P_LOGIN_MODE <> 'U' AND (TO_CHAR(u.MOBILENO) = P_USER_IDENTIFIER OR TO_CHAR(u.USER_ID) = P_USER_IDENTIFIER) )
         ORDER BY u.USER_ID;
 EXCEPTION
     WHEN OTHERS THEN
