@@ -681,14 +681,26 @@ def get_dashboard_stats():
         except Exception as sp_err:
             print(f"[WARN AIRLINE_GET_DASHBOARD_STATS_USP]: {sp_err}")
 
-        # Always check database tables for live counts
+        # Count all active operational flights from Dynamic Pricing & Flights Master
         try:
-            cur.execute("SELECT COUNT(*) FROM AIRLINE_FLIGHT_MSTR_TBL WHERE IS_ACTIVE = 'Y' OR IS_ACTIVE IS NULL")
+            cur.execute("""
+                SELECT GREATEST(
+                    (SELECT COUNT(*) FROM AIRLINE_FLIGHT_DYNAMIC_PRICE_MSTR_TBL WHERE IS_ACTIVE = 'Y' OR IS_ACTIVE IS NULL),
+                    (SELECT COUNT(*) FROM AIRLINE_FLIGHT_MSTR_TBL WHERE IS_ACTIVE = 'Y' OR IS_ACTIVE IS NULL)
+                ) FROM DUAL
+            """)
             f_row = cur.fetchone()
-            if f_row and f_row[0] is not None and (int(f_row[0]) > active_flights_count or active_flights_count == 0):
+            if f_row and f_row[0] is not None:
                 active_flights_count = int(f_row[0])
         except Exception as f_err:
             print(f"[WARN count active flights]: {f_err}")
+            try:
+                cur.execute("SELECT COUNT(*) FROM AIRLINE_FLIGHT_DYNAMIC_PRICE_MSTR_TBL WHERE IS_ACTIVE = 'Y' OR IS_ACTIVE IS NULL")
+                f_row = cur.fetchone()
+                if f_row and f_row[0] is not None and int(f_row[0]) > 0:
+                    active_flights_count = int(f_row[0])
+            except Exception:
+                pass
 
         try:
             cur.execute("SELECT COUNT(*) FROM AIRLINE_USER_MSTR_TBL WHERE IS_ACTIVE = 'Y' OR IS_ACTIVE IS NULL")
