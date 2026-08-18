@@ -3981,6 +3981,279 @@ async function initDashboard() {
         };
     }
 
+    function renderMessageCenterPage() {
+        const mainContent = getMainContentEl();
+        if (!mainContent) return;
+
+        mainContent.innerHTML = `
+            <div class="welcome-banner">
+                <div class="banner-text">
+                    <h1>Operational Messaging & Broadcast Portal <svg class="btn-svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></h1>
+                    <p>Transmit instant role-targeted alerts, operational advisories, or company-wide announcements across AOS terminals.</p>
+                </div>
+            </div>
+
+            <!-- Message Compose Form -->
+            <div class="form-container macOS-card" style="margin-bottom: 28px;">
+                <h3 style="font-size: 16px; font-weight: 700; color: var(--text-main); margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                    Compose Role Broadcast
+                </h3>
+
+                <form id="sendMessageForm" class="mac-form">
+                    <div class="form-grid">
+                        <div class="input-group">
+                            <label>Target Recipient Role</label>
+                            <select id="msgTargetRoleSelect" name="targetRole" required>
+                                <option value="" disabled selected>Loading available roles...</option>
+                            </select>
+                        </div>
+
+                        <div class="input-group">
+                            <label>Priority Level</label>
+                            <select id="msgPrioritySelect" name="priority">
+                                <option value="NORMAL" selected>NORMAL - Standard Notice</option>
+                                <option value="INFO">INFO - Operational Update</option>
+                                <option value="IMPORTANT">IMPORTANT - Action Required</option>
+                                <option value="URGENT">URGENT - Immediate Safety / Gate Alert</option>
+                            </select>
+                        </div>
+
+                        <div class="input-group full-width">
+                            <label>Broadcast Title / Subject</label>
+                            <input type="text" id="msgTitleInput" name="title" placeholder="e.g., Gate Change Alert: Flight AOS-204 to Terminal 2B" required maxlength="180">
+                        </div>
+
+                        <div class="input-group full-width">
+                            <label>Message Content &amp; Instructions</label>
+                            <textarea id="msgBodyTextarea" name="body" placeholder="Type your detailed operational broadcast message here..." required rows="4" style="width: 100%; border-radius: 12px; padding: 12px 16px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.12); color: var(--text-main); font-family: inherit; font-size: 14px; resize: vertical;"></textarea>
+                        </div>
+                    </div>
+
+                    <div id="msgStatusDiv" class="form-message" style="display: none; margin-top: 14px;"></div>
+
+                    <div class="form-actions" style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 12px;">
+                        <button type="reset" class="submit-btn secondary" style="background: rgba(255, 255, 255, 0.08); color: var(--text-main); border: 1px solid rgba(255, 255, 255, 0.15);">Clear Fields</button>
+                        <button type="submit" id="msgSubmitBtn" class="submit-btn" style="min-width: 180px;">
+                            <svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                            <span>Send Broadcast</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Broadcast History & Live Transmission Log -->
+            <div class="table-container macOS-card">
+                <div class="table-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
+                    <div>
+                        <h3 style="font-size: 16px; font-weight: 700; color: var(--text-main); margin: 0;">Transmission Logs &amp; Sent Messages</h3>
+                        <p style="font-size: 12.5px; color: var(--text-muted); margin: 4px 0 0;">Review all operational messages transmitted across AOS roles.</p>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button id="refreshMsgBtn" class="submit-btn secondary" style="padding: 8px 14px; font-size: 12.5px; display: flex; align-items: center; gap: 6px;">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                            Refresh
+                        </button>
+                    </div>
+                </div>
+
+                <div class="table-scroll-wrapper" style="overflow-x: auto;">
+                    <table class="mac-table" id="messagesTable">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Sent Date &amp; Time</th>
+                                <th>Target Role</th>
+                                <th>Priority</th>
+                                <th>Subject / Title</th>
+                                <th>Message Details</th>
+                                <th>Dispatched By</th>
+                                <th style="text-align: center;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="messagesTableBody">
+                            <tr>
+                                <td colspan="8" style="text-align: center; padding: 24px; color: var(--text-muted);">
+                                    Loading broadcast logs...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+
+        const form = document.getElementById("sendMessageForm");
+        const roleSelect = document.getElementById("msgTargetRoleSelect");
+        const statusDiv = document.getElementById("msgStatusDiv");
+        const submitBtn = document.getElementById("msgSubmitBtn");
+        const tableBody = document.getElementById("messagesTableBody");
+        const refreshBtn = document.getElementById("refreshMsgBtn");
+
+        // 1. Fetch available roles
+        async function loadRolesDropdown() {
+            try {
+                const res = await fetch("/api/messages/roles", { credentials: "same-origin" });
+                if (res.ok) {
+                    const data = await res.json();
+                    const roles = data.roles || [];
+                    roleSelect.innerHTML = `<option value="ALL ROLES" selected>ALL ROLES (Global Broadcast)</option>` +
+                        roles.filter(r => r.roleName && !r.roleName.startsWith("ALL ROLES")).map(r => `<option value="${r.roleName}">${r.roleName}</option>`).join("");
+                } else {
+                    roleSelect.innerHTML = `
+                        <option value="ALL ROLES" selected>ALL ROLES (Global Broadcast)</option>
+                        <option value="PASSENGER">PASSENGER</option>
+                        <option value="OPERATOR">OPERATOR</option>
+                        <option value="GROUND STAFF">GROUND STAFF</option>
+                        <option value="CABIN CREW">CABIN CREW</option>
+                        <option value="PILOT / CAPTAIN">PILOT / CAPTAIN</option>
+                        <option value="ADMIN">ADMIN</option>
+                    `;
+                }
+            } catch (err) {
+                console.error("Failed to load message roles:", err);
+                roleSelect.innerHTML = `
+                    <option value="ALL ROLES" selected>ALL ROLES (Global Broadcast)</option>
+                    <option value="PASSENGER">PASSENGER</option>
+                    <option value="OPERATOR">OPERATOR</option>
+                    <option value="GROUND STAFF">GROUND STAFF</option>
+                    <option value="CABIN CREW">CABIN CREW</option>
+                `;
+            }
+        }
+
+        // 2. Fetch and render messages log
+        async function loadMessagesList() {
+            try {
+                tableBody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 24px; color: var(--text-muted);">Fetching messages...</td></tr>`;
+                const res = await fetch("/api/messages/list", { credentials: "same-origin" });
+                if (res.ok) {
+                    const data = await res.json();
+                    const msgs = data.messages || [];
+                    if (msgs.length === 0) {
+                        tableBody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 28px; color: var(--text-muted);">No broadcast messages transmitted yet.</td></tr>`;
+                        return;
+                    }
+
+                    tableBody.innerHTML = msgs.map(m => {
+                        let prioColor = "#38BDF8";
+                        let prioBg = "rgba(56, 189, 248, 0.15)";
+                        const p = (m.priority || "NORMAL").toUpperCase();
+                        if (p === "URGENT") { prioColor = "#EF4444"; prioBg = "rgba(239, 68, 68, 0.18)"; }
+                        else if (p === "IMPORTANT") { prioColor = "#F59E0B"; prioBg = "rgba(245, 158, 11, 0.18)"; }
+                        else if (p === "INFO") { prioColor = "#38BDF8"; prioBg = "rgba(56, 189, 248, 0.15)"; }
+                        else { prioColor = "#10B981"; prioBg = "rgba(16, 185, 129, 0.15)"; }
+
+                        const targetRole = m.targetRole || "ALL ROLES";
+                        const isAll = targetRole.toUpperCase().includes("ALL");
+
+                        return `
+                            <tr>
+                                <td style="font-weight: 700; color: var(--text-main);">#${m.messageId}</td>
+                                <td style="color: var(--text-muted); font-size: 13px; white-space: nowrap;">${m.sentTime || 'Just now'}</td>
+                                <td>
+                                    <span class="user-role-badge" style="background: ${isAll ? 'rgba(168, 85, 247, 0.15)' : 'rgba(56, 189, 248, 0.15)'}; color: ${isAll ? '#C084FC' : '#38BDF8'}; border: 1px solid rgba(255, 255, 255, 0.1); font-weight: 700;">
+                                        ${targetRole}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span style="display: inline-block; padding: 3px 8px; border-radius: 6px; font-size: 11.5px; font-weight: 700; background: ${prioBg}; color: ${prioColor};">
+                                        ${p}
+                                    </span>
+                                </td>
+                                <td style="font-weight: 600; color: var(--text-main);">${m.title || 'No Title'}</td>
+                                <td style="color: var(--text-muted); max-width: 320px; word-break: break-word; font-size: 13px;">${m.body || ''}</td>
+                                <td style="font-size: 13px; color: var(--text-main); font-weight: 500;">${m.sender || m.createdBy || 'ADMIN'}</td>
+                                <td style="text-align: center;">
+                                    <button class="delete-btn" onclick="window._aos_deleteMsg(${m.messageId})" title="Delete Message" style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #EF4444; border-radius: 6px; padding: 5px 10px; cursor: pointer; font-size: 12px; font-weight: 600;">
+                                        Delete
+                                    </button>
+                                </td>
+                            </tr>
+                        `;
+                    }).join("");
+                } else {
+                    tableBody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 24px; color: #EF4444;">Failed to load messages (HTTP ${res.status}).</td></tr>`;
+                }
+            } catch (err) {
+                console.error("Error loading messages list:", err);
+                tableBody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 24px; color: #EF4444;">Connection error loading messages.</td></tr>`;
+            }
+        }
+
+        // Global delete handler
+        window._aos_deleteMsg = async function(id) {
+            if (!confirm(`Are you sure you want to remove message #${id}?`)) return;
+            try {
+                const res = await fetch(`/api/messages/delete/${id}`, { method: "POST", credentials: "same-origin" });
+                const result = await res.json();
+                if (res.ok) {
+                    loadMessagesList();
+                } else {
+                    alert(result.message || "Failed to delete message");
+                }
+            } catch (err) {
+                console.error("Delete message error:", err);
+                alert("Server error deleting message.");
+            }
+        };
+
+        if (refreshBtn) {
+            refreshBtn.onclick = () => loadMessagesList();
+        }
+
+        // Form Submission
+        if (form) {
+            form.onsubmit = async (e) => {
+                e.preventDefault();
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = `<span class="spinner" style="display:inline-block; width:14px; height:14px; border:2px solid #fff; border-top-color:transparent; border-radius:50%; animation: spin 0.6s linear infinite; margin-right:6px;"></span> Transmitting...`;
+
+                const payload = {
+                    targetRole: roleSelect.value || "ALL ROLES",
+                    priority: document.getElementById("msgPrioritySelect").value || "NORMAL",
+                    title: document.getElementById("msgTitleInput").value.trim(),
+                    body: document.getElementById("msgBodyTextarea").value.trim()
+                };
+
+                try {
+                    const res = await fetch("/api/messages/send", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        credentials: "same-origin",
+                        body: JSON.stringify(payload)
+                    });
+
+                    const result = await res.json();
+                    if (res.ok) {
+                        statusDiv.innerHTML = `<svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> ` + (result.message || "Broadcast transmitted successfully!");
+                        statusDiv.className = "form-message success";
+                        statusDiv.style.display = "block";
+                        form.reset();
+                        loadRolesDropdown();
+                        loadMessagesList();
+                        setTimeout(() => { statusDiv.style.display = "none"; }, 4500);
+                    } else {
+                        statusDiv.innerHTML = `<svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> ` + (result.message || "Failed to transmit message.");
+                        statusDiv.className = "form-message error";
+                        statusDiv.style.display = "block";
+                    }
+                } catch (err) {
+                    console.error("Send message error:", err);
+                    statusDiv.innerHTML = "&times; Server or network connection error.";
+                    statusDiv.className = "form-message error";
+                    statusDiv.style.display = "block";
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = `<svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> <span>Send Broadcast</span>`;
+                }
+            };
+        }
+
+        loadRolesDropdown();
+        loadMessagesList();
+    }
+
     async function loadUserCards() {
         if (currentUser && (currentUser.role === 'PASSENGER' || currentUser.role === 'CUSTOMER')) {
             return;
@@ -4169,6 +4442,9 @@ async function initDashboard() {
         else if (label.includes("customer") || label.includes("passenger")) {
             renderPassengerRegistrationForm();
         }
+        else if (label.includes("message") || label.includes("broadcast") || label.includes("announcement")) {
+            renderMessageCenterPage();
+        }
         else {
             console.warn("Unhandled menu click:", label);
             renderPlaceholderPage(menuName);
@@ -4247,6 +4523,7 @@ async function initDashboard() {
             else if (u.includes("SEAT") || u.includes("BOOKING")) icon = `<svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v2z"/><line x1="13" y1="5" x2="13" y2="19" stroke-dasharray="2 2"/></svg>`;
             else if (u.includes("ASSIGN") && u.includes("MENU")) icon = `<svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`;
             else if (u.includes("ASSIGN") && u.includes("ROLE")) icon = `<svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>`;
+            else if (u.includes("MESSAGE") || u.includes("BROADCAST")) icon = `<svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>`;
             else if (u.includes("MENU")) icon = `<svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>`;
 
             const li = document.createElement("li");

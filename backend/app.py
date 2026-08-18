@@ -3447,6 +3447,215 @@ def register_passenger():
             conn.close()
 
 
+# =============================================================================
+# MESSAGE / BROADCAST / NOTIFICATION SYSTEM ENDPOINTS
+# =============================================================================
+@app.route("/api/messages/roles", methods=["GET"])
+def get_message_roles():
+    conn = None
+    cur = None
+    try:
+        conn = get_conn()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT ROLE_ID, ROLE_NAME 
+            FROM AIRLINE_ROLE_MSTR_TBL 
+            WHERE IS_ACTIVE = 'Y' 
+            ORDER BY ROLE_NAME
+        """)
+        rows = cur.fetchall()
+        roles = [{"roleId": 0, "roleName": "ALL ROLES (Global Broadcast)"}]
+        for r in rows:
+            roles.append({"roleId": r[0], "roleName": r[1]})
+        return jsonify({"roles": roles}), 200
+    except Exception as e:
+        print("[GET MESSAGE ROLES ERROR]", str(e))
+        return jsonify({"roles": [
+            {"roleId": 0, "roleName": "ALL ROLES (Global Broadcast)"},
+            {"roleId": 1, "roleName": "ADMIN"},
+            {"roleId": 2, "roleName": "OPERATOR"},
+            {"roleId": 3, "roleName": "PASSENGER"},
+            {"roleId": 4, "roleName": "GROUND STAFF"},
+            {"roleId": 5, "roleName": "CABIN CREW"},
+            {"roleId": 6, "roleName": "MANAGER"},
+            {"roleId": 7, "roleName": "PILOT / CAPTAIN"}
+        ]}), 200
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
+
+@app.route("/api/messages/send", methods=["POST"])
+def send_message():
+    conn = None
+    cur = None
+    try:
+        data = request.get_json() or {}
+        target_role = (data.get("targetRole") or data.get("targetRoleName") or "ALL ROLES").strip()
+        title = (data.get("title") or data.get("messageTitle") or "").strip()
+        body = (data.get("body") or data.get("messageBody") or "").strip()
+        priority = (data.get("priority") or "NORMAL").strip().upper()
+
+        if not title:
+            return jsonify({"message": "Message title/subject is required."}), 400
+        if not body:
+            return jsonify({"message": "Message content body is required."}), 400
+
+        user_id = session.get("user_id") or "ADMIN"
+        full_name = session.get("full_name") or str(user_id)
+        db_user_id = 10000001
+        created_ip = request.remote_addr or "127.0.0.1"
+
+        conn = get_conn()
+        cur = conn.cursor()
+
+        # Try stored procedure first
+        try:
+            p_data = cur.var(oracledb.STRING)
+            cur.callproc(
+                "AIRLINE_MESSAGE_SEND_USP",
+                [
+                    int(db_user_id),
+                    str(full_name),
+                    str(target_role),
+                    str(title),
+                    str(body),
+                    str(priority),
+                    str(full_name),
+                    str(created_ip),
+                    p_data
+                ]
+            )
+            result_msg = p_data.getvalue() or "Message sent successfully."
+            return jsonify({"message": result_msg}), 200
+        except Exception as proc_err:
+            print("[MESSAGE SEND USP WARN - RUNNING DIRECT INSERT]:", str(proc_err))
+            # Fallback direct insert
+            cur.execute("""
+                INSERT INTO AIRLINE_MESSAGE_MSTR_TBL (
+                    MESSAGE_ID,
+                    SENDER_USER_ID,
+                    SENDER_USERNAME,
+                    TARGET_ROLE_NAME,
+                    MESSAGE_TITLE,
+                    MESSAGE_BODY,
+                    PRIORITY,
+                    IS_ACTIVE,
+                    CREATED_TIME,
+                    CREATED_BY,
+                    CREATED_IP
+                ) VALUES (
+                    AIRLINE_MESSAGE_MSTR_SEQ.NEXTVAL,
+                    :1, :2, :3, :4, :5, :6, 'Y', CURRENT_TIMESTAMP, :7, :8
+                )
+            """, [int(db_user_id), str(full_name), str(target_role), str(title), str(body), str(priority), str(full_name), str(created_ip)])
+            conn.commit()
+            return jsonify({"message": "Broadcast message sent successfully."}), 200
+
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        print("[MESSAGE SEND ERROR]:", str(e))
+        return jsonify({"message": f"Failed to send message: {str(e)}"}), 500
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
+
+@app.route("/api/messages/list", methods=["GET"])
+def list_messages():
+    conn = None
+    cur = None
+    try:
+        user_role = (session.get("role") or "ADMIN").strip().upper()
+        conn = get_conn()
+        cur = conn.cursor()
+
+        messages = []
+        try:
+            p_record = cur.var(oracledb.CURSOR)
+            cur.callproc("AIRLINE_MESSAGE_GET_USP", [user_role, p_record])
+            rows = p_record.getvalue().fetchall()
+            for r in rows:
+                messages.append({
+                    "messageId": r[0],
+                    "sender": r[1] or "Operations Admin",
+                    "targetRole": r[2] or "ALL ROLES",
+                    "title": r[3],
+                    "body": r[4],
+                    "priority": r[5] or "NORMAL",
+                    "sentTime": str(r[6]),
+                    "createdBy": r[7] or "ADMIN"
+                })
+        except Exception as proc_err:
+            print("[MESSAGE GET USP WARN - DIRECT QUERY]:", str(proc_err))
+            cur.execute("""
+                SELECT 
+                    MESSAGE_ID,
+                    SENDER_USERNAME,
+                    TARGET_ROLE_NAME,
+                    MESSAGE_TITLE,
+                    MESSAGE_BODY,
+                    PRIORITY,
+                    TO_CHAR(CREATED_TIME, 'DD-MON-YYYY HH24:MI:SS'),
+                    CREATED_BY
+                FROM AIRLINE_MESSAGE_MSTR_TBL
+                WHERE IS_ACTIVE = 'Y'
+                ORDER BY MESSAGE_ID DESC
+            """)
+            rows = cur.fetchall()
+            for r in rows:
+                messages.append({
+                    "messageId": r[0],
+                    "sender": r[1] or "Operations Admin",
+                    "targetRole": r[2] or "ALL ROLES",
+                    "title": r[3],
+                    "body": r[4],
+                    "priority": r[5] or "NORMAL",
+                    "sentTime": str(r[6]),
+                    "createdBy": r[7] or "ADMIN"
+                })
+
+        return jsonify({"messages": messages}), 200
+    except Exception as e:
+        print("[MESSAGE LIST ERROR]:", str(e))
+        return jsonify({"messages": []}), 200
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
+
+@app.route("/api/messages/delete/<int:message_id>", methods=["POST", "DELETE"])
+def delete_message(message_id):
+    conn = None
+    cur = None
+    try:
+        conn = get_conn()
+        cur = conn.cursor()
+        cur.execute("""
+            UPDATE AIRLINE_MESSAGE_MSTR_TBL 
+            SET IS_ACTIVE = 'N' 
+            WHERE MESSAGE_ID = :1
+        """, [message_id])
+        conn.commit()
+        return jsonify({"message": f"Message #{message_id} removed successfully."}), 200
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return jsonify({"message": f"Error deleting message: {str(e)}"}), 500
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
+
 if __name__ == "__main__":
     import sys
     use_prod = "--prod" in sys.argv or os.environ.get("FLASK_ENV") == "production"
