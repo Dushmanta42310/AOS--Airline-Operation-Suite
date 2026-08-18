@@ -623,18 +623,34 @@ def me():
         except Exception as profile_err:
             print("[ME PROFILE FETCH WARN]", str(profile_err))
 
+        user_role = (role or session.get("role") or "PASSENGER").strip().upper()
+
         menus = []
         try:
             if cur and db_username:
-                ref_cursor = cur.var(oracledb.CURSOR)
-                cur.callproc("AIRLINE_GET_MENU_USP", [db_username, ref_cursor])
-                menu_cur = ref_cursor.getvalue()
-                if menu_cur:
-                    menus = [r[0].strip() for r in menu_cur.fetchall() if r[0]]
+                # Query menus strictly mapped to the current role with active status
+                cur.execute("""
+                    SELECT DISTINCT MM.MENU_NAME 
+                    FROM AIRLINE_USER_MSTR_TBL U
+                    JOIN AIRLINE_USER_ROLE_MAP_TBL UR ON U.USER_ID = UR.USER_ID AND (UR.IS_ACTIVE = 'Y' OR UR.IS_ACTIVE IS NULL)
+                    JOIN AIRLINE_ROLE_MSTR_TBL R ON UR.ROLE_ID = R.ROLE_ID AND (R.IS_ACTIVE = 'Y' OR R.IS_ACTIVE IS NULL)
+                    JOIN AIRLINE_ROLE_MENU_MAP_TBL RM ON R.ROLE_ID = RM.ROLE_ID AND (RM.IS_ACTIVE = 'Y' OR RM.IS_ACTIVE IS NULL)
+                    JOIN AIRLINE_MENU_MSTR_TBL MM ON RM.MENU_ID = MM.MENU_ID AND (MM.IS_ACTIVE = 'Y' OR MM.IS_ACTIVE IS NULL)
+                    WHERE (LOWER(U.USERNAME) = LOWER(:1) OR TO_CHAR(U.MOBILENO) = :2)
+                      AND UPPER(R.ROLE_NAME) = UPPER(:3)
+                    ORDER BY MM.MENU_NAME
+                """, [str(db_username), str(db_username), str(user_role)])
+                rows = cur.fetchall()
+                if rows:
+                    menus = [r[0].strip() for r in rows if r[0]]
+                else:
+                    ref_cursor = cur.var(oracledb.CURSOR)
+                    cur.callproc("AIRLINE_GET_MENU_USP", [db_username, ref_cursor])
+                    menu_cur = ref_cursor.getvalue()
+                    if menu_cur:
+                        menus = [r[0].strip() for r in menu_cur.fetchall() if r[0]]
         except Exception as menu_err:
             print("[ME MENU FETCH WARN]", str(menu_err))
-
-        user_role = (role or session.get("role") or "PASSENGER").strip().upper()
 
         default_admin_menus = [
             "CREATE CITY",
