@@ -555,6 +555,8 @@ def me():
         except Exception as menu_err:
             print("[ME MENU FETCH WARN]", str(menu_err))
 
+        user_role = (role or session.get("role") or "ADMIN").strip().upper()
+
         default_admin_menus = [
             "CREATE CITY",
             "CREATE AIRPORT",
@@ -569,12 +571,26 @@ def me():
             "CREATE DYNAMIC PRICE"
         ]
 
+        default_passenger_menus = [
+            "REGISTER CUSTOMER",
+            "SEAT BOOKING"
+        ]
+
         if not menus:
-            menus = default_admin_menus
+            if user_role in ["PASSENGER", "CUSTOMER", "USER"]:
+                menus = default_passenger_menus
+            else:
+                menus = default_admin_menus
         else:
-            for m in default_admin_menus:
-                if m not in menus:
-                    menus.append(m)
+            if user_role == "ADMIN":
+                for m in default_admin_menus:
+                    if m not in menus:
+                        menus.append(m)
+            elif user_role in ["PASSENGER", "CUSTOMER"]:
+                # Ensure passenger only has access to customer passenger menus
+                menus = [m for m in menus if m in ["REGISTER CUSTOMER", "SEAT BOOKING"]]
+                if not menus:
+                    menus = default_passenger_menus
 
         full_name = session.get("full_name") or "Dushmantadas"
         photo_url = f"/api/passport-photo?id={db_userid or 10000001}"

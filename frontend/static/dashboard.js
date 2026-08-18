@@ -30,7 +30,7 @@ if (document.readyState === "loading") {
 
 // Global navigation dispatcher available instantly on script load
 window.aosPendingMenu = null;
-window.aosNavigateTo = function(menuName, element) {
+window.aosNavigateTo = function (menuName, element) {
     console.log("[AOS NAV] Navigating to:", menuName);
     const li = element ? (element.closest ? element.closest('li') : null) : null;
     if (window._aos_navigateToMenu) {
@@ -222,11 +222,82 @@ async function initDashboard() {
 
     function renderHomeDashboard() {
         const mainContent = getMainContentEl();
-        if (mainContent && originalContent) {
-            mainContent.innerHTML = originalContent;
+        if (!mainContent) return;
+
+        const isPassenger = currentUser && (currentUser.role === 'PASSENGER' || currentUser.role === 'CUSTOMER');
+
+        if (isPassenger) {
+            mainContent.innerHTML = `
+                <div class="welcome-banner" style="background: linear-gradient(135deg, rgba(14, 165, 233, 0.15) 0%, rgba(2, 132, 199, 0.05) 100%); border: 1px solid rgba(56, 189, 248, 0.25);">
+                    <div class="banner-text">
+                        <h1>Passenger Flight & Reservations Portal <svg class="btn-svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.8 19.2L16 11l3.5-3.5C20.1 6.9 20 5 18.6 3.6c-1.4-1.4-3.3-1.5-3.9-.9L11.2 6.2 3 4.4l-1 2 5.5 3.5L4 13.4l-2.5-.5-1 1 3.5 2.5 2.5 3.5 1-1-.5-2.5 3.5-3.5 3.5 5.5 2-1z"/></svg></h1>
+                        <p>Search live flight schedules, select executive aircraft seats, and manage your passenger profile.</p>
+                    </div>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card" style="cursor: pointer;" onclick="window.aosNavigateTo('SEAT BOOKING');">
+                        <div class="icon-circle blue">
+                            <svg class="stat-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v2z"/></svg>
+                        </div>
+                        <div class="stat-info">
+                            <h3>Available Flights</h3>
+                            <h2 id="activeFlightsCount">10</h2>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="icon-circle green">
+                            <svg class="stat-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                        </div>
+                        <div class="stat-info">
+                            <h3>Loyalty Tier</h3>
+                            <h2>VIP Platinum</h2>
+                        </div>
+                    </div>
+
+                    <div class="stat-card" style="cursor: pointer;" onclick="window.aosNavigateTo('REGISTER CUSTOMER');">
+                        <div class="icon-circle orange">
+                            <svg class="stat-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+                        </div>
+                        <div class="stat-info">
+                            <h3>My Profile</h3>
+                            <h2>Active</h2>
+                        </div>
+                    </div>
+
+                    <div class="stat-card" style="cursor: pointer;" onclick="document.getElementById('chatbotFab')?.click();">
+                        <div class="icon-circle blue">
+                            <svg class="stat-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                        </div>
+                        <div class="stat-info">
+                            <h3>AI Assistance</h3>
+                            <h2>24/7 Live</h2>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Customer Quick Actions -->
+                <div class="macOS-card" style="margin-top: 24px; padding: 24px;">
+                    <h3 style="font-size: 16px; font-weight: 700; color: var(--text-main); margin-bottom: 14px;">Customer Flight Services</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px;">
+                        <button class="submit-btn" style="padding: 16px; font-size: 14px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 10px;" onclick="window.aosNavigateTo('SEAT BOOKING');">
+                            <svg class="btn-svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v2z"/></svg> Book Aircraft Seats & Tickets
+                        </button>
+                        <button class="submit-btn" style="padding: 16px; font-size: 14px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 10px; background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);" onclick="window.aosNavigateTo('REGISTER CUSTOMER');">
+                            <svg class="btn-svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="16" y1="11" x2="22" y2="11"/></svg> Update Passenger Registration
+                        </button>
+                    </div>
+                </div>
+            `;
+            loadDashboardStats();
+        } else {
+            if (originalContent) {
+                mainContent.innerHTML = originalContent;
+            }
+            loadDashboardStats();
+            loadUserCards();
         }
-        loadDashboardStats();
-        loadUserCards();
     }
 
 
@@ -3216,7 +3287,7 @@ async function initDashboard() {
                             } else {
                                 alert(" Booking failed for selected seats.");
                                 paidSubmitBtn.disabled = false;
-paidSubmitBtn.innerHTML = `Paid & Generate Ticket PDF <svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v2z"/></svg>`;
+                                paidSubmitBtn.innerHTML = `Paid & Generate Ticket PDF <svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v2z"/></svg>`;
                             }
                         });
                     }
@@ -3318,7 +3389,7 @@ paidSubmitBtn.innerHTML = `Paid & Generate Ticket PDF <svg class="btn-svg" viewB
                     const ap = match[3] ? match[3].toUpperCase() : null;
                     if (ap === 'PM' && h < 12) h += 12;
                     if (ap === 'AM' && h === 12) h = 0;
-                    
+
                     const d = new Date();
                     d.setHours(h, m, 0);
                     d.setMinutes(d.getMinutes() - 45);
@@ -3513,11 +3584,11 @@ paidSubmitBtn.innerHTML = `Paid & Generate Ticket PDF <svg class="btn-svg" viewB
                 if (btn) btn.textContent = "⏳ Downloading PDF...";
 
                 const opt = {
-                    margin:       [0.15, 0.15, 0.15, 0.15],
-                    filename:     `BoardingPass_${t.pnrNo || 'TICKET'}.pdf`,
-                    image:        { type: 'jpeg', quality: 0.92 },
-                    html2canvas:  { scale: 1.2, useCORS: true, logging: false, allowTaint: true },
-                    jsPDF:        { unit: 'in', format: 'letter', orientation: 'landscape' }
+                    margin: [0.15, 0.15, 0.15, 0.15],
+                    filename: `BoardingPass_${t.pnrNo || 'TICKET'}.pdf`,
+                    image: { type: 'jpeg', quality: 0.92 },
+                    html2canvas: { scale: 1.2, useCORS: true, logging: false, allowTaint: true },
+                    jsPDF: { unit: 'in', format: 'letter', orientation: 'landscape' }
                 };
 
                 html2pdf().set(opt).from(ticketCard).save().then(() => {
@@ -3555,10 +3626,10 @@ paidSubmitBtn.innerHTML = `Paid & Generate Ticket PDF <svg class="btn-svg" viewB
         const mainContent = getMainContentEl();
         if (!mainContent) return;
 
-    const todayStr = new Date().toISOString().split('T')[0];
-    const nowStr = new Date().toISOString().slice(0, 16);
+        const todayStr = new Date().toISOString().split('T')[0];
+        const nowStr = new Date().toISOString().slice(0, 16);
 
-    mainContent.innerHTML = `
+        mainContent.innerHTML = `
             <div class="welcome-banner">
                 <h1>Flight Dynamic Pricing Management <svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></h1>
                 <p>Configure dynamic pricing rules, seat capacities, departure & arrival times using procedure <code>AIRLINE_FLIGHT_DYNAMIC_PRICE_CREATE_USP</code>.</p>
@@ -3666,53 +3737,53 @@ paidSubmitBtn.innerHTML = `Paid & Generate Ticket PDF <svg class="btn-svg" viewB
             </div>
         `;
 
-    const form = document.getElementById("createDynamicPriceForm");
-    const flightSelect = document.getElementById("dpFlightSelect");
-    const sourceSelect = document.getElementById("dpSourceAirportSelect");
-    const destSelect = document.getElementById("dpDestAirportSelect");
-    const flightDateInput = document.getElementById("dpFlightDate");
-    const depTimeInput = document.getElementById("dpDepartureTime");
-    const arrTimeInput = document.getElementById("dpArrivalTime");
-    const totalSeatsInput = document.getElementById("dpTotalSeats");
-    const availSeatsInput = document.getElementById("dpAvailableSeats");
-    const currentPriceInput = document.getElementById("dpCurrentPrice");
-    const msgDiv = document.getElementById("dpFormMessage");
-    const tableBody = document.getElementById("dpTableBody");
-    const searchInput = document.getElementById("dpSearchInput");
-    const countBadge = document.getElementById("dpCountBadge");
+        const form = document.getElementById("createDynamicPriceForm");
+        const flightSelect = document.getElementById("dpFlightSelect");
+        const sourceSelect = document.getElementById("dpSourceAirportSelect");
+        const destSelect = document.getElementById("dpDestAirportSelect");
+        const flightDateInput = document.getElementById("dpFlightDate");
+        const depTimeInput = document.getElementById("dpDepartureTime");
+        const arrTimeInput = document.getElementById("dpArrivalTime");
+        const totalSeatsInput = document.getElementById("dpTotalSeats");
+        const availSeatsInput = document.getElementById("dpAvailableSeats");
+        const currentPriceInput = document.getElementById("dpCurrentPrice");
+        const msgDiv = document.getElementById("dpFormMessage");
+        const tableBody = document.getElementById("dpTableBody");
+        const searchInput = document.getElementById("dpSearchInput");
+        const countBadge = document.getElementById("dpCountBadge");
 
-    async function updateDistanceFare() {
-        const srcId = sourceSelect.value;
-        const dstId = destSelect.value;
-        const routeBadge = document.getElementById("dpRouteDistanceBadge");
+        async function updateDistanceFare() {
+            const srcId = sourceSelect.value;
+            const dstId = destSelect.value;
+            const routeBadge = document.getElementById("dpRouteDistanceBadge");
 
-        if (srcId && dstId && srcId !== dstId) {
-            try {
-                const res = await fetch(`/api/calculate-route-fare?sourceId=${srcId}&destId=${dstId}`);
-                const data = await res.json();
-                if (res.ok && data.suggestedPrice) {
-                    currentPriceInput.value = data.suggestedPrice.toFixed(2);
-                    if (routeBadge) {
-                        routeBadge.style.display = "block";
-                        routeBadge.innerHTML = `<svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg> <strong>Route Distance:</strong> ${data.distanceKm} km | <strong>Distance-Based Fare (\u20B9${data.ratePerKm}/km):</strong> <span style="color:#059669; font-weight:800;">\u20B9${data.suggestedPrice.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>`;
+            if (srcId && dstId && srcId !== dstId) {
+                try {
+                    const res = await fetch(`/api/calculate-route-fare?sourceId=${srcId}&destId=${dstId}`);
+                    const data = await res.json();
+                    if (res.ok && data.suggestedPrice) {
+                        currentPriceInput.value = data.suggestedPrice.toFixed(2);
+                        if (routeBadge) {
+                            routeBadge.style.display = "block";
+                            routeBadge.innerHTML = `<svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg> <strong>Route Distance:</strong> ${data.distanceKm} km | <strong>Distance-Based Fare (\u20B9${data.ratePerKm}/km):</strong> <span style="color:#059669; font-weight:800;">\u20B9${data.suggestedPrice.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>`;
+                        }
                     }
+                } catch (e) {
+                    console.warn("Distance fare error:", e);
                 }
-            } catch (e) {
-                console.warn("Distance fare error:", e);
             }
         }
-    }
 
-    sourceSelect.addEventListener("change", updateDistanceFare);
-    destSelect.addEventListener("change", updateDistanceFare);
+        sourceSelect.addEventListener("change", updateDistanceFare);
+        destSelect.addEventListener("change", updateDistanceFare);
 
-    let allDynamicPrices = [];
+        let allDynamicPrices = [];
 
-    function renderRows(records) {
-        countBadge.textContent = `${records.length} Record${records.length === 1 ? '' : 's'}`;
+        function renderRows(records) {
+            countBadge.textContent = `${records.length} Record${records.length === 1 ? '' : 's'}`;
 
-        if (records && records.length > 0) {
-            tableBody.innerHTML = records.map(r => `
+            if (records && records.length > 0) {
+                tableBody.innerHTML = records.map(r => `
                     <tr style="border-bottom: 1px solid rgba(0,0,0,0.05);">
                         <td style="padding: 12px 14px;"><strong>#${r.dynamicPriceId}</strong></td>
                         <td style="padding: 12px 14px;"><span class="badge blue" style="font-weight: 600;">${r.flightNo}</span><br><span style="font-size: 11px; color: var(--text-muted);">${r.flightName || ''}</span></td>
@@ -3731,157 +3802,157 @@ paidSubmitBtn.innerHTML = `Paid & Generate Ticket PDF <svg class="btn-svg" viewB
                     </tr>
                 `).join("");
 
-            // Attach click listeners for Book Seats button
-            tableBody.querySelectorAll(".select-seats-btn").forEach(btn => {
-                btn.addEventListener("click", (e) => {
-                    const dpId = e.currentTarget.dataset.dpid;
-                    if (dpId) {
-                        renderSeatMapBookingView(parseInt(dpId));
-                    }
+                // Attach click listeners for Book Seats button
+                tableBody.querySelectorAll(".select-seats-btn").forEach(btn => {
+                    btn.addEventListener("click", (e) => {
+                        const dpId = e.currentTarget.dataset.dpid;
+                        if (dpId) {
+                            renderSeatMapBookingView(parseInt(dpId));
+                        }
+                    });
                 });
-            });
-        } else {
-            tableBody.innerHTML = `
+            } else {
+                tableBody.innerHTML = `
                     <tr>
                         <td colspan="10" style="text-align: center; padding: 24px; color: var(--text-muted);">No dynamic pricing records found.</td>
                     </tr>
                 `;
+            }
         }
-    }
 
-    if (searchInput) {
-        searchInput.addEventListener("input", (e) => {
-            const query = e.target.value.toLowerCase().trim();
-            const filtered = allDynamicPrices.filter(r =>
-                String(r.dynamicPriceId).includes(query) ||
-                (r.flightNo || '').toLowerCase().includes(query) ||
-                (r.companyName || '').toLowerCase().includes(query) ||
-                (r.sourceAirportCode || '').toLowerCase().includes(query) ||
-                (r.sourceCityName || '').toLowerCase().includes(query) ||
-                (r.destAirportCode || '').toLowerCase().includes(query) ||
-                (r.destCityName || '').toLowerCase().includes(query) ||
-                (r.flightDate || '').toLowerCase().includes(query)
-            );
-            renderRows(filtered);
-        });
-    }
-
-    async function loadDynamicPriceData() {
-        try {
-            const res = await fetch("/api/admin/create-dynamic-price", {
-                method: "GET",
-                credentials: "same-origin"
+        if (searchInput) {
+            searchInput.addEventListener("input", (e) => {
+                const query = e.target.value.toLowerCase().trim();
+                const filtered = allDynamicPrices.filter(r =>
+                    String(r.dynamicPriceId).includes(query) ||
+                    (r.flightNo || '').toLowerCase().includes(query) ||
+                    (r.companyName || '').toLowerCase().includes(query) ||
+                    (r.sourceAirportCode || '').toLowerCase().includes(query) ||
+                    (r.sourceCityName || '').toLowerCase().includes(query) ||
+                    (r.destAirportCode || '').toLowerCase().includes(query) ||
+                    (r.destCityName || '').toLowerCase().includes(query) ||
+                    (r.flightDate || '').toLowerCase().includes(query)
+                );
+                renderRows(filtered);
             });
-            const data = await res.json();
+        }
 
-            if (res.ok) {
-                if (data.flights && data.flights.length > 0) {
-                    flightSelect.innerHTML = '<option value="" disabled selected>Select Flight</option>' +
-                        data.flights.map(f => `<option value="${f.flightId}">${f.flightNo} - ${f.flightName || 'Flight'}</option>`).join("");
+        async function loadDynamicPriceData() {
+            try {
+                const res = await fetch("/api/admin/create-dynamic-price", {
+                    method: "GET",
+                    credentials: "same-origin"
+                });
+                const data = await res.json();
+
+                if (res.ok) {
+                    if (data.flights && data.flights.length > 0) {
+                        flightSelect.innerHTML = '<option value="" disabled selected>Select Flight</option>' +
+                            data.flights.map(f => `<option value="${f.flightId}">${f.flightNo} - ${f.flightName || 'Flight'}</option>`).join("");
+                    } else {
+                        flightSelect.innerHTML = '<option value="" disabled>No flights found</option>';
+                    }
+
+                    if (data.airports && data.airports.length > 0) {
+                        const airportOptions = '<option value="" disabled selected>Select Airport</option>' +
+                            data.airports.map(a => `<option value="${a.airportId}">${a.airportCode} (${a.airportName} - ${a.cityName})</option>`).join("");
+                        sourceSelect.innerHTML = airportOptions;
+                        destSelect.innerHTML = airportOptions;
+                    } else {
+                        sourceSelect.innerHTML = '<option value="" disabled>No airports found</option>';
+                        destSelect.innerHTML = '<option value="" disabled>No airports found</option>';
+                    }
+
+                    allDynamicPrices = data.dynamicPrices || [];
+                    renderRows(allDynamicPrices);
                 } else {
-                    flightSelect.innerHTML = '<option value="" disabled>No flights found</option>';
-                }
-
-                if (data.airports && data.airports.length > 0) {
-                    const airportOptions = '<option value="" disabled selected>Select Airport</option>' +
-                        data.airports.map(a => `<option value="${a.airportId}">${a.airportCode} (${a.airportName} - ${a.cityName})</option>`).join("");
-                    sourceSelect.innerHTML = airportOptions;
-                    destSelect.innerHTML = airportOptions;
-                } else {
-                    sourceSelect.innerHTML = '<option value="" disabled>No airports found</option>';
-                    destSelect.innerHTML = '<option value="" disabled>No airports found</option>';
-                }
-
-                allDynamicPrices = data.dynamicPrices || [];
-                renderRows(allDynamicPrices);
-            } else {
-                tableBody.innerHTML = `
+                    tableBody.innerHTML = `
                     <tr>
                         <td colspan="10" style="text-align: center; padding: 24px; color: #FF3B30; font-weight: 700;">
                             ⚠️ ${data.message || 'Unable to load dynamic pricing records.'}
                         </td>
                     </tr>
                 `;
-            }
-        } catch (err) {
-            console.error("Error loading dynamic price data:", err);
-            tableBody.innerHTML = `
+                }
+            } catch (err) {
+                console.error("Error loading dynamic price data:", err);
+                tableBody.innerHTML = `
                     <tr>
                         <td colspan="10" style="text-align: center; padding: 24px; color: #FF3B30;">Failed to load dynamic price records.</td>
                     </tr>
                 `;
-        }
-    }
-
-    loadDynamicPriceData();
-
-    form.onsubmit = async (e) => {
-        e.preventDefault();
-
-        const flightId = flightSelect.value;
-        const sourceAirportId = sourceSelect.value;
-        const destAirportId = destSelect.value;
-        const flightDate = flightDateInput.value;
-        const departureTime = depTimeInput.value;
-        const arrivalTime = arrTimeInput.value;
-        const totalSeats = totalSeatsInput.value;
-        const availableSeats = availSeatsInput.value;
-        const currentPrice = currentPriceInput.value;
-
-        if (!flightId || !sourceAirportId || !destAirportId || !flightDate || !departureTime || !arrivalTime) {
-            msgDiv.innerHTML = "&times; Please fill in all required fields.";
-            msgDiv.className = "form-message error";
-            return;
+            }
         }
 
-        if (sourceAirportId === destAirportId) {
-            msgDiv.innerHTML = "&times; Source and Destination airports cannot be the same.";
-            msgDiv.className = "form-message error";
-            return;
-        }
+        loadDynamicPriceData();
 
-        msgDiv.textContent = "Calling stored procedure AIRLINE_FLIGHT_DYNAMIC_PRICE_CREATE_USP...";
-        msgDiv.className = "form-message info";
+        form.onsubmit = async (e) => {
+            e.preventDefault();
 
-        try {
-            const res = await fetch("/api/admin/create-dynamic-price", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    flightId: parseInt(flightId),
-                    sourceAirportId: parseInt(sourceAirportId),
-                    destAirportId: parseInt(destAirportId),
-                    flightDate: flightDate,
-                    departureTime: departureTime,
-                    arrivalTime: arrivalTime,
-                    totalSeats: parseInt(totalSeats),
-                    availableSeats: parseInt(availableSeats),
-                    currentPrice: parseFloat(currentPrice)
-                }),
-                credentials: "same-origin"
-            });
+            const flightId = flightSelect.value;
+            const sourceAirportId = sourceSelect.value;
+            const destAirportId = destSelect.value;
+            const flightDate = flightDateInput.value;
+            const departureTime = depTimeInput.value;
+            const arrivalTime = arrTimeInput.value;
+            const totalSeats = totalSeatsInput.value;
+            const availableSeats = availSeatsInput.value;
+            const currentPrice = currentPriceInput.value;
 
-            const result = await res.json();
+            if (!flightId || !sourceAirportId || !destAirportId || !flightDate || !departureTime || !arrivalTime) {
+                msgDiv.innerHTML = "&times; Please fill in all required fields.";
+                msgDiv.className = "form-message error";
+                return;
+            }
 
-            if (res.ok) {
-                msgDiv.innerHTML = `<svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> ` + (result.message || "Dynamic Price Saved Successfully!");
-                msgDiv.className = "form-message success";
-                if (result.dynamicPrices) {
-                    allDynamicPrices = result.dynamicPrices;
-                    renderRows(allDynamicPrices);
+            if (sourceAirportId === destAirportId) {
+                msgDiv.innerHTML = "&times; Source and Destination airports cannot be the same.";
+                msgDiv.className = "form-message error";
+                return;
+            }
+
+            msgDiv.textContent = "Calling stored procedure AIRLINE_FLIGHT_DYNAMIC_PRICE_CREATE_USP...";
+            msgDiv.className = "form-message info";
+
+            try {
+                const res = await fetch("/api/admin/create-dynamic-price", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        flightId: parseInt(flightId),
+                        sourceAirportId: parseInt(sourceAirportId),
+                        destAirportId: parseInt(destAirportId),
+                        flightDate: flightDate,
+                        departureTime: departureTime,
+                        arrivalTime: arrivalTime,
+                        totalSeats: parseInt(totalSeats),
+                        availableSeats: parseInt(availableSeats),
+                        currentPrice: parseFloat(currentPrice)
+                    }),
+                    credentials: "same-origin"
+                });
+
+                const result = await res.json();
+
+                if (res.ok) {
+                    msgDiv.innerHTML = `<svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> ` + (result.message || "Dynamic Price Saved Successfully!");
+                    msgDiv.className = "form-message success";
+                    if (result.dynamicPrices) {
+                        allDynamicPrices = result.dynamicPrices;
+                        renderRows(allDynamicPrices);
+                    } else {
+                        loadDynamicPriceData();
+                    }
                 } else {
-                    loadDynamicPriceData();
+                    msgDiv.innerHTML = `<svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> ` + (result.message || "Failed to save dynamic price");
+                    msgDiv.className = "form-message error";
                 }
-            } else {
-                msgDiv.innerHTML = `<svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> ` + (result.message || "Failed to save dynamic price");
+            } catch (err) {
+                console.error("Save dynamic price error:", err);
+                msgDiv.innerHTML = "&times; Server or connection error.";
                 msgDiv.className = "form-message error";
             }
-        } catch (err) {
-            console.error("Save dynamic price error:", err);
-            msgDiv.innerHTML = "&times; Server or connection error.";
-            msgDiv.className = "form-message error";
-        }
-    };
+        };
     }
 
     async function loadUserCards() {
@@ -4084,7 +4155,7 @@ paidSubmitBtn.innerHTML = `Paid & Generate Ticket PDF <svg class="btn-svg" viewB
     document.addEventListener("click", (e) => {
         const link = e.target.closest(".menu-link");
         if (!link) return;
-        
+
         // Only target sidebar menu links
         const sidebar = link.closest(".sidebar");
         if (!sidebar) return;
