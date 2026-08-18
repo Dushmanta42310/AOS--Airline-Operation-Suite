@@ -220,6 +220,15 @@ async function initDashboard() {
         if (clickedLi) clickedLi.classList.add("active");
     }
 
+    function renderHomeDashboard() {
+        const mainContent = getMainContentEl();
+        if (mainContent && originalContent) {
+            mainContent.innerHTML = originalContent;
+        }
+        loadDashboardStats();
+        loadUserCards();
+    }
+
 
     function renderCreateUserForm() {
         const mainContent = getMainContentEl();

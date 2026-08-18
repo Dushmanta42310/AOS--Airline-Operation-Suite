@@ -647,76 +647,62 @@ def get_dashboard_stats():
         conn = get_conn()
         cur = conn.cursor()
 
-        try:
-            sp_sql = """
-            CREATE OR REPLACE PROCEDURE AIRLINE_GET_DASHBOARD_STATS_USP (
-                P_ACTIVE_FLIGHTS OUT NUMBER,
-                P_ACTIVE_CREW    OUT NUMBER,
-                P_FLIGHT_CURSOR  OUT SYS_REFCURSOR,
-                P_DATA           OUT VARCHAR2
-            )
-            IS
-            BEGIN
-                SELECT COUNT(*) INTO P_ACTIVE_FLIGHTS 
-                FROM AIRLINE_FLIGHT_MSTR_TBL 
-                WHERE IS_ACTIVE = 'Y' OR IS_ACTIVE IS NULL;
-
-                SELECT COUNT(*) INTO P_ACTIVE_CREW 
-                FROM AIRLINE_USER_MSTR_TBL 
-                WHERE IS_ACTIVE = 'Y' OR IS_ACTIVE IS NULL;
-
-                OPEN P_FLIGHT_CURSOR FOR
-                    SELECT F.FLIGHT_ID, F.FLIGHT_NO, F.COMPANY_ID, C.COMPANY_NAME, F.FLIGHT_NAME, F.IS_ACTIVE
-                    FROM AIRLINE_FLIGHT_MSTR_TBL F
-                    LEFT JOIN AIRLINE_FLIGHT_COMPANY_MSTR_TBL C ON F.COMPANY_ID = C.COMPANY_ID
-                    WHERE F.IS_ACTIVE = 'Y' OR F.IS_ACTIVE IS NULL
-                    ORDER BY F.FLIGHT_ID DESC;
-
-                P_DATA := 'DASHBOARD STATS AND FLIGHT DETAILS FETCHED SUCCESSFULLY';
-            EXCEPTION
-                WHEN OTHERS THEN
-                    P_ACTIVE_FLIGHTS := 0;
-                    P_ACTIVE_CREW    := 0;
-                    P_DATA := SQLERRM;
-            END AIRLINE_GET_DASHBOARD_STATS_USP;
-            """
-            cur.execute(sp_sql)
-        except Exception as sp_err:
-            print(f"[WARNING setup_dashboard_sp] {sp_err}")
-
-        p_active_flights = cur.var(int)
-        p_active_crew = cur.var(int)
-        p_flight_cursor = cur.var(oracledb.CURSOR)
-        p_data = cur.var(str)
-
-        cur.callproc("AIRLINE_GET_DASHBOARD_STATS_USP", [
-            p_active_flights,
-            p_active_crew,
-            p_flight_cursor,
-            p_data
-        ])
-
-        active_flights_count = p_active_flights.getvalue() or 0
-        active_crew_count = p_active_crew.getvalue() or 0
-
+        active_flights_count = 0
+        active_crew_count = 0
         flights = []
-        cursor_val = p_flight_cursor.getvalue()
-        if cursor_val:
-            for r in cursor_val.fetchall():
-                flights.append({
-                    "flightId": r[0],
-                    "flightNo": r[1],
-                    "companyId": r[2],
-                    "companyName": r[3] or f"Company #{r[2]}",
-                    "flightName": r[4] or "",
-                    "isActive": r[5] or "Y"
-                })
+
+        try:
+            p_active_flights = cur.var(int)
+            p_active_crew = cur.var(int)
+            p_flight_cursor = cur.var(oracledb.CURSOR)
+            p_data = cur.var(str)
+
+            cur.callproc("AIRLINE_GET_DASHBOARD_STATS_USP", [
+                p_active_flights,
+                p_active_crew,
+                p_flight_cursor,
+                p_data
+            ])
+
+            active_flights_count = p_active_flights.getvalue() or 0
+            active_crew_count = p_active_crew.getvalue() or 0
+
+            cursor_val = p_flight_cursor.getvalue()
+            if cursor_val:
+                for r in cursor_val.fetchall():
+                    flights.append({
+                        "flightId": r[0],
+                        "flightNo": r[1],
+                        "companyId": r[2],
+                        "companyName": r[3] or f"Company #{r[2]}",
+                        "flightName": r[4] or "",
+                        "isActive": r[5] or "Y"
+                    })
+        except Exception as sp_err:
+            print(f"[WARN AIRLINE_GET_DASHBOARD_STATS_USP]: {sp_err}")
+
+        # Always check database tables for live counts
+        try:
+            cur.execute("SELECT COUNT(*) FROM AIRLINE_FLIGHT_MSTR_TBL WHERE IS_ACTIVE = 'Y' OR IS_ACTIVE IS NULL")
+            f_row = cur.fetchone()
+            if f_row and f_row[0] is not None and (int(f_row[0]) > active_flights_count or active_flights_count == 0):
+                active_flights_count = int(f_row[0])
+        except Exception as f_err:
+            print(f"[WARN count active flights]: {f_err}")
+
+        try:
+            cur.execute("SELECT COUNT(*) FROM AIRLINE_USER_MSTR_TBL WHERE IS_ACTIVE = 'Y' OR IS_ACTIVE IS NULL")
+            u_row = cur.fetchone()
+            if u_row and u_row[0] is not None and (int(u_row[0]) > active_crew_count or active_crew_count == 0):
+                active_crew_count = int(u_row[0])
+        except Exception as u_err:
+            print(f"[WARN count active crew]: {u_err}")
 
         return jsonify({
             "activeFlights": active_flights_count,
             "activeCrew": active_crew_count,
             "flights": flights,
-            "message": p_data.getvalue() or "Success"
+            "message": "Dashboard stats loaded successfully"
         }), 200
 
     except Exception as e:
