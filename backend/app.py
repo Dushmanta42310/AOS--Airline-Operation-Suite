@@ -390,15 +390,30 @@ def login():
             except Exception:
                 pass
 
+            user_role = "ADMIN"
+            try:
+                cur.execute("""
+                    SELECT NVL(r.ROLE_NAME, 'ADMIN')
+                    FROM AIRLINE_USER_MSTR_TBL u
+                    LEFT JOIN AIRLINE_USER_ROLE_MAP_TBL urm ON u.USER_ID = urm.USER_ID AND urm.IS_ACTIVE = 'Y'
+                    LEFT JOIN AIRLINE_ROLE_MSTR_TBL r ON urm.ROLE_ID = r.ROLE_ID AND r.IS_ACTIVE = 'Y'
+                    WHERE LOWER(u.USERNAME) = LOWER(:1) OR u.MOBILENO = :2
+                """, [user_id, int(user_id) if user_id.isdigit() else 0])
+                r_row = cur.fetchone()
+                if r_row and r_row[0]:
+                    user_role = r_row[0].strip().upper()
+            except Exception:
+                user_role = "ADMIN"
+
             session["user_id"] = user_id
             session["login_mode"] = login_mode
             session["full_name"] = full_name
-            session["role"] = ""
+            session["role"] = user_role
 
             return jsonify({
                 "message": "Login successful!",
                 "fullName": full_name,
-                "role": "",
+                "role": user_role,
                 "userId": user_id,
                 "loginMode": login_mode
             }), 200

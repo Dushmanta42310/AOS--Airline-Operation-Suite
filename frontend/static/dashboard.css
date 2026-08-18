@@ -1,7 +1,12 @@
 :root, html[data-theme="dark"] {
     --bg-app: #0B0F17;
     --bg-surface: #111827;
-    --bg-card: rgba(17, 24, 39, 0.7);
+    --bg-card: rgba(17, 24, 39, 0.75);
+    --bg-input: rgba(15, 23, 42, 0.85);
+    --border-input: rgba(255, 255, 255, 0.14);
+    --text-input: #F8FAFC;
+    --placeholder-input: #64748B;
+    --bg-field: rgba(255, 255, 255, 0.04);
     --sidebar-bg: rgba(15, 23, 42, 0.55);
     --main-bg: #0F172A;
     --text-main: #F8FAFC;
@@ -21,12 +26,17 @@
 html[data-theme="light"] {
     --bg-app: #F1F5F9;
     --bg-surface: #FFFFFF;
-    --bg-card: rgba(255, 255, 255, 0.85);
-    --sidebar-bg: rgba(255, 255, 255, 0.65);
+    --bg-card: #FFFFFF;
+    --bg-input: #FFFFFF;
+    --border-input: #CBD5E1;
+    --text-input: #0F172A;
+    --placeholder-input: #94A3B8;
+    --bg-field: rgba(0, 0, 0, 0.03);
+    --sidebar-bg: rgba(255, 255, 255, 0.75);
     --main-bg: #F8FAFC;
     --text-main: #0F172A;
     --text-muted: #64748B;
-    --border-color: rgba(0, 0, 0, 0.08);
+    --border-color: rgba(0, 0, 0, 0.1);
     --border-glow: rgba(2, 132, 199, 0.2);
     --window-shadow: 0 20px 50px rgba(15, 23, 42, 0.12);
     --primary: #0284C7;
@@ -54,6 +64,54 @@ body {
     min-height: 100vh;
     padding: 20px;
     transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.detail-field {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--bg-field);
+    border: 1px solid var(--border-color);
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    color: var(--text-main);
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.detail-field:hover {
+    background: rgba(56, 189, 248, 0.08);
+    border-color: var(--border-glow);
+}
+
+.detail-label {
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.detail-value {
+    color: var(--text-main);
+    font-weight: 600;
+    word-break: break-all;
+    max-width: 170px;
+    text-align: right;
+}
+
+/* Empty Search State */
+.empty-search-state {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    text-align: center;
+    background: var(--bg-card);
+    border: 1px dashed var(--border-color);
+    border-radius: 12px;
+    color: var(--text-muted);
+    gap: 12px;
+    animation: fadeIn 0.3s ease;
 }
 
 /* 2026 Enterprise Floating Command Window */
@@ -550,12 +608,17 @@ html[data-theme="light"] .toggle-knob {
 }
 
 /* macOS Styled Forms */
-.macOS-card {
-    background: #FFFFFF;
+.macOS-card,
+.form-container {
+    background: var(--bg-card) !important;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
     border: 1px solid var(--border-color);
-    border-radius: 12px;
+    border-radius: 14px;
     padding: 30px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+    color: var(--text-main);
+    transition: all 0.25s ease;
 }
 
 .mac-form {
@@ -584,21 +647,46 @@ html[data-theme="light"] .toggle-knob {
     font-size: 13px;
     font-weight: 500;
     color: var(--text-muted);
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
-.input-group input, .input-group select {
-    padding: 10px 14px;
-    border-radius: 8px;
-    border: 1px solid var(--border-color);
-    background: rgba(0,0,0,0.02);
+.input-group input, 
+.input-group select,
+.input-group textarea,
+.mac-form input,
+.mac-form select,
+.mac-form textarea {
+    padding: 12px 16px;
+    border-radius: 10px;
+    border: 1px solid var(--border-input);
+    background: var(--bg-input) !important;
+    color: var(--text-input) !important;
     font-size: 14px;
+    font-weight: 500;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     transition: all 0.2s ease;
 }
 
-.input-group input:focus, .input-group select:focus {
-    background: #FFF;
+.input-group input::placeholder,
+.mac-form input::placeholder,
+.input-group textarea::placeholder,
+.mac-form textarea::placeholder {
+    color: var(--placeholder-input);
+}
+
+.input-group input:focus, 
+.input-group select:focus,
+.input-group textarea:focus,
+.mac-form input:focus,
+.mac-form select:focus,
+.mac-form textarea:focus {
+    background: var(--bg-input) !important;
     border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.2);
+    box-shadow: 0 0 0 3px var(--primary-glow);
     outline: none;
 }
 
@@ -613,31 +701,35 @@ html[data-theme="light"] .toggle-knob {
     color: white;
     border: none;
     padding: 12px 30px;
-    border-radius: 8px;
-    font-weight: 600;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 14px;
     cursor: pointer;
-    transition: background 0.2s ease;
+    box-shadow: 0 4px 14px var(--primary-glow);
+    transition: all 0.2s ease;
 }
 
 .submit-btn:hover {
     background: var(--primary-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px var(--primary-glow);
 }
 
 .form-message {
     margin-top: 20px;
-    padding: 12px;
-    border-radius: 8px;
+    padding: 12px 16px;
+    border-radius: 10px;
     font-size: 14px;
+    font-weight: 600;
     text-align: center;
     display: none;
 }
 
-.form-message.success { display: block; background: rgba(52, 199, 89, 0.1); color: #34C759; }
-.form-message.error { display: block; background: rgba(255, 59, 48, 0.1); color: #FF3B30; }
-.form-message.info { display: block; background: rgba(0, 122, 255, 0.1); color: #007AFF; }
+.form-message.success { display: block; background: rgba(34, 197, 94, 0.15); color: #22C55E; border: 1px solid rgba(34, 197, 94, 0.3); }
+.form-message.error { display: block; background: rgba(239, 68, 68, 0.15); color: #EF4444; border: 1px solid rgba(239, 68, 68, 0.3); }
+.form-message.info { display: block; background: rgba(56, 189, 248, 0.15); color: var(--primary); border: 1px solid var(--border-glow); }
 
-
-/* Glassmorphism Transparent Select Styling for macOS look */
+/* Select styling */
 .select-wrapper {
     position: relative;
     width: 100%;
@@ -655,51 +747,42 @@ html[data-theme="light"] .toggle-knob {
     transition: transform 0.2s ease;
 }
 
-.input-group select {
+.input-group select,
+.mac-form select {
     appearance: none;
     -webkit-appearance: none;
     -moz-appearance: none;
     width: 100%;
     padding: 12px 36px 12px 16px;
     border-radius: 10px;
-    border: 1px solid rgba(255, 255, 255, 0.4);
-    background: rgba(255, 255, 255, 0.15) !important;
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    color: var(--text-main);
+    border: 1px solid var(--border-input);
+    background: var(--bg-input) !important;
+    color: var(--text-input) !important;
     font-weight: 500;
     cursor: pointer;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.03), inset 0 1px 0 rgba(255, 255, 255, 0.6);
-    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.input-group select:focus {
-    background: rgba(255, 255, 255, 0.25) !important;
-    border-color: #007AFF;
-    box-shadow: 0 0 0 4px rgba(0, 122, 255, 0.15), 0 4px 12px rgba(0, 122, 255, 0.1);
-    outline: none;
-}
-
-/* Glassmorphic option styling */
-.input-group select option {
-    background: #FFFFFF;
-    color: #1C1C1E;
+.input-group select option,
+.mac-form select option {
+    background: var(--bg-surface);
+    color: var(--text-main);
+    padding: 10px;
 }
 
 /* Current user role info card */
 .role-details-box {
     margin-top: 15px;
     padding: 12px 16px;
-    border-radius: 8px;
-    background: rgba(0, 122, 255, 0.05);
-    border: 1px solid rgba(0, 122, 255, 0.1);
+    border-radius: 10px;
+    background: rgba(56, 189, 248, 0.1);
+    border: 1px solid var(--border-glow);
     font-size: 13px;
-    color: #0056b3;
+    color: var(--primary);
     animation: fadeIn 0.3s ease;
 }
 
 .role-status-info span {
-    font-weight: 600;
+    font-weight: 700;
 }
 
 @keyframes fadeIn {
@@ -709,7 +792,7 @@ html[data-theme="light"] .toggle-knob {
 
 /* Transparent Card for Mapped Menus */
 .transparent-card {
-    background: rgba(0, 0, 0, 0.02);
+    background: var(--bg-field);
     border: 1px dashed var(--border-color);
     border-radius: 10px;
     padding: 16px;
@@ -724,42 +807,41 @@ html[data-theme="light"] .toggle-knob {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: rgba(255, 255, 255, 0.6);
-    border: 1px solid rgba(0, 0, 0, 0.04);
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
     padding: 10px 14px;
     border-radius: 8px;
-    backdrop-filter: blur(5px);
-    -webkit-backdrop-filter: blur(5px);
+    color: var(--text-main);
     animation: fadeIn 0.2s ease-out;
 }
 
 .mapped-menu-item:hover {
-    background: rgba(255, 255, 255, 0.8);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+    border-color: var(--border-glow);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .mapped-menu-name {
     font-size: 14px;
-    font-weight: 500;
+    font-weight: 600;
     color: var(--text-main);
 }
 
 .mapped-menu-remove-btn {
-    background: rgba(255, 59, 48, 0.08);
-    color: #FF3B30;
-    border: 1px solid rgba(255, 59, 48, 0.15);
-    padding: 4px 10px;
+    background: rgba(239, 68, 68, 0.15);
+    color: #EF4444;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    padding: 5px 12px;
     border-radius: 6px;
     font-size: 12px;
-    font-weight: 600;
+    font-weight: 700;
     cursor: pointer;
     transition: all 0.2s ease;
 }
 
 .mapped-menu-remove-btn:hover {
-    background: #FF3B30;
+    background: #EF4444;
     color: #FFFFFF;
-    border-color: #FF3B30;
+    border-color: #EF4444;
 }
 
 /* Data Table macOS Theme */
@@ -767,8 +849,9 @@ html[data-theme="light"] .toggle-knob {
     width: 100%;
     overflow-x: auto;
     margin-top: 15px;
-    border-radius: 8px;
+    border-radius: 10px;
     border: 1px solid var(--border-color);
+    background: var(--bg-card);
 }
 
 .data-table {
@@ -779,11 +862,14 @@ html[data-theme="light"] .toggle-knob {
 }
 
 .data-table th {
-    background: rgba(0, 0, 0, 0.02);
+    background: var(--bg-field);
     padding: 12px 16px;
     font-weight: 600;
-    color: var(--text-main);
+    color: var(--text-muted);
     border-bottom: 1px solid var(--border-color);
+    text-transform: uppercase;
+    font-size: 12px;
+    letter-spacing: 0.5px;
 }
 
 .data-table td {
@@ -798,7 +884,7 @@ html[data-theme="light"] .toggle-knob {
 }
 
 .data-table tr:hover td {
-    background-color: rgba(0, 0, 0, 0.01);
+    background-color: var(--bg-field);
 }
 
 /* Split Layout for Airport Creation screen */
@@ -868,7 +954,7 @@ html[data-theme="light"] .toggle-knob {
     justify-content: space-between;
     align-items: center;
     padding: 10px 14px;
-    background: rgba(0, 0, 0, 0.02);
+    background: var(--bg-field);
     border: 1px solid var(--border-color);
     border-radius: 8px;
     cursor: pointer;
@@ -876,8 +962,8 @@ html[data-theme="light"] .toggle-knob {
 }
 
 .airport-list-item:hover {
-    background: rgba(0, 122, 255, 0.05);
-    border-color: rgba(0, 122, 255, 0.2);
+    background: rgba(56, 189, 248, 0.1);
+    border-color: var(--border-glow);
     transform: translateX(2px);
 }
 
@@ -1230,7 +1316,7 @@ html[data-theme="light"] .toggle-knob {
 }
 
 .chatbot-header {
-    background: linear-gradient(135deg, rgba(0, 122, 255, 0.9), rgba(0, 81, 168, 0.9));
+    background: linear-gradient(135deg, #0284C7 0%, #0369A1 100%);
     color: #ffffff;
     padding: 15px 20px;
     display: flex;
@@ -1284,7 +1370,7 @@ html[data-theme="light"] .toggle-knob {
     display: flex;
     flex-direction: column;
     gap: 12px;
-    background: rgba(245, 245, 247, 0.4);
+    background: var(--bg-card);
 }
 
 .chatbot-messages::-webkit-scrollbar {
@@ -1292,7 +1378,7 @@ html[data-theme="light"] .toggle-knob {
 }
 
 .chatbot-messages::-webkit-scrollbar-thumb {
-    background: rgba(0, 0, 0, 0.1);
+    background: var(--border-color);
     border-radius: 3px;
 }
 
@@ -1318,26 +1404,26 @@ html[data-theme="light"] .toggle-knob {
 }
 
 .message.bot {
-    background: rgba(255, 255, 255, 0.9);
-    border: 1px solid rgba(0, 0, 0, 0.05);
-    color: #1D1D1F;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    color: var(--text-main);
     align-self: flex-start;
     border-bottom-left-radius: 4px;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
 }
 
 .message.user {
-    background: linear-gradient(135deg, #007AFF, #0051A8);
+    background: linear-gradient(135deg, #0284C7 0%, #0369A1 100%);
     color: #ffffff;
     align-self: flex-end;
     border-bottom-right-radius: 4px;
-    box-shadow: 0 2px 8px rgba(0, 122, 255, 0.2);
+    box-shadow: 0 2px 8px rgba(2, 132, 199, 0.3);
 }
 
 .chatbot-input-area {
     padding: 12px 16px;
-    background: rgba(255, 255, 255, 0.95);
-    border-top: 1px solid rgba(0, 0, 0, 0.08);
+    background: var(--bg-surface);
+    border-top: 1px solid var(--border-color);
     display: flex;
     align-items: center;
     gap: 10px;
@@ -1345,23 +1431,28 @@ html[data-theme="light"] .toggle-knob {
 
 .chatbot-input-area input {
     flex: 1;
-    border: 1px solid rgba(0, 0, 0, 0.12);
+    border: 1px solid var(--border-input);
     outline: none;
     padding: 10px 14px;
     border-radius: 20px;
     font-size: 13.5px;
-    background: rgba(245, 245, 247, 0.6);
+    background: var(--bg-input);
+    color: var(--text-input);
     transition: all 0.2s ease;
 }
 
+.chatbot-input-area input::placeholder {
+    color: var(--placeholder-input);
+}
+
 .chatbot-input-area input:focus {
-    border-color: #007AFF;
-    background: #ffffff;
-    box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.15);
+    border-color: var(--primary);
+    background: var(--bg-input);
+    box-shadow: 0 0 0 3px var(--primary-glow);
 }
 
 .chatbot-send-btn {
-    background: #007AFF;
+    background: linear-gradient(135deg, #0284C7 0%, #0369A1 100%);
     color: #ffffff;
     border: none;
     outline: none;
@@ -1370,11 +1461,12 @@ html[data-theme="light"] .toggle-knob {
     font-size: 13.5px;
     font-weight: 600;
     cursor: pointer;
+    box-shadow: 0 2px 8px var(--primary-glow);
     transition: all 0.2s ease;
 }
 
 .chatbot-send-btn:hover {
-    background: #0051A8;
+    background: linear-gradient(135deg, #0369A1 0%, #075985 100%);
 }
 
 .chatbot-send-btn:active {
@@ -1973,20 +2065,23 @@ html[data-theme="light"] .toggle-knob {
 
 /* Sidebar & Booking Summary Card */
 .booking-summary-card {
-    background: #ffffff;
+    background: var(--bg-card);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
     border-radius: 20px;
     padding: 20px;
-    box-shadow: 0 12px 36px rgba(15, 23, 42, 0.08);
-    border: 1px solid #e2e8f0;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.15);
+    border: 1px solid var(--border-color);
     position: sticky;
     top: 20px;
     max-height: calc(100vh - 100px);
     overflow-y: auto;
+    color: var(--text-main);
 }
 
 .flight-ticket-info {
-    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-    border: 1px solid #e2e8f0;
+    background: var(--bg-field);
+    border: 1px solid var(--border-color);
     border-radius: 14px;
     padding: 16px;
     margin-bottom: 20px;
@@ -2002,13 +2097,13 @@ html[data-theme="light"] .toggle-knob {
 .route-code {
     font-size: 20px;
     font-weight: 800;
-    color: #0f172a;
+    color: var(--text-main);
 }
 
 .selected-seat-badge {
-    background: #f0f9ff;
-    border: 1.5px solid #0284c7;
-    color: #0369a1;
+    background: rgba(56, 189, 248, 0.12);
+    border: 1.5px solid var(--border-glow);
+    color: var(--primary);
     padding: 12px 16px;
     border-radius: 12px;
     font-weight: 700;
@@ -2024,7 +2119,7 @@ html[data-theme="light"] .toggle-knob {
     display: flex;
     justify-content: space-between;
     font-size: 13px;
-    color: #64748b;
+    color: var(--text-muted);
     margin-bottom: 8px;
 }
 
@@ -2033,8 +2128,8 @@ html[data-theme="light"] .toggle-knob {
     justify-content: space-between;
     font-size: 18px;
     font-weight: 800;
-    color: #059669;
-    border-top: 2px dashed #e2e8f0;
+    color: #22C55E;
+    border-top: 2px dashed var(--border-color);
     padding-top: 12px;
     margin-top: 12px;
 }
@@ -2056,18 +2151,19 @@ html[data-theme="light"] .toggle-knob {
 }
 
 .payment-modal-card {
-    background: #ffffff;
+    background: var(--bg-surface);
+    color: var(--text-main);
     border-radius: 20px;
     width: 92%;
     max-width: 520px;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.3);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    border: 1px solid var(--border-color);
     overflow: hidden;
     animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .payment-modal-header {
-    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    background: linear-gradient(135deg, #0284C7 0%, #0369A1 100%);
     color: #ffffff;
     padding: 20px 24px;
     display: flex;
@@ -2087,20 +2183,21 @@ html[data-theme="light"] .toggle-knob {
 }
 
 .payment-option-item {
-    border: 1.5px solid #e2e8f0;
+    border: 1.5px solid var(--border-color);
     border-radius: 12px;
     padding: 12px;
     text-align: center;
     cursor: pointer;
     transition: all 0.2s ease;
-    background: #f8fafc;
+    background: var(--bg-field);
+    color: var(--text-main);
 }
 
 .payment-option-item:hover,
 .payment-option-item.selected {
-    border-color: #059669;
-    background: #ecfdf5;
-    box-shadow: 0 4px 12px rgba(5, 150, 105, 0.15);
+    border-color: #22C55E;
+    background: rgba(34, 197, 94, 0.12);
+    box-shadow: 0 4px 12px rgba(34, 197, 94, 0.2);
 }
 
 /* OFFICIAL FLIGHT E-TICKET & BOARDING PASS MODAL STYLING */
