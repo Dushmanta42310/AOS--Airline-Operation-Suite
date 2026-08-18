@@ -3503,9 +3503,11 @@ def send_message():
         if not body:
             return jsonify({"message": "Message content body is required."}), 400
 
-        user_id = session.get("user_id") or "ADMIN"
-        full_name = session.get("full_name") or str(user_id)
-        db_user_id = 10000001
+        user_id = session.get("user_id") or "pratigayanpattnaik@aos.com"
+        full_name = session.get("full_name") or "Pratigayan Pattnaik"
+        if "dushmanta" in str(full_name).lower():
+            full_name = "Pratigayan Pattnaik"
+        db_user_id = 10000026
         created_ip = request.remote_addr or "127.0.0.1"
 
         conn = get_conn()
@@ -3589,15 +3591,22 @@ def list_messages():
             cur.callproc("AIRLINE_MESSAGE_GET_TODAY_USP", [user_role, p_record])
             rows = p_record.getvalue().fetchall()
             for r in rows:
+                sender_val = r[1] or "Pratigayan Pattnaik"
+                if "dushmanta" in str(sender_val).lower():
+                    sender_val = "Pratigayan Pattnaik"
+                created_val = r[7] or "Pratigayan Pattnaik"
+                if "dushmanta" in str(created_val).lower():
+                    created_val = "Pratigayan Pattnaik"
+
                 messages.append({
                     "messageId": r[0],
-                    "sender": r[1] or "Operations Admin",
+                    "sender": sender_val,
                     "targetRole": r[2] or "ALL ROLES",
                     "title": r[3],
                     "body": r[4],
                     "priority": r[5] or "NORMAL",
                     "sentTime": str(r[6]),
-                    "createdBy": r[7] or "ADMIN"
+                    "createdBy": created_val
                 })
         except Exception as proc_err:
             print("[MESSAGE GET TODAY USP WARN - DIRECT QUERY]:", str(proc_err))
@@ -3624,15 +3633,22 @@ def list_messages():
             """, [str(user_role), str(user_role)])
             rows = cur.fetchall()
             for r in rows:
+                sender_val = r[1] or "Pratigayan Pattnaik"
+                if "dushmanta" in str(sender_val).lower():
+                    sender_val = "Pratigayan Pattnaik"
+                created_val = r[7] or "Pratigayan Pattnaik"
+                if "dushmanta" in str(created_val).lower():
+                    created_val = "Pratigayan Pattnaik"
+
                 messages.append({
                     "messageId": r[0],
-                    "sender": r[1] or "Operations Admin",
+                    "sender": sender_val,
                     "targetRole": r[2] or "ALL ROLES",
                     "title": r[3],
                     "body": r[4],
                     "priority": r[5] or "NORMAL",
                     "sentTime": str(r[6]),
-                    "createdBy": r[7] or "ADMIN"
+                    "createdBy": created_val
                 })
 
         return jsonify({

@@ -4163,7 +4163,9 @@ async function initDashboard() {
                                 </td>
                                 <td style="font-weight: 600; color: var(--text-main);">${m.title || 'No Title'}</td>
                                 <td style="color: var(--text-muted); max-width: 320px; word-break: break-word; font-size: 13px;">${m.body || ''}</td>
-                                <td style="font-size: 13px; color: var(--text-main); font-weight: 500;">${m.sender || m.createdBy || 'ADMIN'}</td>
+                                <td style="font-size: 13px; color: var(--text-main); font-weight: 500;">
+                                    ${(m.sender && !m.sender.toLowerCase().includes('dushmanta')) ? m.sender : 'Pratigayan Pattnaik'}
+                                </td>
                                 <td style="text-align: center;">
                                     <button class="delete-btn" onclick="window._aos_deleteMsg(${m.messageId})" title="Delete Message" style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #EF4444; border-radius: 6px; padding: 5px 10px; cursor: pointer; font-size: 12px; font-weight: 600;">
                                         Delete
@@ -4518,7 +4520,9 @@ async function initDashboard() {
                         </div>
                         <h4 style="font-size: 15px; font-weight: 700; color: var(--text-main); margin: 0 0 6px;">${m.title || 'Operational Notice'}</h4>
                         <div style="font-size: 13.5px; line-height: 1.5; color: #CBD5E1; white-space: pre-wrap;">${m.body || ''}</div>
-                        <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 8px; text-align: right;">Dispatched by: <strong style="color: var(--text-main);">${m.sender || m.createdBy || 'ADMIN'}</strong></div>
+                        <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 8px; text-align: right;">
+                            Dispatched by: <strong style="color: var(--text-main);">${(m.sender && !m.sender.toLowerCase().includes('dushmanta')) ? m.sender : 'Pratigayan Pattnaik'}</strong>
+                        </div>
                     </div>
                 `;
             }).join("");
