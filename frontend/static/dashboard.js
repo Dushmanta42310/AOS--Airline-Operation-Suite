@@ -219,6 +219,10 @@ async function initDashboard() {
         if (clickedLi) clickedLi.classList.add("active");
     }
 
+    function getMainContentEl() {
+        return document.querySelector(".content") || document.querySelector(".main-content") || document.querySelector("main");
+    }
+
     function renderHomeDashboard() {
         const mainContent = getMainContentEl();
         if (!mainContent) return;
@@ -933,38 +937,7 @@ async function initDashboard() {
     }
 
 
-    async function renderHomeDashboard() {
-        const mainContent = getMainContentEl();
-        if (!mainContent) return;
-        mainContent.innerHTML = originalContent;
 
-        const welcomeBanner = document.querySelector(".welcome-banner h1");
-        const welcomeText = document.querySelector(".welcome-banner p");
-
-        const userObj = currentUser || { fullName: "Dushmanta Das", role: "ADMIN", dbUserId: 10000001 };
-        let cleanName = userObj.fullName || "User";
-        cleanName = cleanName.replace(/@aos\.com$/i, "").trim();
-
-        if (welcomeBanner) {
-            welcomeBanner.innerHTML = `Welcome back to AOS `;
-        }
-
-        if (welcomeText) {
-            if ((userObj.role || "").toUpperCase() === "ADMIN") {
-                welcomeText.textContent = `Welcome back, ${cleanName}. You have full administrative access. Your airline operations are flying smoothly today.`;
-            } else {
-                welcomeText.textContent = `Welcome back, ${cleanName}. Your airline operations are flying smoothly today.`;
-            }
-        }
-
-        loadDashboardStats();
-        await loadUserCards();
-
-        const searchInput = document.querySelector(".search-bar input");
-        if (searchInput && searchInput.value) {
-            searchInput.dispatchEvent(new Event("input"));
-        }
-    }
 
 
 
