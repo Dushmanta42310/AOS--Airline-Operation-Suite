@@ -324,6 +324,7 @@ if (modalOtpForm) {
 // ==========================================
 const passengerRegisterModal = document.getElementById("passengerRegisterModal");
 const openPassengerRegisterModalBtn = document.getElementById("openPassengerRegisterModalBtn");
+const topRegisterPassengerBtn = document.getElementById("topRegisterPassengerBtn");
 const closePassengerRegisterModalBtn = document.getElementById("closePassengerRegisterModalBtn");
 const passengerRegisterForm = document.getElementById("passengerRegisterForm");
 const passengerRegMessageBox = document.getElementById("passengerRegMessageBox");
@@ -337,12 +338,22 @@ function showPassRegMessage(type, text) {
   }
 }
 
-if (openPassengerRegisterModalBtn && passengerRegisterModal) {
-  openPassengerRegisterModalBtn.addEventListener("click", (e) => {
-    e.preventDefault();
+function openPassengerModal(e) {
+  if (e) e.preventDefault();
+  if (passengerRegisterModal) {
     passengerRegisterModal.classList.remove("hidden");
     if (passengerRegMessageBox) passengerRegMessageBox.classList.add("hidden");
-  });
+    const nameField = document.getElementById("regFullName");
+    if (nameField) nameField.focus();
+  }
+}
+
+if (openPassengerRegisterModalBtn) {
+  openPassengerRegisterModalBtn.addEventListener("click", openPassengerModal);
+}
+
+if (topRegisterPassengerBtn) {
+  topRegisterPassengerBtn.addEventListener("click", openPassengerModal);
 }
 
 if (closePassengerRegisterModalBtn && passengerRegisterModal) {

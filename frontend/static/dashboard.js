@@ -4191,7 +4191,10 @@ async function initDashboard() {
             "CREATE DYNAMIC PRICE"
         ];
 
-        const activeMenus = (menus && menus.length > 0) ? menus : defaultAdminMenus;
+        const isPassenger = currentUser && (currentUser.role === 'PASSENGER' || currentUser.role === 'CUSTOMER');
+        const defaultMenus = isPassenger ? ["REGISTER CUSTOMER", "SEAT BOOKING"] : defaultAdminMenus;
+
+        const activeMenus = (menus && menus.length > 0) ? menus : defaultMenus;
 
         const dashboardLi = document.createElement("li");
         dashboardLi.classList.add("active");
