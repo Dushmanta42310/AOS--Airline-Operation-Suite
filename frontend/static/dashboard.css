@@ -3925,3 +3925,64 @@ body.light-theme .gs-markdown-table td {
     background: rgba(56, 189, 248, 0.08);
 }
 
+/* Rich Spacious Bullet Paragraph Blocks */
+.gs-bullet-block {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin: 8px 0;
+    padding: 8px 12px;
+    background: rgba(15, 23, 42, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+
+body.light-theme .gs-bullet-block {
+    background: #F8FAFC;
+    border-color: #E2E8F0;
+}
+
+.gs-bullet-block:hover {
+    border-color: rgba(56, 189, 248, 0.35);
+    background: rgba(15, 23, 42, 0.7);
+}
+
+body.light-theme .gs-bullet-block:hover {
+    background: #FFFFFF;
+    border-color: #BAE6FD;
+}
+
+.gs-bullet-dot {
+    font-size: 13px;
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+.gs-num-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: rgba(245, 158, 11, 0.2);
+    color: #F59E0B;
+    font-size: 11px;
+    font-weight: 800;
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+.gs-bullet-text {
+    flex: 1;
+    font-size: 12.5px;
+    line-height: 1.6;
+    color: #E2E8F0;
+}
+
+body.light-theme .gs-bullet-text {
+    color: #334155;
+}
+
+

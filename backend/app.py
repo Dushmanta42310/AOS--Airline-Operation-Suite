@@ -3532,19 +3532,26 @@ def handle_custom_chat():
         bot_reply = raw_bot_reply
         structured_data = None
 
-        # Extract structured json_travel_data if present
+        # Robust multi-pass JSON travel data extraction
         import re
-        json_match = re.search(r'```json_travel_data\s*([\s\S]*?)\s*```', raw_bot_reply)
+        json_match = re.search(r'```(?:json_travel_data|json)\s*(\{[\s\S]*?\})\s*```', raw_bot_reply)
         if not json_match:
-            json_match = re.search(r'```json\s*(\{[\s\S]*?"weather_alert"[\s\S]*?\})\s*```', raw_bot_reply)
+            json_match = re.search(r'```json_travel_data\s*([\s\S]*?)(?:```|$)', raw_bot_reply)
+        if not json_match:
+            json_match = re.search(r'(\{[\s\r\n]*"destination_city"[\s\S]*\})', raw_bot_reply)
 
         if json_match:
             try:
-                structured_data = json.loads(json_match.group(1).strip())
-                # Strip the json block from the markdown text for clean reading
-                bot_reply = raw_bot_reply.replace(json_match.group(0), "").strip()
+                json_str = json_match.group(1).strip()
+                # Clean trailing commas if present
+                clean_json_str = re.sub(r',\s*([\]}])', r'\1', json_str)
+                structured_data = json.loads(clean_json_str)
             except Exception as j_err:
                 print(f"[WARNING] JSON parsing error in travel data: {j_err}")
+
+        # GUARANTEE: Never show raw JSON in the readable message text
+        bot_reply = re.sub(r'```(?:json_travel_data|json)?[\s\S]*?```?', '', raw_bot_reply).strip()
+        bot_reply = re.sub(r'\{[\s\r\n]*"destination_city"[\s\S]*?\}', '', bot_reply).strip()
         
         # Add the conversation history to the vector store in a background thread to prevent blocking the UI
         def save_history_async(text, metadata):

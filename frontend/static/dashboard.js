@@ -4891,8 +4891,14 @@ setupAirportAutocomplete(gsToAirport, toSuggestionsBox);
 function formatBotMessage(text, travelData = null) {
     if (!text) return "";
 
+    // Clean any leaked JSON blocks from visible markdown text
+    let cleanText = text
+        .replace(/```(?:json_travel_data|json)?[\s\S]*?```?/gi, "")
+        .replace(/\{[\s\r\n]*"destination_city"[\s\S]*$/gi, "")
+        .trim();
+
     // Escape basic angle brackets but keep formatting
-    let formatted = text
+    let formatted = cleanText
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;");
@@ -4925,22 +4931,22 @@ function formatBotMessage(text, travelData = null) {
     formatted = formatted.replace(/^---$/gim, '<hr class="gs-chat-divider">');
 
     // Headers
-    formatted = formatted.replace(/^### (.*$)/gim, '<h4 style="margin: 12px 0 4px 0; color: #38BDF8; font-size: 14px; font-weight: 800;">$1</h4>');
-    formatted = formatted.replace(/^## (.*$)/gim, '<h3 style="margin: 14px 0 6px 0; color: #0284C7; font-size: 15px; font-weight: 800;">$1</h3>');
-    formatted = formatted.replace(/^# (.*$)/gim, '<h2 style="margin: 16px 0 8px 0; color: #0284C7; font-size: 16px; font-weight: 800;">$1</h2>');
+    formatted = formatted.replace(/^### (.*$)/gim, '<h4 style="margin: 14px 0 6px 0; color: #38BDF8; font-size: 14.5px; font-weight: 800; letter-spacing: 0.3px;">$1</h4>');
+    formatted = formatted.replace(/^## (.*$)/gim, '<h3 style="margin: 16px 0 8px 0; color: #0284C7; font-size: 15.5px; font-weight: 800;">$1</h3>');
+    formatted = formatted.replace(/^# (.*$)/gim, '<h2 style="margin: 18px 0 10px 0; color: #0284C7; font-size: 16.5px; font-weight: 800;">$1</h2>');
 
     // Bold and Italic
     formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong style="color: #38BDF8; font-weight: 700;">$1</strong>');
     formatted = formatted.replace(/\*(.*?)\*/g, '<em>$1</em>');
 
-    // Bullet points
-    formatted = formatted.replace(/^\s*[\-\*•]\s+(.*$)/gim, '<div style="display: flex; gap: 6px; margin: 4px 0;"><span style="color: #38BDF8;">•</span><span>$1</span></div>');
+    // Bullet points rendered as rich spacious paragraph blocks
+    formatted = formatted.replace(/^\s*[\-\*•]\s+(.*$)/gim, '<div class="gs-bullet-block"><span class="gs-bullet-dot">🔹</span><div class="gs-bullet-text">$1</div></div>');
 
     // Numbered lists
-    formatted = formatted.replace(/^\s*(\d+)\.\s+(.*$)/gim, '<div style="display: flex; gap: 6px; margin: 4px 0;"><span style="color: #F59E0B; font-weight: 800;">$1.</span><span>$2</span></div>');
+    formatted = formatted.replace(/^\s*(\d+)\.\s+(.*$)/gim, '<div class="gs-bullet-block"><span class="gs-num-badge">$1</span><div class="gs-bullet-text">$2</div></div>');
 
     // Convert newlines
-    formatted = formatted.replace(/\n\n/g, '<div style="height: 8px;"></div>');
+    formatted = formatted.replace(/\n\n/g, '<div style="height: 10px;"></div>');
     formatted = formatted.replace(/\n/g, '<br>');
 
     // Image Fallback Libraries
