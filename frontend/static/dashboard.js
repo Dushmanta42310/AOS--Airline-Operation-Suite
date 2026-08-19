@@ -5174,7 +5174,10 @@ function formatBotMessage(text, travelData = null) {
                                     <div class="gs-foodlet-info">
                                         <div class="gs-foodlet-header">
                                             <span class="gs-foodlet-name">${fName}</span>
-                                            <span class="gs-diet-badge ${isVeg ? 'veg' : 'non-veg'}">${f.type || 'Dining'}</span>
+                                            <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+                                                ${f.meal_type ? `<span class="gs-diet-badge" style="background: rgba(245, 158, 11, 0.2); color: #F59E0B; border: 1px solid rgba(245, 158, 11, 0.4);">${f.meal_type}</span>` : ''}
+                                                <span class="gs-diet-badge ${isVeg ? 'veg' : 'non-veg'}">${f.type || 'Dining'}</span>
+                                            </div>
                                         </div>
                                         <div class="gs-foodlet-meta">
                                             <span>🍲 ${f.cuisine || 'Regional Cuisine'}</span>
