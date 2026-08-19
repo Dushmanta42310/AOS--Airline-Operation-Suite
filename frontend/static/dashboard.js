@@ -4682,21 +4682,55 @@ async function initDashboard() {
 
 
 
-// ==========================================
-// FLOATING ROBO-CHATBOT INTERACTIVE LOGIC
-// ==========================================
+// =====================================================================
+// FLOATING ROBO-CHATBOT & GAGAN SAATHI INTERACTIVE LOGIC
+// =====================================================================
 const chatbotFab = document.getElementById("chatbotFab");
 const chatbotWindow = document.getElementById("chatbotWindow");
 const chatbotClose = document.getElementById("chatbotClose");
 const chatbotMessages = document.getElementById("chatbotMessages");
 const chatbotInput = document.getElementById("chatbotInput");
 const chatbotSend = document.getElementById("chatbotSend");
+const chatbotExpandBtn = document.getElementById("chatbotExpandBtn");
+const expandIcon = document.getElementById("expandIcon");
+const compressIcon = document.getElementById("compressIcon");
+const chatbotHeaderTitle = document.getElementById("chatbotHeaderTitle");
+const chatbotModeTag = document.getElementById("chatbotModeTag");
 
+// Gagan Saathi Tray & Form Elements
+const gaganSaathiToggleBtn = document.getElementById("gaganSaathiToggleBtn");
+const chatbotGaganShortcutBtn = document.getElementById("chatbotGaganShortcutBtn");
+const gaganSaathiTray = document.getElementById("gaganSaathiTray");
+const closeGaganTrayBtn = document.getElementById("closeGaganTrayBtn");
+const gaganSaathiSubmitBtn = document.getElementById("gaganSaathiSubmitBtn");
+
+const gsPassengerName = document.getElementById("gsPassengerName");
+const gsTravelDate = document.getElementById("gsTravelDate");
+const gsFromAirport = document.getElementById("gsFromAirport");
+const gsToAirport = document.getElementById("gsToAirport");
+const gsBudget = document.getElementById("gsBudget");
+const gsFoodPref = document.getElementById("gsFoodPref");
+const gsAllergies = document.getElementById("gsAllergies");
+const gsSafetyNotes = document.getElementById("gsSafetyNotes");
+
+const fromSuggestionsBox = document.getElementById("fromSuggestionsBox");
+const toSuggestionsBox = document.getElementById("toSuggestionsBox");
+
+let isGaganMode = false;
+
+// Set default travel date to today or tomorrow
+if (gsTravelDate && !gsTravelDate.value) {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    gsTravelDate.value = tomorrow.toISOString().split("T")[0];
+}
+
+// 1. FAB Open / Close Toggle
 if (chatbotFab && chatbotWindow) {
     chatbotFab.addEventListener("click", () => {
         chatbotWindow.classList.toggle("hidden");
         if (!chatbotWindow.classList.contains("hidden")) {
-            chatbotInput.focus();
+            chatbotInput && chatbotInput.focus();
         }
     });
 }
@@ -4708,21 +4742,268 @@ if (chatbotClose && chatbotWindow) {
     });
 }
 
-function appendMessage(sender, text) {
+// 2. Expand / Fullscreen Toggle
+if (chatbotExpandBtn && chatbotWindow) {
+    chatbotExpandBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        chatbotWindow.classList.toggle("expanded");
+        const isExp = chatbotWindow.classList.contains("expanded");
+        if (expandIcon && compressIcon) {
+            if (isExp) {
+                expandIcon.classList.add("hidden");
+                compressIcon.classList.remove("hidden");
+            } else {
+                expandIcon.classList.remove("hidden");
+                compressIcon.classList.add("hidden");
+            }
+        }
+    });
+}
+
+// 3. Gagan Saathi Tray Toggle Function
+function openGaganSaathiMode(focusInput = true) {
+    isGaganMode = true;
+    if (gaganSaathiTray) {
+        gaganSaathiTray.classList.remove("hidden");
+    }
+    if (chatbotHeaderTitle) {
+        chatbotHeaderTitle.textContent = "Gagan Saathi (गगन साथी)";
+    }
+    if (chatbotModeTag) {
+        chatbotModeTag.textContent = "GAGAN SAATHI";
+        chatbotModeTag.classList.add("gagan-active");
+    }
+    if (focusInput && gsFromAirport) {
+        setTimeout(() => gsFromAirport.focus(), 150);
+    }
+}
+
+function closeGaganSaathiMode() {
+    isGaganMode = false;
+    if (gaganSaathiTray) {
+        gaganSaathiTray.classList.add("hidden");
+    }
+    if (chatbotHeaderTitle) {
+        chatbotHeaderTitle.textContent = "AOS Operational Assistant";
+    }
+    if (chatbotModeTag) {
+        chatbotModeTag.textContent = "AOS ASSISTANT";
+        chatbotModeTag.classList.remove("gagan-active");
+    }
+}
+
+if (gaganSaathiToggleBtn) {
+    gaganSaathiToggleBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (gaganSaathiTray && !gaganSaathiTray.classList.contains("hidden")) {
+            closeGaganSaathiMode();
+        } else {
+            openGaganSaathiMode(true);
+        }
+    });
+}
+
+if (chatbotGaganShortcutBtn) {
+    chatbotGaganShortcutBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        openGaganSaathiMode(true);
+    });
+}
+
+if (closeGaganTrayBtn) {
+    closeGaganTrayBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        closeGaganSaathiMode();
+    });
+}
+
+// 4. Live Airport Suggestions (3 to 4 matches as typing)
+function setupAirportAutocomplete(inputEl, suggestionsBoxEl) {
+    if (!inputEl || !suggestionsBoxEl) return;
+
+    let debounceTimer = null;
+
+    inputEl.addEventListener("input", () => {
+        const query = inputEl.value.trim();
+        clearTimeout(debounceTimer);
+
+        if (query.length < 2) {
+            suggestionsBoxEl.innerHTML = "";
+            suggestionsBoxEl.classList.add("hidden");
+            return;
+        }
+
+        debounceTimer = setTimeout(async () => {
+            try {
+                const res = await fetch(`/api/airports/search?q=${encodeURIComponent(query)}&limit=4`);
+                if (!res.ok) return;
+                const data = await res.json();
+                const airports = data.results || [];
+
+                if (airports.length === 0) {
+                    suggestionsBoxEl.innerHTML = `<div style="padding: 8px 12px; font-size: 11px; color: var(--text-muted);">No matching airports found</div>`;
+                    suggestionsBoxEl.classList.remove("hidden");
+                    return;
+                }
+
+                suggestionsBoxEl.innerHTML = airports.map(apt => `
+                    <div class="gs-suggestion-item" data-code="${apt.iata || ''}" data-city="${apt.city || ''}" data-name="${apt.name || ''}">
+                        <div>
+                            <div class="gs-sugg-name">${apt.name}</div>
+                            <div class="gs-sugg-loc">${apt.city}${apt.country ? ', ' + apt.country : ''}</div>
+                        </div>
+                        ${apt.iata ? `<span class="gs-sugg-code">${apt.iata}</span>` : ''}
+                    </div>
+                `).join("");
+
+                suggestionsBoxEl.classList.remove("hidden");
+
+                suggestionsBoxEl.querySelectorAll(".gs-suggestion-item").forEach(item => {
+                    item.addEventListener("click", () => {
+                        const code = item.dataset.code;
+                        const city = item.dataset.city;
+                        const name = item.dataset.name;
+                        inputEl.value = code ? `${code} (${city || name})` : `${name}, ${city}`;
+                        suggestionsBoxEl.innerHTML = "";
+                        suggestionsBoxEl.classList.add("hidden");
+                    });
+                });
+
+            } catch (err) {
+                console.error("Airport search error:", err);
+            }
+        }, 150);
+    });
+
+    // Close suggestion box on outside click
+    document.addEventListener("click", (e) => {
+        if (!inputEl.contains(e.target) && !suggestionsBoxEl.contains(e.target)) {
+            suggestionsBoxEl.classList.add("hidden");
+        }
+    });
+}
+
+setupAirportAutocomplete(gsFromAirport, fromSuggestionsBox);
+setupAirportAutocomplete(gsToAirport, toSuggestionsBox);
+
+// 5. Markdown & Rich Card Parser
+function formatBotMessage(text, travelData = null) {
+    if (!text) return "";
+
+    // Escape basic angle brackets but keep formatting
+    let formatted = text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+
+    // Headers
+    formatted = formatted.replace(/^### (.*$)/gim, '<h4 style="margin: 12px 0 4px 0; color: #38BDF8; font-size: 14px; font-weight: 800;">$1</h4>');
+    formatted = formatted.replace(/^## (.*$)/gim, '<h3 style="margin: 14px 0 6px 0; color: #0284C7; font-size: 15px; font-weight: 800;">$1</h3>');
+    formatted = formatted.replace(/^# (.*$)/gim, '<h2 style="margin: 16px 0 8px 0; color: #0284C7; font-size: 16px; font-weight: 800;">$1</h2>');
+
+    // Bold and Italic
+    formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong style="color: #38BDF8; font-weight: 700;">$1</strong>');
+    formatted = formatted.replace(/\*(.*?)\*/g, '<em>$1</em>');
+
+    // Bullet points
+    formatted = formatted.replace(/^\s*[\-\*]\s+(.*$)/gim, '<div style="display: flex; gap: 6px; margin: 4px 0;"><span style="color: #38BDF8;">•</span><span>$1</span></div>');
+
+    // Numbered lists
+    formatted = formatted.replace(/^\s*(\d+)\.\s+(.*$)/gim, '<div style="display: flex; gap: 6px; margin: 4px 0;"><span style="color: #F59E0B; font-weight: 800;">$1.</span><span>$2</span></div>');
+
+    // Convert newlines
+    formatted = formatted.replace(/\n\n/g, '<div style="height: 8px;"></div>');
+    formatted = formatted.replace(/\n/g, '<br>');
+
+    // Hotel Image Fallback Library
+    const hotelImages = [
+        "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=500&auto=format&fit=crop&q=80",
+        "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=500&auto=format&fit=crop&q=80",
+        "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=500&auto=format&fit=crop&q=80",
+        "https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=500&auto=format&fit=crop&q=80"
+    ];
+
+    // Build Rich Widgets if travelData is provided
+    let richWidgets = "";
+    if (travelData) {
+        // 1. Weather & Umbrella Alert Widget
+        if (travelData.umbrella_needed || travelData.weather_alert) {
+            richWidgets += `
+                <div class="gs-weather-box" style="margin-top: 12px;">
+                    <div class="gs-section-title">🌤️ 3-Day Weather Prediction & Advisory</div>
+                    ${travelData.umbrella_needed ? `
+                        <div class="gs-umbrella-alert">
+                            <span style="font-size: 20px;">☔</span>
+                            <div>
+                                <strong>Precipitation & Umbrella Advisory:</strong>
+                                <div>Rain expected during your travel window. Please pack an umbrella and rain gear!</div>
+                            </div>
+                        </div>
+                    ` : ''}
+                    ${travelData.weather_alert ? `<div style="font-size: 11.5px; color: var(--text-main); margin-top: 4px;"><strong>Forecast Summary:</strong> ${travelData.weather_alert}</div>` : ''}
+                </div>
+            `;
+        }
+
+        // 2. Hotel Recommendations Cards
+        if (Array.isArray(travelData.hotels) && travelData.hotels.length > 0) {
+            richWidgets += `
+                <div style="margin-top: 12px;">
+                    <div class="gs-section-title">🏨 Nearest Budget-Matched Accommodations</div>
+                    <div class="gs-hotels-grid">
+                        ${travelData.hotels.map((h, idx) => `
+                            <div class="gs-hotel-card">
+                                <img src="${hotelImages[idx % hotelImages.length]}" alt="${h.name || 'Hotel'}" class="gs-hotel-img" loading="lazy">
+                                <div class="gs-hotel-info">
+                                    <div class="gs-hotel-name">${h.name || 'Premium Living Stay'}</div>
+                                    <div class="gs-hotel-meta">
+                                        <span>📍 ${h.distance || 'Near Airport'}</span>
+                                        <span>⭐ ${h.rating || '4.5/5'}</span>
+                                    </div>
+                                    <div class="gs-hotel-price">${h.price || 'Best Available Rate'}</div>
+                                </div>
+                            </div>
+                        `).join("")}
+                    </div>
+                </div>
+            `;
+        }
+
+        // 3. Safety & Night Crime Alert Widget
+        if (travelData.night_safety_summary || travelData.safety_level) {
+            const levelClass = (travelData.safety_level || "").toLowerCase().includes("safe") ? "safe" : (travelData.safety_level || "").toLowerCase().includes("caution") ? "caution" : "moderate";
+            richWidgets += `
+                <div class="gs-safety-box" style="margin-top: 12px;">
+                    <div class="gs-safety-header">
+                        <div class="gs-section-title" style="color: #EF4444; margin: 0;">🛡️ Night Safety & Crime Alert</div>
+                        <span class="gs-safety-level-badge ${levelClass}">${travelData.safety_level || 'Safe'}</span>
+                    </div>
+                    <div class="gs-safety-text">${travelData.night_safety_summary || 'Use registered airport taxi counters and avoid isolated dark alleyways after midnight.'}</div>
+                </div>
+            `;
+        }
+    }
+
+    return `<div class="bot-content">${formatted}</div>${richWidgets}`;
+}
+
+function appendMessage(sender, text, travelData = null) {
     if (!chatbotMessages) return;
     const msgDiv = document.createElement("div");
     msgDiv.className = `message ${sender}`;
 
-    // Escape HTML to prevent XSS, but convert newlines to <br>
-    const safeText = text
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(new RegExp('"', "g"), "&quot;")
-        .replace(new RegExp("'", "g"), "&#039;")
-        .replace(/\n/g, "<br>");
+    if (sender === "bot") {
+        msgDiv.innerHTML = formatBotMessage(text, travelData);
+    } else {
+        // User message
+        const safeText = text
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/\n/g, "<br>");
+        msgDiv.innerHTML = safeText;
+    }
 
-    msgDiv.innerHTML = safeText;
     chatbotMessages.appendChild(msgDiv);
     chatbotMessages.scrollTop = chatbotMessages.scrollHeight;
 }
@@ -4732,21 +5013,32 @@ function showTypingIndicator() {
     const indicatorDiv = document.createElement("div");
     indicatorDiv.className = "message bot typing-indicator-container";
     indicatorDiv.innerHTML = `
-            <div class="typing-indicator">
-                <span></span>
-                <span></span>
-                <span></span>
-            </div>
-        `;
+        <div class="typing-indicator">
+            <span></span>
+            <span></span>
+            <span></span>
+        </div>
+    `;
     chatbotMessages.appendChild(indicatorDiv);
     chatbotMessages.scrollTop = chatbotMessages.scrollHeight;
     return indicatorDiv;
 }
 
+// 6. Handle Standard Chat Message Send
 async function handleSendMessage() {
     if (!chatbotInput || !chatbotMessages) return;
     const text = chatbotInput.value.trim();
     if (!text) return;
+
+    // Check if user is typing "gagansaathi" or "gagan saathi" -> open the form!
+    const lowerText = text.toLowerCase();
+    if (lowerText === "gagansaathi" || lowerText === "gagan saathi" || lowerText === "gagan" || lowerText === "saathi" || lowerText.includes("trip planner") || lowerText.includes("plan trip")) {
+        appendMessage("user", text);
+        chatbotInput.value = "";
+        openGaganSaathiMode(true);
+        appendMessage("bot", `✨ **Gagan Saathi (गगन साथी) Mode Activated!**\n\nI have opened the smart travel planning form for you above. Please verify your **Origin**, **Destination**, **Travel Date**, and **Food/Dietary Preferences**, then click the arrow button to generate your complete travel dossier! ✈️`);
+        return;
+    }
 
     // Append user message
     appendMessage("user", text);
@@ -4759,31 +5051,97 @@ async function handleSendMessage() {
         const apiKey = localStorage.getItem("gemini_api_key") || "";
         const response = await fetch("/api/chat", {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({ message: text, apiKey: apiKey })
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                message: text,
+                mode: isGaganMode ? "gagansaathi" : "standard",
+                apiKey: apiKey
+            })
         });
 
-        if (typingIndicator) {
-            typingIndicator.remove();
-        }
+        if (typingIndicator) typingIndicator.remove();
 
         const data = await response.json();
         if (response.ok && data.response) {
-            appendMessage("bot", data.response);
+            appendMessage("bot", data.response, data.travelData);
         } else {
-            appendMessage("bot", data.error || "Sorry, I encountered an error processing your request. Please try again.");
+            appendMessage("bot", data.error || "Sorry, I encountered an error processing your request. Please check your Gemini API key in settings ⚙️.");
         }
     } catch (err) {
         console.error("Chat error:", err);
-        if (typingIndicator) {
-            typingIndicator.remove();
-        }
+        if (typingIndicator) typingIndicator.remove();
         appendMessage("bot", "Network error. Please make sure the backend server is running.");
     }
 }
 
+// 7. Handle Gagan Saathi Multi-Field Form Submission
+if (gaganSaathiSubmitBtn) {
+    gaganSaathiSubmitBtn.addEventListener("click", async () => {
+        const pName = gsPassengerName ? gsPassengerName.value.trim() : "Passenger";
+        const tDate = gsTravelDate ? gsTravelDate.value : "";
+        const fromApt = gsFromAirport ? gsFromAirport.value.trim() : "";
+        const toApt = gsToAirport ? gsToAirport.value.trim() : "";
+        const budget = gsBudget ? gsBudget.value : "Moderate";
+        const foodPref = gsFoodPref ? gsFoodPref.value : "Non-Vegetarian";
+        const allergies = gsAllergies ? gsAllergies.value.trim() : "None";
+        const safetyNotes = gsSafetyNotes ? gsSafetyNotes.value.trim() : "";
+
+        if (!fromApt && !toApt) {
+            alert("Please enter both Origin and Destination airports/cities to plan your trip.");
+            if (gsFromAirport) gsFromAirport.focus();
+            return;
+        }
+
+        // Build User Prompt Summary
+        const userPrompt = `✈️ **Trip Request (Gagan Saathi)**:\n• Passenger: ${pName}\n• Route: ${fromApt || 'Current Location'} ➔ ${toApt || 'Destination'}\n• Date: ${tDate}\n• Budget: ${budget}\n• Diet: ${foodPref}${allergies ? ' (Allergies: ' + allergies + ')' : ''}\n${safetyNotes ? '• Safety/Viewpoints: ' + safetyNotes : ''}`;
+
+        appendMessage("user", userPrompt);
+
+        // Show typing indicator
+        const typingIndicator = showTypingIndicator();
+
+        try {
+            const apiKey = localStorage.getItem("gemini_api_key") || "";
+            const payload = {
+                mode: "gagansaathi",
+                isGaganSaathi: true,
+                message: `Please generate a comprehensive Gagan Saathi travel guide for ${pName} traveling from ${fromApt} to ${toApt} on ${tDate}. Include 3-day weather prediction, umbrella advisory, budget hotels, food/allergy recommendations, night crime safety alert, and city viewpoints.`,
+                travelDetails: {
+                    passengerName: pName,
+                    travelDate: tDate,
+                    fromAirport: fromApt,
+                    toAirport: toApt,
+                    budget: budget,
+                    foodPreference: foodPref,
+                    allergies: allergies,
+                    safetyNotes: safetyNotes
+                },
+                apiKey: apiKey
+            };
+
+            const response = await fetch("/api/chat", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+
+            if (typingIndicator) typingIndicator.remove();
+
+            const data = await response.json();
+            if (response.ok && data.response) {
+                appendMessage("bot", data.response, data.travelData);
+            } else {
+                appendMessage("bot", data.error || "Sorry, could not generate travel dossier. Please verify your Gemini API key in settings ⚙️.");
+            }
+        } catch (err) {
+            console.error("Gagan Saathi submit error:", err);
+            if (typingIndicator) typingIndicator.remove();
+            appendMessage("bot", "Network error communicating with the server. Please check your connection.");
+        }
+    });
+}
+
+// 8. Event Listeners for Chat Controls & Quick Action Chips
 if (chatbotSend) {
     chatbotSend.addEventListener("click", handleSendMessage);
 }
@@ -4796,7 +5154,24 @@ if (chatbotInput) {
     });
 }
 
-// Settings Toggle and Save Logic
+// Quick action chips inside chat messages
+document.addEventListener("click", (e) => {
+    const chip = e.target.closest(".chip-btn");
+    if (!chip) return;
+
+    const action = chip.dataset.action;
+    if (action === "open-gagan") {
+        openGaganSaathiMode(true);
+    } else if (action === "prompt") {
+        const text = chip.dataset.text || chip.textContent;
+        if (chatbotInput) {
+            chatbotInput.value = text;
+            handleSendMessage();
+        }
+    }
+});
+
+// 9. Settings Toggle and Save Logic
 const chatbotSettingsToggle = document.getElementById("chatbotSettingsToggle");
 const chatbotSettingsPanel = document.getElementById("chatbotSettingsPanel");
 const chatbotApiKeyInput = document.getElementById("chatbotApiKeyInput");
@@ -4819,7 +5194,7 @@ if (chatbotSaveSettingsBtn && chatbotApiKeyInput && chatbotSettingsPanel) {
         const keyVal = chatbotApiKeyInput.value.trim();
         localStorage.setItem("gemini_api_key", keyVal);
         chatbotSettingsPanel.classList.add("hidden");
-        appendMessage("bot", `<svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="7.5" cy="15.5" r="5.5"/><path d="M21 2l-9.6 9.6"/><path d="M15.5 7.5l3 3"/></svg> API Key updated successfully!`);
+        appendMessage("bot", `🔑 **Gemini API Key Saved Successfully!**\n\nGagan Saathi is now fully active to retrieve 3-day weather predictions, nearest hotels with photos, food recommendations, and night safety alerts!`);
     });
 }
 
@@ -4835,3 +5210,4 @@ if (document.readyState !== "loading") {
     document.addEventListener("DOMContentLoaded", safeInit);
     window.addEventListener("load", safeInit);
 }
+

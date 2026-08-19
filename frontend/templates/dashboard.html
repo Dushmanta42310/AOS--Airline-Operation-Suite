@@ -194,41 +194,157 @@
     </div>
 
     <!-- Floating Chatbot FAB -->
-    <div id="chatbotFab" class="chatbot-fab" title="Chat with AOS Assistant">
+    <div id="chatbotFab" class="chatbot-fab" title="Chat with AOS & Gagan Saathi Assistant">
+        <div class="fab-pulse-ring"></div>
         <svg class="fab-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
     </div>
 
-    <!-- Chatbot Window -->
+    <!-- Chatbot Window (Expanded Glassmorphism Modal / Floating Transparent Screen) -->
     <div id="chatbotWindow" class="chatbot-window hidden">
         <div class="chatbot-header">
             <div class="chatbot-header-info">
                 <span class="chatbot-status-dot"></span>
-                <h4>AOS Operational Assistant</h4>
+                <div class="chatbot-title-wrap">
+                    <h4 id="chatbotHeaderTitle">AOS Operational Assistant</h4>
+                    <span id="chatbotModeTag" class="chatbot-mode-pill active" title="Switch Mode">AOS ASSISTANT</span>
+                </div>
             </div>
             <div class="chatbot-header-actions">
-                <button id="chatbotSettingsToggle" class="chatbot-header-btn" title="API Settings"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
-                <button id="chatbotClose" class="chatbot-close-btn" title="Close Chat">&times;</button>
+                <button id="gaganSaathiToggleBtn" class="gagan-saathi-pill-btn" type="button" title="Open Gagan Saathi AI Travel Planner">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                    <span>Gagan Saathi</span>
+                </button>
+                <button id="chatbotExpandBtn" class="chatbot-header-btn" type="button" title="Toggle Fullscreen / Big Screen">
+                    <svg id="expandIcon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+                    <svg id="compressIcon" class="hidden" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+                </button>
+                <button id="chatbotSettingsToggle" class="chatbot-header-btn" type="button" title="Gemini API Key Settings"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+                <button id="chatbotClose" class="chatbot-close-btn" type="button" title="Close Chat">&times;</button>
             </div>
         </div>
 
         <!-- Chatbot Settings Panel -->
         <div id="chatbotSettingsPanel" class="chatbot-settings-panel hidden">
-            <div class="chatbot-settings-title">Gemini API Settings</div>
+            <div class="chatbot-settings-title"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> Gemini AI Key Configuration</div>
             <div class="chatbot-settings-row">
-                <input type="password" id="chatbotApiKeyInput" placeholder="Enter API Key (AIzaSy...)">
-                <button id="chatbotSaveSettingsBtn">Save</button>
+                <input type="password" id="chatbotApiKeyInput" placeholder="Enter Gemini API Key (AIzaSy...)">
+                <button id="chatbotSaveSettingsBtn" type="button">Save Key</button>
             </div>
-            <div class="chatbot-settings-help">The API key is saved locally in your browser.</div>
+            <div class="chatbot-settings-help">The API key enables live 3-day weather predictions, budget hotel suggestions with images, night crime alerts, and city viewpoints. Saved securely in local storage.</div>
+        </div>
+
+        <!-- Gagan Saathi Dedicated Travel Assistant Form Overlay/Tray -->
+        <div id="gaganSaathiTray" class="gagan-saathi-tray hidden">
+            <div class="tray-header">
+                <div class="tray-title-badge">
+                    <span class="tray-sparkle">✨</span>
+                    <div>
+                        <h3>Gagan Saathi (गगन साथी) Travel Planner</h3>
+                        <p>Real-time airport suggestions, 3-day weather, hotel photos, food guides & night crime alerts</p>
+                    </div>
+                </div>
+                <button id="closeGaganTrayBtn" class="tray-close-btn" type="button" title="Minimize Form">&times;</button>
+            </div>
+
+            <form id="gaganSaathiForm" class="gagan-saathi-form" onsubmit="return false;">
+                <div class="form-row-2">
+                    <div class="form-group">
+                        <label for="gsPassengerName">Passenger / Staff Name</label>
+                        <input type="text" id="gsPassengerName" placeholder="e.g. Dushmanta Das" value="Dushmanta Das">
+                    </div>
+                    <div class="form-group">
+                        <label for="gsTravelDate">Travel Date</label>
+                        <input type="date" id="gsTravelDate">
+                    </div>
+                </div>
+
+                <div class="form-row-2">
+                    <div class="form-group autocomplete-group">
+                        <label for="gsFromAirport">From Airport (Origin)</label>
+                        <div class="input-with-icon">
+                            <span class="input-icon">🛫</span>
+                            <input type="text" id="gsFromAirport" placeholder="Type city or airport (e.g. DEL, Mumbai)..." autocomplete="off">
+                        </div>
+                        <div id="fromSuggestionsBox" class="gs-suggestions-box hidden"></div>
+                    </div>
+                    <div class="form-group autocomplete-group">
+                        <label for="gsToAirport">To Airport (Destination)</label>
+                        <div class="input-with-icon">
+                            <span class="input-icon">🛬</span>
+                            <input type="text" id="gsToAirport" placeholder="Type city or airport (e.g. BBI, London, JFK)..." autocomplete="off">
+                        </div>
+                        <div id="toSuggestionsBox" class="gs-suggestions-box hidden"></div>
+                    </div>
+                </div>
+
+                <div class="form-row-3">
+                    <div class="form-group">
+                        <label for="gsBudget">Budget Tier</label>
+                        <select id="gsBudget">
+                            <option value="Economy / Budget ($ / ₹)">Economy / Budget ($ / ₹)</option>
+                            <option value="Moderate / Comfort ($$ / ₹₹)" selected>Moderate / Comfort ($$ / ₹₹)</option>
+                            <option value="Luxury / Premium ($$$ / ₹₹₹)">Luxury / Premium ($$$ / ₹₹₹)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="gsFoodPref">Food Preference</label>
+                        <select id="gsFoodPref">
+                            <option value="Vegetarian (Pure Veg)">Vegetarian (Pure Veg)</option>
+                            <option value="Non-Vegetarian" selected>Non-Vegetarian</option>
+                            <option value="Vegan">Vegan</option>
+                            <option value="Jain Food">Jain Food</option>
+                            <option value="Halal">Halal</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="gsAllergies">Food Allergies / Diet</label>
+                        <input type="text" id="gsAllergies" placeholder="e.g. Peanut, Gluten, Dairy (or None)">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="gsSafetyNotes">Safety & Viewpoint Focus / Special Needs</label>
+                    <input type="text" id="gsSafetyNotes" placeholder="e.g. Night safety around airport, family viewpoints, solo travel precautions">
+                </div>
+
+                <div class="tray-footer">
+                    <button type="button" id="gaganSaathiSubmitBtn" class="gagan-submit-btn">
+                        <span>Generate Complete Travel Dossier</span>
+                        <svg class="submit-arrow-svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                    </button>
+                </div>
+            </form>
         </div>
 
         <div id="chatbotMessages" class="chatbot-messages">
-            <div class="message bot">
-                Hello! I am your AOS Robo-Assistant. How can I help you manage your airline operations today? ✈️
+            <div class="message bot welcome-bot-card">
+                <div class="welcome-card-header">
+                    <span class="bot-avatar-emoji">✈️</span>
+                    <div>
+                        <strong>AOS & Gagan Saathi Intelligent Assistant</strong>
+                        <p class="welcome-subtitle">Aviation Operations & Comprehensive Travel Intelligence</p>
+                    </div>
+                </div>
+                <div class="welcome-card-body">
+                    <p>Hello! Type any operations query or type <strong>"gagansaathi"</strong> to activate our full AI travel planner mode with live 3-day weather forecasts, hotel finder, food guides, night crime alerts, and city viewpoints!</p>
+                    
+                    <div class="chatbot-quick-chips">
+                        <button class="chip-btn" type="button" data-action="open-gagan">✨ Plan Trip with Gagan Saathi</button>
+                        <button class="chip-btn" type="button" data-action="prompt" data-text="What is the weather and flight time between DEL and BBI?">🌤️ Weather & Flight Time</button>
+                        <button class="chip-btn" type="button" data-action="prompt" data-text="Show active flight fleet metrics and gate status.">📊 Flight Ops Metrics</button>
+                    </div>
+                </div>
             </div>
         </div>
+
         <div class="chatbot-input-area">
-            <input type="text" id="chatbotInput" placeholder="Ask about flights, crew, etc..." autocomplete="off">
-            <button id="chatbotSend" class="chatbot-send-btn">Send</button>
+            <button id="chatbotGaganShortcutBtn" class="gagan-input-shortcut-btn" type="button" title="Open Gagan Saathi Form">
+                ✨
+            </button>
+            <input type="text" id="chatbotInput" placeholder="Ask about flights, crew or type 'gagansaathi' to plan trip..." autocomplete="off">
+            <button id="chatbotSend" class="chatbot-send-btn" type="button" title="Send Message">
+                <svg class="send-svg-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
         </div>
     </div>
 

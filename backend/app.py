@@ -3257,6 +3257,78 @@ def _prewarm_vector_db():
 
 
 
+def search_airports_quick(query, limit=4):
+    """Fast search for airports matching query string (IATA, City, Name). Returns top matches."""
+    airports = get_global_airports()
+    if not airports or not query:
+        return []
+    
+    q = query.strip().upper()
+    if len(q) < 2:
+        return []
+
+    exact_iata = []
+    prefix_city = []
+    contains_city = []
+    prefix_name = []
+    contains_name = []
+
+    seen = set()
+
+    for apt in airports:
+        iata = (apt.get("iata") or "").strip().upper()
+        city = (apt.get("city") or "").strip().upper()
+        name = (apt.get("name") or "").strip().upper()
+        country = (apt.get("country") or "").strip().upper()
+        key = f"{iata}_{name}"
+
+        if key in seen:
+            continue
+
+        item = {
+            "iata": iata,
+            "name": apt.get("name", ""),
+            "city": apt.get("city", ""),
+            "state": apt.get("state", ""),
+            "country": apt.get("country", ""),
+            "lat": apt.get("lat"),
+            "lng": apt.get("lng"),
+            "display": f"{iata + ' - ' if iata else ''}{apt.get('name', '')} ({apt.get('city', '')}, {apt.get('country', '')})"
+        }
+
+        if iata == q:
+            exact_iata.append(item)
+            seen.add(key)
+        elif city.startswith(q):
+            prefix_city.append(item)
+            seen.add(key)
+        elif q in city:
+            contains_city.append(item)
+            seen.add(key)
+        elif name.startswith(q):
+            prefix_name.append(item)
+            seen.add(key)
+        elif q in name:
+            contains_name.append(item)
+            seen.add(key)
+
+        if len(exact_iata) + len(prefix_city) >= limit * 2:
+            break
+
+    results = (exact_iata + prefix_city + contains_city + prefix_name + contains_name)[:limit]
+    return results
+
+
+@app.route("/api/airports/search", methods=["GET"])
+def api_search_airports():
+    q = request.args.get("q", "").strip()
+    limit = min(int(request.args.get("limit", 4)), 10)
+    if not q:
+        return jsonify({"results": []}), 200
+    results = search_airports_quick(q, limit=limit)
+    return jsonify({"results": results}), 200
+
+
 @app.route("/api/chat", methods=["POST"])
 def handle_custom_chat():
     import time
@@ -3264,9 +3336,28 @@ def handle_custom_chat():
 
     data = request.get_json() or {}
     user_message = data.get("message", "").strip()
+    mode = str(data.get("mode", "")).strip().lower()
     
-    if not user_message:
-        return jsonify({"error": "Message content cannot be blank"}), 400
+    # Check if this is a Gagan Saathi travel planner invocation
+    is_gagansaathi = (
+        mode == "gagansaathi" or
+        data.get("isGaganSaathi") is True or
+        "gagansaathi" in user_message.lower() or
+        "gagan saathi" in user_message.lower()
+    )
+
+    travel_details = data.get("travelDetails") or {}
+    from_airport = str(travel_details.get("fromAirport") or data.get("fromAirport") or "").strip()
+    to_airport = str(travel_details.get("toAirport") or data.get("toAirport") or "").strip()
+    travel_date = str(travel_details.get("travelDate") or data.get("travelDate") or "").strip()
+    passenger_name = str(travel_details.get("passengerName") or data.get("passengerName") or "").strip()
+    budget = str(travel_details.get("budget") or data.get("budget") or "").strip()
+    food_pref = str(travel_details.get("foodPreference") or data.get("foodPreference") or "").strip()
+    allergies = str(travel_details.get("allergies") or data.get("allergies") or "").strip()
+    safety_notes = str(travel_details.get("safetyNotes") or data.get("safetyNotes") or "").strip()
+
+    if not user_message and not (from_airport and to_airport):
+        return jsonify({"error": "Message content or travel details cannot be blank"}), 400
         
     # Get API key from request payload first, then fallback to environment variables
     client_api_key = data.get("apiKey", "").strip() if isinstance(data.get("apiKey"), str) else ""
@@ -3278,19 +3369,47 @@ def handle_custom_chat():
     try:
         # Build enriched context from global airports database, distance calculator, and Oracle DB
         t_ctx_start = time.time()
-        context_chunks = build_chatbot_context(user_message)
+        combined_query = f"{user_message} {from_airport} {to_airport}"
+        context_chunks = build_chatbot_context(combined_query)
         t_ctx_end = time.time()
         print(f"[PERF] Context build: {t_ctx_end - t_ctx_start:.2f}s")
         
-        # Build prompt payload context
-        prompt = (
-            f"You are the AOS Robo-Assistant, an intelligent, helpful airline and flight operations AI.\n"
-            f"Use the following authoritative context details from our system data (including global airports database, distance calculations, and Oracle DB) to answer the user request accurately, politely, and comprehensively.\n"
-            f"If distance or flight time calculations are provided in the context, present them clearly to the user with exact numbers.\n\n"
-            f"Context Data:\n{context_chunks}\n\n"
-            f"User Question: {user_message}\n\n"
-            f"Detailed Answer:"
-        )
+        # Build specialized prompt payload
+        if is_gagansaathi or (from_airport and to_airport):
+            prompt = (
+                f"You are **Gagan Saathi (गगन साथी)**, the elite AI Travel Intelligence & Flight Companion of Airline Operation Suite (AOS).\n"
+                f"Your goal is to provide a rich, precise, and authoritative travel dossier for the passenger.\n\n"
+                f"### PASSENGER & TRIP DETAILS:\n"
+                f"- Passenger Name: {passenger_name or 'Valued Passenger'}\n"
+                f"- Origin Airport / City: {from_airport or 'User Selected Origin'}\n"
+                f"- Destination Airport / City: {to_airport or 'User Selected Destination'}\n"
+                f"- Travel Date: {travel_date or 'Upcoming'}\n"
+                f"- Budget Tier: {budget or 'Moderate / Standard'}\n"
+                f"- Food Preference: {food_pref or 'Veg & Non-Veg'}\n"
+                f"- Dietary Allergies / Restrictions: {allergies or 'None specified'}\n"
+                f"- Safety & Sightseeing Focus: {safety_notes or 'Standard high-priority safety & top viewpoints'}\n"
+                f"- User Additional Inquiries: {user_message}\n\n"
+                f"### SYSTEM & AIRPORT CONTEXT DATA:\n{context_chunks}\n\n"
+                f"### INSTRUCTIONS FOR YOUR RESPONSE:\n"
+                f"Deliver a warm, highly detailed, beautifully structured response with the following mandatory sections:\n\n"
+                f"1. ✈️ **Trip Overview & Flight Logistics**: Include estimated flight distance, direct flight time, and airport transfer tips.\n"
+                f"2. 🌤️ **3-Day Weather Prediction & Packing Gear Advisory**: Provide a 3-day weather forecast (Day 1, Day 2, Day 3 with temperatures, rain probability, sky conditions) for the destination area. EXPLICITLY recommend preventive gear (e.g. ☔ Umbrella / Raincoat if rain is likely, 🕶️ Sunscreen/Sunglasses if sunny/UV high, 🧥 Warm Jackets if chilly, comfortable footwear).\n"
+                f"3. 🏨 **Nearest Hotel & Living Accommodations**: Suggest 3 top-rated hotels matching the budget tier ({budget or 'Moderate'}). For each hotel, give the Hotel Name, approximate distance from the destination airport, key amenities, estimated nightly tariff, and a brief description.\n"
+                f"4. 🍽️ **Food, Cuisine & Allergy Advisory**: Tailored to **{food_pref or 'all dietary preferences'}** and considering allergies: **{allergies or 'general safety'}**. List 3 recommended restaurants / food centers near the airport & downtown, highlight iconic local dishes to try, and give clear allergen precautions.\n"
+                f"5. 🛡️ **Night Safety & Crime Alert Advisory**: Provide an honest destination safety advisory around the airport and city after dark. Give night travel safety precautions, verified taxi/transit recommendations (e.g., official airport taxi kiosks, metro lines), areas to avoid late at night, and local emergency numbers.\n"
+                f"6. 📍 **Famous Viewpoints & City Attractions**: List top 4 iconic viewpoints, photography spots, cultural landmarks, and sightseeing attractions with the best visiting times.\n\n"
+                f"At the very end of your response, output a clean JSON block fenced by ```json_travel_data and ``` with keys: 'weather_alert', 'umbrella_needed' (true/false), 'hotels' (array of objects with name, price, distance, rating, image_keyword), 'food_recommendations' (array of objects with name, type, cuisine), 'safety_level' ('Safe' / 'Moderate Caution' / 'High Caution'), 'night_safety_summary', 'top_viewpoints' (array of strings).\n\n"
+                f"Gagan Saathi Detailed Comprehensive Travel Guide:"
+            )
+        else:
+            prompt = (
+                f"You are the AOS Robo-Assistant, an intelligent, helpful airline and flight operations AI.\n"
+                f"Use the following authoritative context details from our system data (including global airports database, distance calculations, and Oracle DB) to answer the user request accurately, politely, and comprehensively.\n"
+                f"If distance or flight time calculations are provided in the context, present them clearly to the user with exact numbers.\n\n"
+                f"Context Data:\n{context_chunks}\n\n"
+                f"User Question: {user_message}\n\n"
+                f"Detailed Answer:"
+            )
         
         # Initialize the modern Google GenAI Client configuration
         client = genai.Client(api_key=api_key)
@@ -3316,7 +3435,6 @@ def handle_custom_chat():
 
         # Generate content using the new client engine and active model layout
         t_llm_start = time.time()
-        t_llm_start = time.time()
         active_models = ['gemini-flash-lite-latest', 'gemini-3.5-flash-lite', 'gemini-flash-latest', 'gemini-2.5-flash']
         response = None
         last_error = None
@@ -3339,7 +3457,23 @@ def handle_custom_chat():
         t_llm_end = time.time()
         print(f"[PERF] Gemini API call: {t_llm_end - t_llm_start:.2f}s")
 
-        bot_reply = response.text
+        raw_bot_reply = response.text
+        bot_reply = raw_bot_reply
+        structured_data = None
+
+        # Extract structured json_travel_data if present
+        import re
+        json_match = re.search(r'```json_travel_data\s*([\s\S]*?)\s*```', raw_bot_reply)
+        if not json_match:
+            json_match = re.search(r'```json\s*(\{[\s\S]*?"weather_alert"[\s\S]*?\})\s*```', raw_bot_reply)
+
+        if json_match:
+            try:
+                structured_data = json.loads(json_match.group(1).strip())
+                # Strip the json block from the markdown text for clean reading
+                bot_reply = raw_bot_reply.replace(json_match.group(0), "").strip()
+            except Exception as j_err:
+                print(f"[WARNING] JSON parsing error in travel data: {j_err}")
         
         # Add the conversation history to the vector store in a background thread to prevent blocking the UI
         def save_history_async(text, metadata):
@@ -3355,7 +3489,7 @@ def handle_custom_chat():
             import threading
             from datetime import datetime
             interaction_text = f"User: {user_message}\nAssistant: {bot_reply}"
-            meta = {"type": "chat_history", "timestamp": str(datetime.now())}
+            meta = {"type": "chat_history", "is_gagansaathi": str(is_gagansaathi), "timestamp": str(datetime.now())}
             
             # Start background thread to run the CPU-intensive embedding & DB insert
             t = threading.Thread(target=save_history_async, args=(interaction_text, meta))
@@ -3367,7 +3501,11 @@ def handle_custom_chat():
         total_time = time.time() - req_start
         print(f"[PERF] Total /api/chat response time: {total_time:.2f}s")
             
-        return jsonify({"response": bot_reply})
+        return jsonify({
+            "response": bot_reply,
+            "isGaganSaathi": is_gagansaathi,
+            "travelData": structured_data
+        })
         
     except Exception as e:
         err_str = str(e)
