@@ -4915,7 +4915,7 @@ function formatBotMessage(text, travelData = null) {
     formatted = formatted.replace(/\n\n/g, '<div style="height: 8px;"></div>');
     formatted = formatted.replace(/\n/g, '<br>');
 
-    // Hotel Image Fallback Library
+    // Image Fallback Libraries
     const hotelImages = [
         "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=500&auto=format&fit=crop&q=80",
         "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=500&auto=format&fit=crop&q=80",
@@ -4923,9 +4923,25 @@ function formatBotMessage(text, travelData = null) {
         "https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=500&auto=format&fit=crop&q=80"
     ];
 
+    const placeImages = [
+        "https://images.unsplash.com/photo-1477959858617-67f30bc75b82?w=500&auto=format&fit=crop&q=80",
+        "https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=500&auto=format&fit=crop&q=80",
+        "https://images.unsplash.com/photo-1508807526345-15e9b5f4eaff?w=500&auto=format&fit=crop&q=80",
+        "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=500&auto=format&fit=crop&q=80"
+    ];
+
+    const foodImages = [
+        "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=500&auto=format&fit=crop&q=80",
+        "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=500&auto=format&fit=crop&q=80",
+        "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=500&auto=format&fit=crop&q=80",
+        "https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=500&auto=format&fit=crop&q=80"
+    ];
+
     // Build Rich Widgets if travelData is provided
     let richWidgets = "";
     if (travelData) {
+        const destCity = travelData.destination_city || "";
+
         // 1. Weather & Umbrella Alert Widget
         if (travelData.umbrella_needed || travelData.weather_alert) {
             richWidgets += `
@@ -4945,40 +4961,145 @@ function formatBotMessage(text, travelData = null) {
             `;
         }
 
-        // 2. Hotel Recommendations Cards
+        // 2. Hotel Recommendations Cards with Google Maps Button
         if (Array.isArray(travelData.hotels) && travelData.hotels.length > 0) {
             richWidgets += `
-                <div style="margin-top: 12px;">
-                    <div class="gs-section-title">🏨 Nearest Budget-Matched Accommodations</div>
+                <div style="margin-top: 14px;">
+                    <div class="gs-section-title">🏨 Nearest Budget-Matched Hotels (with Google Maps)</div>
                     <div class="gs-hotels-grid">
-                        ${travelData.hotels.map((h, idx) => `
-                            <div class="gs-hotel-card">
-                                <img src="${hotelImages[idx % hotelImages.length]}" alt="${h.name || 'Hotel'}" class="gs-hotel-img" loading="lazy">
-                                <div class="gs-hotel-info">
-                                    <div class="gs-hotel-name">${h.name || 'Premium Living Stay'}</div>
-                                    <div class="gs-hotel-meta">
-                                        <span>📍 ${h.distance || 'Near Airport'}</span>
-                                        <span>⭐ ${h.rating || '4.5/5'}</span>
+                        ${travelData.hotels.map((h, idx) => {
+                            const mapQuery = encodeURIComponent(`${h.name || 'Hotel'} ${destCity}`.trim());
+                            const mapUrl = `https://www.google.com/maps/search/?api=1&query=${mapQuery}`;
+                            return `
+                                <div class="gs-hotel-card">
+                                    <img src="${hotelImages[idx % hotelImages.length]}" alt="${h.name || 'Hotel'}" class="gs-hotel-img" loading="lazy">
+                                    <div class="gs-hotel-info">
+                                        <div class="gs-hotel-name">${h.name || 'Premium Living Stay'}</div>
+                                        <div class="gs-hotel-meta">
+                                            <span>📍 ${h.distance || 'Near Airport'}</span>
+                                            <span>⭐ ${h.rating || '4.5/5'}</span>
+                                        </div>
+                                        <div class="gs-hotel-price">${h.price || 'Best Available Rate'}</div>
+                                        ${h.amenities ? `<div style="font-size: 10px; color: var(--text-muted); line-height: 1.3;">${h.amenities}</div>` : ''}
+                                        <a href="${mapUrl}" target="_blank" rel="noopener noreferrer" class="gs-map-link-btn" title="View ${h.name} on Google Maps">
+                                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
+                                            <span>Google Maps</span>
+                                        </a>
                                     </div>
-                                    <div class="gs-hotel-price">${h.price || 'Best Available Rate'}</div>
                                 </div>
-                            </div>
-                        `).join("")}
+                            `;
+                        }).join("")}
                     </div>
                 </div>
             `;
         }
 
-        // 3. Safety & Night Crime Alert Widget
+        // 3. Famous Places & Viewpoints Cards with Google Maps Button
+        const placesList = Array.isArray(travelData.famous_places) && travelData.famous_places.length > 0 
+            ? travelData.famous_places 
+            : Array.isArray(travelData.top_viewpoints) && travelData.top_viewpoints.length > 0 
+                ? travelData.top_viewpoints.map(p => typeof p === 'string' ? { name: p } : p) 
+                : [];
+
+        if (placesList.length > 0) {
+            richWidgets += `
+                <div style="margin-top: 14px;">
+                    <div class="gs-section-title">📍 Famous Places & City Viewpoints (with Google Maps)</div>
+                    <div class="gs-places-grid">
+                        ${placesList.map((p, idx) => {
+                            const pName = p.name || 'Scenic Viewpoint';
+                            const mapQuery = encodeURIComponent(`${pName} ${destCity}`.trim());
+                            const mapUrl = `https://www.google.com/maps/search/?api=1&query=${mapQuery}`;
+                            return `
+                                <div class="gs-place-card">
+                                    <img src="${placeImages[idx % placeImages.length]}" alt="${pName}" class="gs-place-img" loading="lazy">
+                                    <div class="gs-place-info">
+                                        <div class="gs-place-name">${pName}</div>
+                                        ${p.type || p.best_time ? `<div class="gs-place-meta"><span>🕒 ${p.best_time || 'Daytime / Sunset'}</span><span>🏛️ ${p.type || 'Attraction'}</span></div>` : ''}
+                                        ${p.description ? `<div class="gs-place-desc">${p.description}</div>` : ''}
+                                        <a href="${mapUrl}" target="_blank" rel="noopener noreferrer" class="gs-map-link-btn" title="Explore ${pName} on Google Maps">
+                                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+                                            <span>Explore on Map</span>
+                                        </a>
+                                    </div>
+                                </div>
+                            `;
+                        }).join("")}
+                    </div>
+                </div>
+            `;
+        }
+
+        // 4. Foodlets & Dining Centers Cards with Google Maps Button
+        const foodList = Array.isArray(travelData.foodlets) && travelData.foodlets.length > 0 
+            ? travelData.foodlets 
+            : Array.isArray(travelData.food_recommendations) && travelData.food_recommendations.length > 0 
+                ? travelData.food_recommendations 
+                : [];
+
+        if (foodList.length > 0) {
+            richWidgets += `
+                <div style="margin-top: 14px;">
+                    <div class="gs-section-title">🍽️ Foodlets & Iconic Dining Centers (with Google Maps)</div>
+                    <div class="gs-foodlets-grid">
+                        ${foodList.map((f, idx) => {
+                            const fName = f.name || 'Local Food Center';
+                            const mapQuery = encodeURIComponent(`${fName} restaurant ${destCity}`.trim());
+                            const mapUrl = `https://www.google.com/maps/search/?api=1&query=${mapQuery}`;
+                            const isVeg = (f.type || '').toLowerCase().includes('veg') && !(f.type || '').toLowerCase().includes('non');
+                            return `
+                                <div class="gs-foodlet-card">
+                                    <img src="${foodImages[idx % foodImages.length]}" alt="${fName}" class="gs-foodlet-img" loading="lazy">
+                                    <div class="gs-foodlet-info">
+                                        <div class="gs-foodlet-header">
+                                            <span class="gs-foodlet-name">${fName}</span>
+                                            <span class="gs-diet-badge ${isVeg ? 'veg' : 'non-veg'}">${f.type || 'Dining'}</span>
+                                        </div>
+                                        <div class="gs-foodlet-meta">
+                                            <span>🍲 ${f.cuisine || 'Regional Cuisine'}</span>
+                                            ${f.special_dish ? `<span>✨ ${f.special_dish}</span>` : ''}
+                                        </div>
+                                        <a href="${mapUrl}" target="_blank" rel="noopener noreferrer" class="gs-map-link-btn" title="Locate ${fName} on Google Maps">
+                                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
+                                            <span>Locate on Map</span>
+                                        </a>
+                                    </div>
+                                </div>
+                            `;
+                        }).join("")}
+                    </div>
+                </div>
+            `;
+        }
+
+        // 5. Safety & Night Crime Alert Widget
         if (travelData.night_safety_summary || travelData.safety_level) {
             const levelClass = (travelData.safety_level || "").toLowerCase().includes("safe") ? "safe" : (travelData.safety_level || "").toLowerCase().includes("caution") ? "caution" : "moderate";
             richWidgets += `
-                <div class="gs-safety-box" style="margin-top: 12px;">
+                <div class="gs-safety-box" style="margin-top: 14px;">
                     <div class="gs-safety-header">
                         <div class="gs-section-title" style="color: #EF4444; margin: 0;">🛡️ Night Safety & Crime Alert</div>
                         <span class="gs-safety-level-badge ${levelClass}">${travelData.safety_level || 'Safe'}</span>
                     </div>
                     <div class="gs-safety-text">${travelData.night_safety_summary || 'Use registered airport taxi counters and avoid isolated dark alleyways after midnight.'}</div>
+                </div>
+            `;
+        }
+
+        // 6. Interactive Quick Google Map Destination Hub
+        if (destCity) {
+            const allHotelsMap = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent('Hotels in ' + destCity)}`;
+            const allFoodMap = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent('Restaurants and Food in ' + destCity)}`;
+            const allPlacesMap = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent('Top Attractions and Viewpoints in ' + destCity)}`;
+
+            richWidgets += `
+                <div class="gs-map-hub-box" style="margin-top: 14px;">
+                    <div class="gs-section-title">🗺️ Google Maps Live Explorer Hub (${destCity})</div>
+                    <div class="gs-map-hub-buttons">
+                        <a href="${allHotelsMap}" target="_blank" rel="noopener noreferrer" class="gs-hub-btn">🏨 Search All Hotels</a>
+                        <a href="${allFoodMap}" target="_blank" rel="noopener noreferrer" class="gs-hub-btn">🍽️ Search All Foodlets</a>
+                        <a href="${allPlacesMap}" target="_blank" rel="noopener noreferrer" class="gs-hub-btn">📍 Search All Places</a>
+                    </div>
                 </div>
             `;
         }
