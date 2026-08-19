@@ -3319,6 +3319,52 @@ def search_airports_quick(query, limit=4):
     return results
 
 
+
+def call_groq_backup_llm(prompt_text, groq_key=None):
+    """Fallback high-speed LLM using Groq API (GPT-OSS-120B / GPT-OSS-20B / Qwen-3.6 / Llama)."""
+    import requests
+    
+    key = groq_key or os.environ.get("GROQ_API_KEY")
+    if not key:
+        raise Exception("Groq API key not configured in environment or settings.")
+    
+    models = ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.6-27b", "groq/compound", "llama-3.3-70b-versatile"]
+    last_err = None
+    headers = {
+        "Authorization": f"Bearer {key}",
+        "Content-Type": "application/json",
+        "User-Agent": "AOS-Airline-Suite/1.0"
+    }
+
+    for m in models:
+        try:
+            req_data = {
+                "model": m,
+                "messages": [
+                    {"role": "system", "content": "You are Gagan Saathi (गगन साथी) and the AOS AI Travel & Operations Assistant. Provide comprehensive, polite, well-structured, authoritative answers including all requested sections and the closing ```json_travel_data block when applicable."},
+                    {"role": "user", "content": prompt_text}
+                ],
+                "temperature": 0.35,
+                "max_tokens": 3500
+            }
+            resp = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=req_data, timeout=18)
+            if resp.status_code == 200:
+                resp_json = resp.json()
+                choices = resp_json.get("choices") or []
+                if choices and choices[0].get("message"):
+                    bot_text = choices[0]["message"].get("content", "")
+                    print(f"[INFO] Groq Backup LLM responded successfully using model: {m}")
+                    return bot_text
+            else:
+                print(f"[WARNING] Groq model {m} returned HTTP {resp.status_code}: {resp.text}")
+        except Exception as groq_err:
+            last_err = groq_err
+            print(f"[WARNING] Groq model {m} failed: {groq_err}. Trying next fallback model...")
+
+    raise last_err or Exception("All Groq backup models failed to respond.")
+
+
+
 @app.route("/api/airports/search", methods=["GET"])
 def api_search_airports():
     q = request.args.get("q", "").strip()
@@ -3359,12 +3405,15 @@ def handle_custom_chat():
     if not user_message and not (from_airport and to_airport):
         return jsonify({"error": "Message content or travel details cannot be blank"}), 400
         
-    # Get API key from request payload first, then fallback to environment variables
+    # Get API keys from request payload or environment variables
     client_api_key = data.get("apiKey", "").strip() if isinstance(data.get("apiKey"), str) else ""
-    api_key = client_api_key or os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+    client_groq_key = data.get("groqApiKey", "").strip() if isinstance(data.get("groqApiKey"), str) else ""
     
-    if not api_key:
-        return jsonify({"error": "Gemini API key not found. Please click the gear icon ⚙️ in the chatbot header to configure your API key."}), 400
+    api_key = client_api_key or os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+    groq_api_key = client_groq_key or os.environ.get("GROQ_API_KEY")
+    
+    if not api_key and not groq_api_key:
+        return jsonify({"error": "No AI API key found. Please click the gear icon ⚙️ in the chatbot header to configure your Gemini or Groq API key."}), 400
 
     try:
         # Build enriched context from global airports database, distance calculator, and Oracle DB
@@ -3411,51 +3460,57 @@ def handle_custom_chat():
                 f"Detailed Answer:"
             )
         
-        # Initialize the modern Google GenAI Client configuration
-        client = genai.Client(api_key=api_key)
-        
-        # Helper to generate content with low-latency retries on connection reset errors
-        def generate_with_retry(model_name, contents_payload, max_retries=3, initial_delay=0.2):
-            for attempt in range(1, max_retries + 1):
-                try:
-                    return client.models.generate_content(
-                        model=model_name,
-                        contents=contents_payload,
-                    )
-                except Exception as api_err:
-                    err_str = str(api_err).lower()
-                    is_conn_reset = "10054" in err_str or "connection reset" in err_str or "forcibly closed" in err_str
-                    
-                    if is_conn_reset and attempt < max_retries:
-                        sleep_time = initial_delay * attempt
-                        print(f"[WARNING] Gemini API attempt {attempt}/{max_retries} failed (Connection Reset). Retrying in {sleep_time}s...")
-                        time.sleep(sleep_time)
-                    else:
-                        raise api_err
-
-        # Generate content using the new client engine and active model layout
+        raw_bot_reply = None
         t_llm_start = time.time()
-        active_models = ['gemini-flash-lite-latest', 'gemini-3.5-flash-lite', 'gemini-flash-latest', 'gemini-2.5-flash']
-        response = None
-        last_error = None
-
-        for m_name in active_models:
+        
+        # 1. PRIMARY ENGINE: Attempt Google Gemini AI first (if api_key available)
+        if api_key:
             try:
-                response = generate_with_retry(
-                    model_name=m_name,
-                    contents_payload=prompt
-                )
-                print(f"[INFO] Gemini API responded using model: {m_name}")
-                break
-            except Exception as m_err:
-                last_error = m_err
-                print(f"[WARNING] Gemini model {m_name} failed: {m_err}. Trying next fallback...")
+                client = genai.Client(api_key=api_key)
+                
+                def generate_with_retry(model_name, contents_payload, max_retries=2, initial_delay=0.2):
+                    for attempt in range(1, max_retries + 1):
+                        try:
+                            return client.models.generate_content(
+                                model=model_name,
+                                contents=contents_payload,
+                            )
+                        except Exception as api_err:
+                            err_str = str(api_err).lower()
+                            is_conn_reset = "10054" in err_str or "connection reset" in err_str or "forcibly closed" in err_str
+                            if is_conn_reset and attempt < max_retries:
+                                sleep_time = initial_delay * attempt
+                                print(f"[WARNING] Gemini API attempt {attempt}/{max_retries} failed. Retrying in {sleep_time}s...")
+                                time.sleep(sleep_time)
+                            else:
+                                raise api_err
 
-        if not response:
-            raise last_error or Exception("All Gemini AI models failed to respond.")
+                active_models = ['gemini-flash-lite-latest', 'gemini-3.5-flash-lite', 'gemini-flash-latest', 'gemini-2.5-flash']
+                for m_name in active_models:
+                    try:
+                        response = generate_with_retry(model_name=m_name, contents_payload=prompt)
+                        if response and response.text:
+                            raw_bot_reply = response.text
+                            print(f"[INFO] Primary Engine: Gemini AI responded using model: {m_name}")
+                            break
+                    except Exception as m_err:
+                        print(f"[WARNING] Gemini model {m_name} failed: {m_err}. Trying next...")
+            except Exception as gemini_init_err:
+                print(f"[WARNING] Gemini client execution failed: {gemini_init_err}. Activating Groq backup...")
+
+        # 2. BACKUP ENGINE: If Gemini did not respond, automatically activate Groq Backup LLM
+        if not raw_bot_reply and groq_api_key:
+            print("[INFO] Activating Backup High-Speed LLM: Groq (Llama-3.3-70B)...")
+            try:
+                raw_bot_reply = call_groq_backup_llm(prompt_text=prompt, groq_key=groq_api_key)
+            except Exception as groq_err:
+                print(f"[ERROR] Groq backup LLM also failed: {groq_err}")
+
+        if not raw_bot_reply:
+            return jsonify({"error": "All AI models (Gemini and Groq Backup) failed to respond. Please check your API keys in chatbot settings ⚙️."}), 500
         
         t_llm_end = time.time()
-        print(f"[PERF] Gemini API call: {t_llm_end - t_llm_start:.2f}s")
+        print(f"[PERF] AI LLM execution completed in {t_llm_end - t_llm_start:.2f}s")
 
         raw_bot_reply = response.text
         bot_reply = raw_bot_reply

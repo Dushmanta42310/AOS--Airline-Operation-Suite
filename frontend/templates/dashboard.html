@@ -225,12 +225,19 @@
 
         <!-- Chatbot Settings Panel -->
         <div id="chatbotSettingsPanel" class="chatbot-settings-panel hidden">
-            <div class="chatbot-settings-title"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> Gemini AI Key Configuration</div>
+            <div class="chatbot-settings-title"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> AI Multi-LLM Engine Settings</div>
+            
+            <div style="font-size: 11px; font-weight: 700; color: #38BDF8; margin-top: 4px;">Primary: Google Gemini AI</div>
             <div class="chatbot-settings-row">
                 <input type="password" id="chatbotApiKeyInput" placeholder="Enter Gemini API Key (AIzaSy...)">
-                <button id="chatbotSaveSettingsBtn" type="button">Save Key</button>
             </div>
-            <div class="chatbot-settings-help">The API key enables live 3-day weather predictions, budget hotel suggestions with images, night crime alerts, and city viewpoints. Saved securely in local storage.</div>
+
+            <div style="font-size: 11px; font-weight: 700; color: #F59E0B; margin-top: 4px;">Backup: Groq High-Speed LLM (Llama-3.3)</div>
+            <div class="chatbot-settings-row">
+                <input type="password" id="chatbotGroqKeyInput" placeholder="Enter Groq API Key (gsk_...)">
+                <button id="chatbotSaveSettingsBtn" type="button">Save Keys</button>
+            </div>
+            <div class="chatbot-settings-help">If Gemini reaches limits or has network latency, the system automatically falls back to Groq high-speed Llama-3.3-70B seamlessly. Saved in browser.</div>
         </div>
 
         <!-- Gagan Saathi Dedicated Travel Assistant Form Overlay/Tray -->

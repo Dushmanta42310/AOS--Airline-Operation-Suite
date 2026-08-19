@@ -5170,13 +5170,15 @@ async function handleSendMessage() {
 
     try {
         const apiKey = localStorage.getItem("gemini_api_key") || "";
+        const groqApiKey = localStorage.getItem("groq_api_key") || "";
         const response = await fetch("/api/chat", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 message: text,
                 mode: isGaganMode ? "gagansaathi" : "standard",
-                apiKey: apiKey
+                apiKey: apiKey,
+                groqApiKey: groqApiKey
             })
         });
 
@@ -5186,7 +5188,7 @@ async function handleSendMessage() {
         if (response.ok && data.response) {
             appendMessage("bot", data.response, data.travelData);
         } else {
-            appendMessage("bot", data.error || "Sorry, I encountered an error processing your request. Please check your Gemini API key in settings ⚙️.");
+            appendMessage("bot", data.error || "Sorry, I encountered an error processing your request. Please check your AI API keys in settings ⚙️.");
         }
     } catch (err) {
         console.error("Chat error:", err);
@@ -5223,6 +5225,7 @@ if (gaganSaathiSubmitBtn) {
 
         try {
             const apiKey = localStorage.getItem("gemini_api_key") || "";
+            const groqApiKey = localStorage.getItem("groq_api_key") || "";
             const payload = {
                 mode: "gagansaathi",
                 isGaganSaathi: true,
@@ -5237,7 +5240,8 @@ if (gaganSaathiSubmitBtn) {
                     allergies: allergies,
                     safetyNotes: safetyNotes
                 },
-                apiKey: apiKey
+                apiKey: apiKey,
+                groqApiKey: groqApiKey
             };
 
             const response = await fetch("/api/chat", {
@@ -5252,7 +5256,7 @@ if (gaganSaathiSubmitBtn) {
             if (response.ok && data.response) {
                 appendMessage("bot", data.response, data.travelData);
             } else {
-                appendMessage("bot", data.error || "Sorry, could not generate travel dossier. Please verify your Gemini API key in settings ⚙️.");
+                appendMessage("bot", data.error || "Sorry, could not generate travel dossier. Please verify your AI API keys in settings ⚙️.");
             }
         } catch (err) {
             console.error("Gagan Saathi submit error:", err);
@@ -5293,29 +5297,41 @@ document.addEventListener("click", (e) => {
 });
 
 // 9. Settings Toggle and Save Logic
+// 9. Settings Toggle and Multi-LLM Key Persistence
 const chatbotSettingsToggle = document.getElementById("chatbotSettingsToggle");
 const chatbotSettingsPanel = document.getElementById("chatbotSettingsPanel");
 const chatbotApiKeyInput = document.getElementById("chatbotApiKeyInput");
+const chatbotGroqKeyInput = document.getElementById("chatbotGroqKeyInput");
 const chatbotSaveSettingsBtn = document.getElementById("chatbotSaveSettingsBtn");
 
 if (chatbotApiKeyInput) {
     chatbotApiKeyInput.value = localStorage.getItem("gemini_api_key") || "";
+}
+if (chatbotGroqKeyInput) {
+    chatbotGroqKeyInput.value = localStorage.getItem("groq_api_key") || "";
 }
 
 if (chatbotSettingsToggle && chatbotSettingsPanel) {
     chatbotSettingsToggle.addEventListener("click", (e) => {
         e.stopPropagation();
         chatbotSettingsPanel.classList.toggle("hidden");
+        if (!chatbotSettingsPanel.classList.contains("hidden")) {
+            if (chatbotApiKeyInput) chatbotApiKeyInput.value = localStorage.getItem("gemini_api_key") || "";
+            if (chatbotGroqKeyInput) chatbotGroqKeyInput.value = localStorage.getItem("groq_api_key") || "";
+        }
     });
 }
 
-if (chatbotSaveSettingsBtn && chatbotApiKeyInput && chatbotSettingsPanel) {
+if (chatbotSaveSettingsBtn && chatbotSettingsPanel) {
     chatbotSaveSettingsBtn.addEventListener("click", (e) => {
         e.stopPropagation();
-        const keyVal = chatbotApiKeyInput.value.trim();
-        localStorage.setItem("gemini_api_key", keyVal);
+        const geminiVal = chatbotApiKeyInput ? chatbotApiKeyInput.value.trim() : "";
+        const groqVal = chatbotGroqKeyInput ? chatbotGroqKeyInput.value.trim() : "";
+        
+        localStorage.setItem("gemini_api_key", geminiVal);
+        localStorage.setItem("groq_api_key", groqVal);
         chatbotSettingsPanel.classList.add("hidden");
-        appendMessage("bot", `🔑 **Gemini API Key Saved Successfully!**\n\nGagan Saathi is now fully active to retrieve 3-day weather predictions, nearest hotels with photos, food recommendations, and night safety alerts!`);
+        appendMessage("bot", `🔑 **AI Multi-Engine Keys Saved Successfully!**\n\n• Primary Engine: **Google Gemini AI**\n• Backup Engine: **Groq High-Speed Llama-3.3-70B**\n\nGagan Saathi and the AOS Assistant are now backed up with instant automatic failover! 🚀`);
     });
 }
 
