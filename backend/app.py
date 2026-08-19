@@ -3512,7 +3512,6 @@ def handle_custom_chat():
         t_llm_end = time.time()
         print(f"[PERF] AI LLM execution completed in {t_llm_end - t_llm_start:.2f}s")
 
-        raw_bot_reply = response.text
         bot_reply = raw_bot_reply
         structured_data = None
 
