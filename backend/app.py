@@ -3553,8 +3553,8 @@ def handle_custom_chat():
                 print(f"[WARNING] JSON parsing error in travel data: {j_err}")
 
         # GUARANTEE: Never show raw JSON in the readable message text
-        bot_reply = re.sub(r'```(?:json_travel_data|json)?[\s\S]*?```?', '', raw_bot_reply).strip()
-        bot_reply = re.sub(r'\{[\s\r\n]*"destination_city"[\s\S]*?\}', '', bot_reply).strip()
+        bot_reply = re.sub(r'```(?:json_travel_data|json)?[\s\S]*?(?:```|$)', '', raw_bot_reply).strip()
+        bot_reply = re.sub(r'\{[\s\r\n]*"(?:destination_city|weather_alert|hotels|foodlets|famous_places|hospitals)"[\s\S]*$', '', bot_reply).strip()
         
         # Add the conversation history to the vector store in a background thread to prevent blocking the UI
         def save_history_async(text, metadata):

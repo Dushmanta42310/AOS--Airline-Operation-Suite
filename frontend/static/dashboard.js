@@ -4893,8 +4893,8 @@ function formatBotMessage(text, travelData = null) {
 
     // Clean any leaked JSON blocks from visible markdown text
     let cleanText = text
-        .replace(/```(?:json_travel_data|json)?[\s\S]*?```?/gi, "")
-        .replace(/\{[\s\r\n]*"destination_city"[\s\S]*$/gi, "")
+        .replace(/```(?:json_travel_data|json)?[\s\S]*?(?:```|$)/gi, "")
+        .replace(/\{[\s\r\n]*"(?:destination_city|weather_alert|hotels|foodlets|famous_places|hospitals)"[\s\S]*$/gi, "")
         .trim();
 
     // Escape basic angle brackets but keep formatting
