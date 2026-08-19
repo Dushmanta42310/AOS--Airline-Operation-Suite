@@ -3328,7 +3328,7 @@ def call_groq_backup_llm(prompt_text, groq_key=None):
     if not key:
         raise Exception("Groq API key not configured in environment or settings.")
     
-    models = ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.6-27b", "groq/compound", "llama-3.3-70b-versatile"]
+    models = ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.6-27b", "groq/compound"]
     last_err = None
     headers = {
         "Authorization": f"Bearer {key}",
@@ -3345,7 +3345,7 @@ def call_groq_backup_llm(prompt_text, groq_key=None):
                     {"role": "user", "content": prompt_text}
                 ],
                 "temperature": 0.35,
-                "max_tokens": 7500
+                "max_tokens": 3200
             }
             resp = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=req_data, timeout=18)
             if resp.status_code == 200:
@@ -3515,9 +3515,9 @@ def handle_custom_chat():
             try:
                 with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
                     gemini_future = executor.submit(attempt_gemini_fast)
-                    raw_bot_reply = gemini_future.result(timeout=14.0)
+                    raw_bot_reply = gemini_future.result(timeout=12.0)
             except concurrent.futures.TimeoutError:
-                print("[HIGH TRAFFIC ALERT] Gemini API exceeded 14s deadline. Switching to ultra-fast Groq LLM...")
+                print("[HIGH TRAFFIC ALERT] Gemini API exceeded 12s deadline. Switching to ultra-fast Groq LLM...")
             except Exception as gemini_err:
                 print(f"[WARNING] Gemini client execution failed: {gemini_err}. Activating Groq backup...")
 
@@ -3558,77 +3558,102 @@ def handle_custom_chat():
             except Exception as j_err:
                 print(f"[WARNING] JSON parsing error in travel data: {j_err}")
 
-        # Fallback Parser: If structured_data is missing or empty, extract entities from narrative text for Google Maps Cards
-        if not structured_data or not isinstance(structured_data, dict):
+        # Fallback Parser: If structured_data is missing or empty, extract entities from narrative text and tables for Google Maps Cards
+        if not structured_data or not isinstance(structured_data, dict) or not structured_data.get("hotels"):
             dest_name = to_airport or "Destination"
-            hotels_found = []
-            for h_m in re.finditer(r'(?:^|\n)\s*(?:\d+[\.\)]|\*|•|-)?\s*([A-Za-z0-9\s,\'–-]+?(?:Hotel|Inn|Resort|Novotel|Lemon Tree|Red Fox|Marriott|Hyatt|Taj|Radisson)[A-Za-z0-9\s,\'–-]*?)(?:–|-|:)\s*([^\n]+)', raw_bot_reply):
-                h_name = h_m.group(1).strip().replace('*', '')
-                h_desc = h_m.group(2).strip()
-                if len(h_name) > 3 and len(h_name) < 60:
-                    hotels_found.append({
-                        "name": h_name,
-                        "distance": "Near Airport",
-                        "price": "Standard Tariff",
-                        "rating": "4.3/5",
-                        "weather_tag": "☔ 100% AC & Rain-Protected",
-                        "why_recommended": h_desc[:120],
-                        "map_query": f"{h_name} {dest_name}"
-                    })
             
+            def parse_section_items(text, sec_keywords):
+                pattern = rf'(?:{"|".join(sec_keywords)})[\s\S]*?(?=(?:\n#+|\n\d+\.|\Z))'
+                m = re.search(pattern, text, re.IGNORECASE)
+                if not m:
+                    return []
+                sec_text = m.group(0)
+                items = []
+                # 1. Match bold bullet points: • **Name**: desc or - **Name** (Desc)
+                for b_m in re.finditer(r'(?:•|\*|-|\d+[\.\)])\s*\*\*([^*]+)\*\*\s*[:–-]?\s*([^\n]+)', sec_text):
+                    n = b_m.group(1).strip()
+                    d = b_m.group(2).strip()
+                    if len(n) > 2 and len(n) < 60 and not n.lower().startswith("day") and not n.lower().startswith("option"):
+                        items.append({"name": n, "desc": d})
+                # 2. Match pipe table rows: | **Name** | Distance | Price | ... |
+                for t_m in re.finditer(r'\|\s*\*\*([^*|]+)\*\*[^\n|]*\|\s*([^|\n]+)\|\s*([^|\n]+)(?:\|\s*([^|\n]+))?', sec_text):
+                    n = t_m.group(1).strip()
+                    dist = t_m.group(2).strip()
+                    pr = t_m.group(3).strip()
+                    if len(n) > 2 and len(n) < 60 and not n.lower().startswith("hotel") and not n.lower().startswith("item"):
+                        items.append({"name": n, "desc": f"{dist}, {pr}"})
+                return items
+
+            raw_hotels = parse_section_items(raw_bot_reply, ["Nearest Hotels", "Hotels to Destination", "Hotel"])
+            hotels_found = []
+            for h in raw_hotels[:4]:
+                hotels_found.append({
+                    "name": h["name"],
+                    "distance": "Near Airport",
+                    "price": "Best Tariff",
+                    "rating": "4.5/5",
+                    "weather_tag": "☔ 100% AC & Rain-Protected",
+                    "why_recommended": h["desc"][:140],
+                    "map_query": f"{h['name']} {dest_name}"
+                })
+
+            raw_places = parse_section_items(raw_bot_reply, ["Famous Places", "Top City Attractions", "Sightseeing", "Viewpoints"])
             places_found = []
-            for p_m in re.finditer(r'(?:^|\n)\s*(?:\d+[\.\)]|\*|•|-)?\s*([A-Za-z0-9\s,\'–-]+?(?:Charminar|Golconda|Lake|Fort|Temple|Park|Museum|Statue|Palace|City|Garden|Ghat)[A-Za-z0-9\s,\'–-]*?)(?:–|-|:)\s*([^\n]+)', raw_bot_reply):
-                p_name = p_m.group(1).strip().replace('*', '')
-                p_desc = p_m.group(2).strip()
-                if len(p_name) > 3 and len(p_name) < 60:
-                    places_found.append({
-                        "name": p_name,
-                        "best_time": "Morning / Sunset",
-                        "entry_fee": "Standard Entry",
-                        "weather_tag": "⛅ Scenic Landmark",
-                        "why_recommended": p_desc[:120],
-                        "map_query": f"{p_name} {dest_name}"
-                    })
+            for p in raw_places[:4]:
+                places_found.append({
+                    "name": p["name"],
+                    "best_time": "Morning / Sunset",
+                    "entry_fee": "Standard Entry",
+                    "weather_tag": "⛅ Scenic Landmark",
+                    "why_recommended": p["desc"][:140],
+                    "map_query": f"{p['name']} {dest_name}"
+                })
 
-            hospitals_found = []
-            for hp_m in re.finditer(r'(?:^|\n)\s*(?:\d+[\.\)]|\*|•|-)?\s*([A-Za-z0-9\s,\'–-]+?(?:Hospital|Clinic|Care|Apollo|Yashoda|AIIMS|Medical)[A-Za-z0-9\s,\'–-]*?)(?:–|-|:)\s*([^\n]+)', raw_bot_reply):
-                hp_name = hp_m.group(1).strip().replace('*', '')
-                hp_desc = hp_m.group(2).strip()
-                if len(hp_name) > 3 and len(hp_name) < 60:
-                    hospitals_found.append({
-                        "name": hp_name,
-                        "distance": "Near Airport / Downtown",
-                        "emergency_phone": "108 / 112",
-                        "specialty": "24/7 Multi-Specialty Trauma Care",
-                        "map_query": f"{hp_name} {dest_name}"
-                    })
-
+            raw_food = parse_section_items(raw_bot_reply, ["Dining Guide", "Food Outlets", "Famous Local Food", "Breakfast", "Lunch", "Dinner"])
             foodlets_found = []
-            for f_m in re.finditer(r'(?:^|\n)\s*(?:\d+[\.\)]|\*|•|-)?\s*([A-Za-z0-9\s,\'–-]+?(?:Biryani|Restaurant|Cafe|Chai|Bakery|Dhaba|Kitchen|Bhojohori|Bawarchi|Breakfast)[A-Za-z0-9\s,\'–-]*?)(?:–|-|:)\s*([^\n]+)', raw_bot_reply):
-                f_name = f_m.group(1).strip().replace('*', '')
-                f_desc = f_m.group(2).strip()
-                if len(f_name) > 3 and len(f_name) < 60:
-                    foodlets_found.append({
-                        "name": f_name,
-                        "type": "Dining",
-                        "cuisine": "Authentic Cuisine",
-                        "special_dish": "Signature Safe Dish",
-                        "price_range": "Moderate",
-                        "weather_tag": "☀️ AC Dining Room",
-                        "why_recommended": f_desc[:120],
-                        "map_query": f"{f_name} {dest_name}"
-                    })
+            for f in raw_food[:4]:
+                meal_tag = "🍽️ Dining"
+                if "breakfast" in f["name"].lower() or "breakfast" in f["desc"].lower(): meal_tag = "🥞 Breakfast"
+                elif "lunch" in f["name"].lower() or "lunch" in f["desc"].lower(): meal_tag = "🍲 Lunch"
+                elif "snack" in f["name"].lower() or "tea" in f["name"].lower(): meal_tag = "☕ Snacks"
+                elif "dinner" in f["name"].lower() or "dinner" in f["desc"].lower(): meal_tag = "🍽️ Dinner"
+
+                clean_name = re.sub(r'(?:Breakfast|Lunch|Dinner|Evening Snacks|High Tea|[\(\)\/])', '', f["name"], flags=re.IGNORECASE).strip()
+                if not clean_name: clean_name = f["name"]
+                
+                foodlets_found.append({
+                    "name": clean_name,
+                    "meal_type": meal_tag,
+                    "type": "Dining",
+                    "cuisine": "Authentic Regional Cuisine",
+                    "special_dish": "Signature Safe Dish",
+                    "price_range": "Moderate",
+                    "weather_tag": "☀️ AC Dining Room",
+                    "why_recommended": f["desc"][:140],
+                    "map_query": f"{clean_name} restaurant {dest_name}"
+                })
+
+            raw_hosp = parse_section_items(raw_bot_reply, ["Emergency Hospitals", "Hospitals & Medical", "Hospital"])
+            hospitals_found = []
+            for hp in raw_hosp[:3]:
+                hospitals_found.append({
+                    "name": hp["name"],
+                    "distance": "Near Airport / Downtown",
+                    "emergency_phone": "108 / 112",
+                    "specialty": "24/7 Multi-Specialty Trauma Care",
+                    "map_query": f"{hp['name']} {dest_name}"
+                })
 
             structured_data = {
                 "destination_city": dest_name,
                 "umbrella_needed": "rain" in raw_bot_reply.lower() or "umbrella" in raw_bot_reply.lower(),
-                "weather_alert": "Pack umbrella and rain-gear if showers occur.",
-                "hotels": hotels_found[:4],
-                "famous_places": places_found[:4],
-                "hospitals": hospitals_found[:3],
-                "foodlets": foodlets_found[:4],
-                "safety_level": "Safe",
-                "night_safety_summary": "Use official airport prepaid taxis and stay on main well-lit roads."
+                "weather_alert": "Moderate humidity with chances of showers; carry an umbrella.",
+                "hotels": hotels_found,
+                "famous_places": places_found,
+                "hospitals": hospitals_found,
+                "foodlets": foodlets_found,
+                "safety_level": "Moderate Caution",
+                "night_safety_summary": "Use official airport prepaid taxis and avoid unregistered touts outside arrival gates."
             }
 
         # GUARANTEE: Never show raw JSON in the readable message text
