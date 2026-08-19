@@ -3463,44 +3463,36 @@ def handle_custom_chat():
         raw_bot_reply = None
         t_llm_start = time.time()
         
-        # 1. PRIMARY ENGINE: Attempt Google Gemini AI first (if api_key available)
+        # 1. PRIMARY ENGINE: Attempt Google Gemini AI with tight 4.5s high-traffic timeout
         if api_key:
-            try:
+            import concurrent.futures
+            
+            def attempt_gemini_fast():
                 client = genai.Client(api_key=api_key)
-                
-                def generate_with_retry(model_name, contents_payload, max_retries=2, initial_delay=0.2):
-                    for attempt in range(1, max_retries + 1):
-                        try:
-                            return client.models.generate_content(
-                                model=model_name,
-                                contents=contents_payload,
-                            )
-                        except Exception as api_err:
-                            err_str = str(api_err).lower()
-                            is_conn_reset = "10054" in err_str or "connection reset" in err_str or "forcibly closed" in err_str
-                            if is_conn_reset and attempt < max_retries:
-                                sleep_time = initial_delay * attempt
-                                print(f"[WARNING] Gemini API attempt {attempt}/{max_retries} failed. Retrying in {sleep_time}s...")
-                                time.sleep(sleep_time)
-                            else:
-                                raise api_err
-
-                active_models = ['gemini-flash-lite-latest', 'gemini-3.5-flash-lite', 'gemini-flash-latest', 'gemini-2.5-flash']
-                for m_name in active_models:
+                fast_models = ['gemini-flash-lite-latest', 'gemini-3.5-flash-lite', 'gemini-flash-latest']
+                for m_name in fast_models:
                     try:
-                        response = generate_with_retry(model_name=m_name, contents_payload=prompt)
-                        if response and response.text:
-                            raw_bot_reply = response.text
-                            print(f"[INFO] Primary Engine: Gemini AI responded using model: {m_name}")
-                            break
+                        res = client.models.generate_content(model=m_name, contents=prompt)
+                        if res and res.text:
+                            print(f"[INFO] Primary Engine: Gemini AI ({m_name}) responded in fast lane.")
+                            return res.text
                     except Exception as m_err:
-                        print(f"[WARNING] Gemini model {m_name} failed: {m_err}. Trying next...")
-            except Exception as gemini_init_err:
-                print(f"[WARNING] Gemini client execution failed: {gemini_init_err}. Activating Groq backup...")
+                        print(f"[WARNING] Gemini model {m_name} failed: {m_err}")
+                return None
 
-        # 2. BACKUP ENGINE: If Gemini did not respond, automatically activate Groq Backup LLM
+            try:
+                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                    gemini_future = executor.submit(attempt_gemini_fast)
+                    # 4.5-second deadline for Gemini: if Google API has high traffic or queue latency, immediately failover to Groq!
+                    raw_bot_reply = gemini_future.result(timeout=4.5)
+            except concurrent.futures.TimeoutError:
+                print("[HIGH TRAFFIC ALERT] Gemini API exceeded 4.5s deadline due to Google server congestion. Instantly switching to ultra-fast Groq LLM...")
+            except Exception as gemini_err:
+                print(f"[WARNING] Gemini client execution failed: {gemini_err}. Activating Groq backup...")
+
+        # 2. BACKUP ENGINE: If Gemini timed out or had errors, immediately activate Groq Backup LLM
         if not raw_bot_reply and groq_api_key:
-            print("[INFO] Activating Backup High-Speed LLM: Groq (Llama-3.3-70B)...")
+            print("[INFO] Activating Ultra-Fast Backup LLM: Groq (Llama-3.3 / GPT-OSS)...")
             try:
                 raw_bot_reply = call_groq_backup_llm(prompt_text=prompt, groq_key=groq_api_key)
             except Exception as groq_err:
