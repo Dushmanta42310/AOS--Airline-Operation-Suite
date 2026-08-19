@@ -4896,6 +4896,33 @@ function formatBotMessage(text, travelData = null) {
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;");
 
+    // Convert markdown tables | col | col | to sleek HTML tables
+    formatted = formatted.replace(/((?:\|[^\n]+\|\r?\n)+)/g, (match) => {
+        const rows = match.trim().split(/\r?\n/).filter(r => r.includes('|'));
+        if (rows.length < 2) return match;
+        
+        let html = '<div class="gs-table-responsive"><table class="gs-markdown-table">';
+        let isHeader = true;
+        
+        rows.forEach((row, i) => {
+            if (/^\|[\s\-:]+\|\s*$/.test(row)) {
+                isHeader = false;
+                return;
+            }
+            const cells = row.split('|').slice(1, -1).map(c => c.trim());
+            if (isHeader && i === 0) {
+                html += '<thead><tr>' + cells.map(c => `<th>${c}</th>`).join('') + '</tr></thead><tbody>';
+            } else {
+                html += '<tr>' + cells.map(c => `<td>${c}</td>`).join('') + '</tr>';
+            }
+        });
+        html += '</tbody></table></div>';
+        return html;
+    });
+
+    // Horizontal Rule Dividers
+    formatted = formatted.replace(/^---$/gim, '<hr class="gs-chat-divider">');
+
     // Headers
     formatted = formatted.replace(/^### (.*$)/gim, '<h4 style="margin: 12px 0 4px 0; color: #38BDF8; font-size: 14px; font-weight: 800;">$1</h4>');
     formatted = formatted.replace(/^## (.*$)/gim, '<h3 style="margin: 14px 0 6px 0; color: #0284C7; font-size: 15px; font-weight: 800;">$1</h3>');
@@ -4906,7 +4933,7 @@ function formatBotMessage(text, travelData = null) {
     formatted = formatted.replace(/\*(.*?)\*/g, '<em>$1</em>');
 
     // Bullet points
-    formatted = formatted.replace(/^\s*[\-\*]\s+(.*$)/gim, '<div style="display: flex; gap: 6px; margin: 4px 0;"><span style="color: #38BDF8;">•</span><span>$1</span></div>');
+    formatted = formatted.replace(/^\s*[\-\*•]\s+(.*$)/gim, '<div style="display: flex; gap: 6px; margin: 4px 0;"><span style="color: #38BDF8;">•</span><span>$1</span></div>');
 
     // Numbered lists
     formatted = formatted.replace(/^\s*(\d+)\.\s+(.*$)/gim, '<div style="display: flex; gap: 6px; margin: 4px 0;"><span style="color: #F59E0B; font-weight: 800;">$1.</span><span>$2</span></div>');

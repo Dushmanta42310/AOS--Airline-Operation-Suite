@@ -3854,3 +3854,74 @@ body.light-theme .gs-hub-btn {
     transform: translateY(-1px);
     box-shadow: 0 4px 14px rgba(2, 132, 199, 0.4);
 }
+
+/* Chat Horizontal Divider */
+.gs-chat-divider {
+    border: none;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.35), transparent);
+    margin: 14px 0;
+}
+
+body.light-theme .gs-chat-divider {
+    background: linear-gradient(90deg, transparent, rgba(2, 132, 199, 0.25), transparent);
+}
+
+/* Sleek Markdown Tables (Responsive Glassmorphism) */
+.gs-table-responsive {
+    width: 100%;
+    overflow-x: auto;
+    margin: 10px 0;
+    border-radius: 10px;
+    border: 1px solid rgba(56, 189, 248, 0.25);
+    background: rgba(2, 6, 23, 0.6);
+}
+
+body.light-theme .gs-table-responsive {
+    background: #F8FAFC;
+    border-color: #E2E8F0;
+}
+
+.gs-markdown-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11.5px;
+    text-align: left;
+}
+
+.gs-markdown-table th {
+    background: rgba(14, 116, 144, 0.35);
+    color: #38BDF8;
+    padding: 8px 10px;
+    font-weight: 800;
+    border-bottom: 1px solid rgba(56, 189, 248, 0.3);
+    white-space: nowrap;
+}
+
+body.light-theme .gs-markdown-table th {
+    background: #E0F2FE;
+    color: #0369A1;
+    border-bottom-color: #BAE6FD;
+}
+
+.gs-markdown-table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    color: #E2E8F0;
+    vertical-align: top;
+    line-height: 1.4;
+}
+
+body.light-theme .gs-markdown-table td {
+    border-bottom-color: #F1F5F9;
+    color: #334155;
+}
+
+.gs-markdown-table tr:last-child td {
+    border-bottom: none;
+}
+
+.gs-markdown-table tr:hover td {
+    background: rgba(56, 189, 248, 0.08);
+}
+
