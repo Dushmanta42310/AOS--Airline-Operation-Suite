@@ -3409,11 +3409,13 @@ def handle_custom_chat():
     # Get API keys from request payload or environment variables
     client_api_key = data.get("apiKey", "").strip() if isinstance(data.get("apiKey"), str) else ""
     client_groq_key = data.get("groqApiKey", "").strip() if isinstance(data.get("groqApiKey"), str) else ""
+    env_gemini_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY") or ""
+    env_groq_key = os.environ.get("GROQ_API_KEY") or ""
     
-    api_key = client_api_key or os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
-    groq_api_key = client_groq_key or os.environ.get("GROQ_API_KEY")
+    gemini_keys = [k for k in [client_api_key, env_gemini_key] if k]
+    groq_keys = [k for k in [client_groq_key, env_groq_key] if k]
     
-    if not api_key and not groq_api_key:
+    if not gemini_keys and not groq_keys:
         return jsonify({"error": "No AI API key found. Please click the gear icon ⚙️ in the chatbot header to configure your Gemini or Groq API key."}), 400
 
     try:
@@ -3486,43 +3488,49 @@ def handle_custom_chat():
         raw_bot_reply = None
         t_llm_start = time.time()
         
-        # 1. PRIMARY ENGINE: Attempt Google Gemini AI with high token ceiling
-        if api_key:
+        # 1. PRIMARY ENGINE: Attempt Google Gemini AI with high token ceiling and fallback across keys
+        if gemini_keys:
             import concurrent.futures
             
             def attempt_gemini_fast():
-                client = genai.Client(api_key=api_key)
                 fast_models = ['gemini-flash-lite-latest', 'gemini-3.5-flash-lite', 'gemini-flash-latest']
-                for m_name in fast_models:
+                for k in gemini_keys:
                     try:
-                        res = client.models.generate_content(
-                            model=m_name,
-                            contents=prompt,
-                            config={"max_output_tokens": 8192, "temperature": 0.35}
-                        )
-                        if res and res.text:
-                            print(f"[INFO] Primary Engine: Gemini AI ({m_name}) responded in fast lane.")
-                            return res.text
-                    except Exception as m_err:
-                        print(f"[WARNING] Gemini model {m_name} failed: {m_err}")
+                        client = genai.Client(api_key=k)
+                        for m_name in fast_models:
+                            try:
+                                res = client.models.generate_content(
+                                    model=m_name,
+                                    contents=prompt
+                                )
+                                if res and res.text:
+                                    print(f"[INFO] Primary Engine: Gemini AI ({m_name}) responded successfully.")
+                                    return res.text
+                            except Exception as m_err:
+                                print(f"[WARNING] Gemini model {m_name} failed: {m_err}")
+                    except Exception as k_err:
+                        print(f"[WARNING] Gemini client init with key failed: {k_err}")
                 return None
 
             try:
                 with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
                     gemini_future = executor.submit(attempt_gemini_fast)
-                    raw_bot_reply = gemini_future.result(timeout=12.0)
+                    raw_bot_reply = gemini_future.result(timeout=14.0)
             except concurrent.futures.TimeoutError:
-                print("[HIGH TRAFFIC ALERT] Gemini API exceeded 12s deadline due to server queue. Switching to ultra-fast Groq LLM...")
+                print("[HIGH TRAFFIC ALERT] Gemini API exceeded 14s deadline. Switching to ultra-fast Groq LLM...")
             except Exception as gemini_err:
                 print(f"[WARNING] Gemini client execution failed: {gemini_err}. Activating Groq backup...")
 
         # 2. BACKUP ENGINE: If Gemini timed out or had errors, immediately activate Groq Backup LLM
-        if not raw_bot_reply and groq_api_key:
-            print("[INFO] Activating Ultra-Fast Backup LLM: Groq (Llama-3.3 / GPT-OSS)...")
-            try:
-                raw_bot_reply = call_groq_backup_llm(prompt_text=prompt, groq_key=groq_api_key)
-            except Exception as groq_err:
-                print(f"[ERROR] Groq backup LLM also failed: {groq_err}")
+        if not raw_bot_reply and groq_keys:
+            print("[INFO] Activating Ultra-Fast Backup LLM: Groq (GPT-OSS / Qwen / Llama)...")
+            for gk in groq_keys:
+                try:
+                    raw_bot_reply = call_groq_backup_llm(prompt_text=prompt, groq_key=gk)
+                    if raw_bot_reply:
+                        break
+                except Exception as groq_err:
+                    print(f"[ERROR] Groq backup LLM failed with key: {groq_err}")
 
         if not raw_bot_reply:
             return jsonify({"error": "All AI models (Gemini and Groq Backup) failed to respond. Please check your API keys in chatbot settings ⚙️."}), 500
