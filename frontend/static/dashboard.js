@@ -5021,10 +5021,8 @@ function formatBotMessage(text, travelData = null) {
                                     <span style="font-size: 11px; font-weight: 700; color: #F59E0B;">${d.temp || ''}</span>
                                 </div>
                                 <div style="font-size: 11px; color: #CBD5E1; margin-bottom: 3px;">🌧️ Rain: <strong>${d.rain_probability || 'Low'}</strong></div>
-                                <div style="font-size: 10.5px; color: #94A3B8; margin-bottom: 4px;">${d.condition || 'Clear Sky'}</div>
-                                ${d.caution ? `<div style="font-size: 10px; color: #F59E0B; margin: 3px 0; line-height: 1.3;"><strong>⚠️ Caution:</strong> ${d.caution}</div>` : ''}
-                                ${d.preventive_gear ? `<div style="font-size: 10px; color: #34D399; margin: 3px 0; line-height: 1.3;"><strong>🎒 Gear:</strong> ${d.preventive_gear}</div>` : ''}
-                                <div style="font-size: 10.5px; background: rgba(56, 189, 248, 0.1); border-left: 2px solid #38BDF8; padding: 4px 6px; border-radius: 4px; color: #E2E8F0; margin-top: 4px;">
+                                <div style="font-size: 10.5px; color: #94A3B8; margin-bottom: 6px;">${d.condition || 'Clear Sky'}</div>
+                                <div style="font-size: 10.5px; background: rgba(56, 189, 248, 0.1); border-left: 2px solid #38BDF8; padding: 4px 6px; border-radius: 4px; color: #E2E8F0;">
                                     <strong>🧭 Plan:</strong> ${d.activity_advice || d.packing_advice || 'Ideal for sightseeing'}
                                 </div>
                             </div>
