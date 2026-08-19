@@ -4997,9 +4997,13 @@ function formatBotMessage(text, travelData = null) {
                         ${travelData.hotels.map((h, idx) => {
                             const mapQuery = encodeURIComponent(`${h.name || 'Hotel'} ${destCity}`.trim());
                             const mapUrl = `https://www.google.com/maps/search/?api=1&query=${mapQuery}`;
+                            const wTag = h.weather_tag || '☀️ Full AC & Covered';
                             return `
                                 <div class="gs-hotel-card">
-                                    <img src="${hotelImages[idx % hotelImages.length]}" alt="${h.name || 'Hotel'}" class="gs-hotel-img" loading="lazy">
+                                    <div style="position: relative;">
+                                        <img src="${hotelImages[idx % hotelImages.length]}" alt="${h.name || 'Hotel'}" class="gs-hotel-img" loading="lazy">
+                                        <span class="gs-weather-badge">${wTag}</span>
+                                    </div>
                                     <div class="gs-hotel-info">
                                         <div class="gs-hotel-name">${h.name || 'Premium Living Stay'}</div>
                                         <div class="gs-hotel-meta">
@@ -5007,7 +5011,9 @@ function formatBotMessage(text, travelData = null) {
                                             <span>⭐ ${h.rating || '4.5/5'}</span>
                                         </div>
                                         <div class="gs-hotel-price">${h.price || 'Best Available Rate'}</div>
-                                        ${h.amenities ? `<div style="font-size: 10px; color: var(--text-muted); line-height: 1.3;">${h.amenities}</div>` : ''}
+                                        ${h.why_recommended ? `<div class="gs-card-why"><strong>💡 Why Good:</strong> ${h.why_recommended}</div>` : ''}
+                                        ${h.cautions_requirements ? `<div class="gs-card-caution"><strong>⚠️ Caution:</strong> ${h.cautions_requirements}</div>` : ''}
+                                        ${h.amenities ? `<div style="font-size: 10px; color: var(--text-muted); line-height: 1.3; margin-top: 2px;">${h.amenities}</div>` : ''}
                                         <a href="${mapUrl}" target="_blank" rel="noopener noreferrer" class="gs-map-link-btn" title="View ${h.name} on Google Maps">
                                             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
                                             <span>Google Maps</span>
@@ -5031,18 +5037,27 @@ function formatBotMessage(text, travelData = null) {
         if (placesList.length > 0) {
             richWidgets += `
                 <div style="margin-top: 14px;">
-                    <div class="gs-section-title">📍 Famous Places & City Viewpoints (with Google Maps)</div>
+                    <div class="gs-section-title">📍 Famous Places & City Attractions (with Google Maps)</div>
                     <div class="gs-places-grid">
                         ${placesList.map((p, idx) => {
                             const pName = p.name || 'Scenic Viewpoint';
                             const mapQuery = encodeURIComponent(`${pName} ${destCity}`.trim());
                             const mapUrl = `https://www.google.com/maps/search/?api=1&query=${mapQuery}`;
+                            const wTag = p.weather_tag || '⛅ Scenic Attraction';
                             return `
                                 <div class="gs-place-card">
-                                    <img src="${placeImages[idx % placeImages.length]}" alt="${pName}" class="gs-place-img" loading="lazy">
+                                    <div style="position: relative;">
+                                        <img src="${placeImages[idx % placeImages.length]}" alt="${pName}" class="gs-place-img" loading="lazy">
+                                        <span class="gs-weather-badge">${wTag}</span>
+                                    </div>
                                     <div class="gs-place-info">
                                         <div class="gs-place-name">${pName}</div>
-                                        ${p.type || p.best_time ? `<div class="gs-place-meta"><span>🕒 ${p.best_time || 'Daytime / Sunset'}</span><span>🏛️ ${p.type || 'Attraction'}</span></div>` : ''}
+                                        <div class="gs-place-meta">
+                                            <span>🕒 ${p.best_time || 'Daytime / Sunset'}</span>
+                                            <span>🎟️ ${p.entry_fee || 'Free / Standard'}</span>
+                                        </div>
+                                        ${p.why_recommended ? `<div class="gs-card-why"><strong>💡 Why Good:</strong> ${p.why_recommended}</div>` : ''}
+                                        ${p.cautions_requirements ? `<div class="gs-card-caution"><strong>⚠️ Caution:</strong> ${p.cautions_requirements}</div>` : ''}
                                         ${p.description ? `<div class="gs-place-desc">${p.description}</div>` : ''}
                                         <a href="${mapUrl}" target="_blank" rel="noopener noreferrer" class="gs-map-link-btn" title="Explore ${pName} on Google Maps">
                                             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
@@ -5067,16 +5082,20 @@ function formatBotMessage(text, travelData = null) {
         if (foodList.length > 0) {
             richWidgets += `
                 <div style="margin-top: 14px;">
-                    <div class="gs-section-title">🍽️ Foodlets & Iconic Dining Centers (with Google Maps)</div>
+                    <div class="gs-section-title">🍽️ Food Outlets & Dining Centers (with Google Maps)</div>
                     <div class="gs-foodlets-grid">
                         ${foodList.map((f, idx) => {
                             const fName = f.name || 'Local Food Center';
                             const mapQuery = encodeURIComponent(`${fName} restaurant ${destCity}`.trim());
                             const mapUrl = `https://www.google.com/maps/search/?api=1&query=${mapQuery}`;
                             const isVeg = (f.type || '').toLowerCase().includes('veg') && !(f.type || '').toLowerCase().includes('non');
+                            const wTag = f.weather_tag || '☀️ Indoor AC Dining';
                             return `
                                 <div class="gs-foodlet-card">
-                                    <img src="${foodImages[idx % foodImages.length]}" alt="${fName}" class="gs-foodlet-img" loading="lazy">
+                                    <div style="position: relative;">
+                                        <img src="${foodImages[idx % foodImages.length]}" alt="${fName}" class="gs-foodlet-img" loading="lazy">
+                                        <span class="gs-weather-badge">${wTag}</span>
+                                    </div>
                                     <div class="gs-foodlet-info">
                                         <div class="gs-foodlet-header">
                                             <span class="gs-foodlet-name">${fName}</span>
@@ -5084,8 +5103,11 @@ function formatBotMessage(text, travelData = null) {
                                         </div>
                                         <div class="gs-foodlet-meta">
                                             <span>🍲 ${f.cuisine || 'Regional Cuisine'}</span>
-                                            ${f.special_dish ? `<span>✨ ${f.special_dish}</span>` : ''}
+                                            <span>💰 ${f.price_range || 'Budget-Friendly'}</span>
                                         </div>
+                                        ${f.special_dish ? `<div style="font-size: 10.5px; color: #38BDF8; font-weight: 600;">✨ Must Try: ${f.special_dish}</div>` : ''}
+                                        ${f.why_recommended ? `<div class="gs-card-why"><strong>💡 Why Good:</strong> ${f.why_recommended}</div>` : ''}
+                                        ${f.cautions_requirements ? `<div class="gs-card-caution"><strong>⚠️ Allergy Caution:</strong> ${f.cautions_requirements}</div>` : ''}
                                         <a href="${mapUrl}" target="_blank" rel="noopener noreferrer" class="gs-map-link-btn" title="Locate ${fName} on Google Maps">
                                             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
                                             <span>Locate on Map</span>
