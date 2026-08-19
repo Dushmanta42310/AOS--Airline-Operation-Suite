@@ -3341,7 +3341,7 @@ def call_groq_backup_llm(prompt_text, groq_key=None):
             req_data = {
                 "model": m,
                 "messages": [
-                    {"role": "system", "content": "You are Gagan Saathi (गगन साथी) and the AOS AI Travel Intelligence Companion. Always begin with a prestigious, formal greeting addressing the traveler by name. Provide upfront safety alerts & emergency helpline numbers first. Deliver a complete step-by-step passenger roadmap (pre-departure, when to reach airport, airport entry, baggage drop, CISF security, boarding, flight time, destination arrival & exit), followed by essential DOs & DON'Ts, and clear narrative paragraphs (avoid raw pipe tables). Conclude with the ```json_travel_data block with rich weather_tag, why_recommended, cautions_requirements, and map_query for hotels, foodlets, and famous places."},
+                    {"role": "system", "content": "You are Gagan Saathi (गगन साथी) and the AOS AI Travel Intelligence Companion. Always begin with a prestigious, formal greeting addressing the traveler by name. Provide upfront safety alerts & emergency helpline numbers first. Deliver a complete step-by-step passenger roadmap (pre-departure, when to reach airport, airport entry, baggage drop, CISF security, boarding, flight time, destination arrival & exit), followed by essential DOs & DON'Ts, and clear narrative paragraphs (avoid raw pipe tables). Conclude with the ```json_travel_data block with rich hospitals (with 24/7 helpline), weather_forecast_days, hotels, foodlets, and famous places."},
                     {"role": "user", "content": prompt_text}
                 ],
                 "temperature": 0.35,
@@ -3393,10 +3393,11 @@ def handle_custom_chat():
     )
 
     travel_details = data.get("travelDetails") or {}
+    passenger_name = str(travel_details.get("passengerName") or data.get("passengerName") or "Valued Passenger").strip()
+    travel_date = str(travel_details.get("travelDate") or data.get("travelDate") or "").strip()
+    trip_days = str(travel_details.get("tripDays") or data.get("tripDays") or "3 Days Trip").strip()
     from_airport = str(travel_details.get("fromAirport") or data.get("fromAirport") or "").strip()
     to_airport = str(travel_details.get("toAirport") or data.get("toAirport") or "").strip()
-    travel_date = str(travel_details.get("travelDate") or data.get("travelDate") or "").strip()
-    passenger_name = str(travel_details.get("passengerName") or data.get("passengerName") or "").strip()
     budget = str(travel_details.get("budget") or data.get("budget") or "").strip()
     food_pref = str(travel_details.get("foodPreference") or data.get("foodPreference") or "").strip()
     allergies = str(travel_details.get("allergies") or data.get("allergies") or "").strip()
@@ -3427,12 +3428,13 @@ def handle_custom_chat():
         if is_gagansaathi or (from_airport and to_airport):
             prompt = (
                 f"You are **Gagan Saathi (गगन साथी)**, the elite and caring AI Travel Intelligence Companion of Airline Operation Suite (AOS).\n"
-                f"Your goal is to provide a comprehensive, clear, easy-to-read, and detailed travel blueprint in friendly narrative paragraphs (AVOID RAW PIPE TABLES).\n\n"
+                f"Your goal is to provide a complete, authoritative, crystal-clear, and caring end-to-end travel blueprint for the passenger in friendly narrative paragraphs (AVOID RAW PIPE TABLES).\n\n"
                 f"### PASSENGER & TRIP PROFILE:\n"
                 f"- Passenger Name: {passenger_name or 'Valued Passenger'}\n"
                 f"- Origin Airport / City: {from_airport or 'User Selected Origin'}\n"
                 f"- Destination Airport / City: {to_airport or 'User Selected Destination'}\n"
                 f"- Travel Date: {travel_date or 'Upcoming'}\n"
+                f"- Trip Duration: {trip_days}\n"
                 f"- Budget Tier: {budget or 'Moderate / Standard'}\n"
                 f"- Food Preference: {food_pref or 'Veg & Non-Veg'}\n"
                 f"- Dietary Allergies / Restrictions: {allergies or 'None specified'}\n"
@@ -3442,31 +3444,31 @@ def handle_custom_chat():
                 f"### STRICT FORMATTING & CONTENT RULES (NO RAW PIPE TABLES):\n\n"
                 f"1. **Formal Prestigious Greeting**:\n"
                 f"   Start with: 'Namaste & Warm Greetings, **{passenger_name or 'Valued Passenger'}**! 🙏\n"
-                f"   Welcome to **Gagan Saathi (गगन साथी)** — your trusted Aviation Operations & Travel Intelligence Companion for Airline Operation Suite (AOS). We are delighted to present your complete end-to-end travel blueprint for your journey from **{from_airport}** to **{to_airport}** on **{travel_date}**.'\n\n"
+                f"   Welcome to **Gagan Saathi (गगन साथी)** — your trusted Aviation Operations & Travel Intelligence Companion for Airline Operation Suite (AOS). We are delighted to present your complete end-to-end travel blueprint for your **{trip_days}** journey from **{from_airport}** to **{to_airport}** on **{travel_date}**.'\n\n"
                 f"2. **🚨 Upfront Critical Alerts & Emergency Helplines (GIVEN FIRST)**:\n"
-                f"   • 🛡️ **Safety Caution & Official Helplines**: Police (`100`/`112`), Medical Ambulance (`108`), Women Safety Helpline (`181`), and official airport security counters.\n"
+                f"   • 🛡️ **Safety Caution & Official Helplines**: Police (`100`/`112`), Medical Ambulance (`108`), Women Safety Helpline (`181`), and airport security counters.\n"
                 f"   • 🌤️ **Weather & Gear Summary**: 2-line quick alert on temperatures, rain probability, and umbrella/gear needs.\n"
                 f"   • 🍽️ **Dietary & Allergen Warning**: Specific food safety precautions for **{food_pref}** and strict allergen warnings for **{allergies}**.\n\n"
                 f"3. **🗺️ Step-by-Step Passenger Journey Roadmap (From Home to Final Destination)**:\n"
                 f"   Explain in simple, caring, detailed paragraphs how the passenger should start and complete every stage of the journey:\n"
-                f"   • 🕒 **Stage 1: Pre-Departure Prep (24h to 3h Before Flight)**: Complete web check-in, download digital boarding pass to mobile, keep government photo ID (Aadhaar / Passport) ready, pack powerbanks/batteries strictly in cabin baggage.\n"
-                f"   • 🚗 **Stage 2: When to Start & Airport Arrival**: Start from home with enough buffer for city traffic; arrive at origin airport **2 to 2.5 hours before scheduled departure** for domestic flights.\n"
+                f"   • 🕒 **Stage 1: Pre-Departure Prep (Before Reaching Origin Airport)**: Complete web check-in 24h before, download digital boarding pass, keep government photo ID (Aadhaar / Passport) ready, pack powerbanks/batteries strictly in cabin baggage.\n"
+                f"   • 🚗 **Stage 2: When to Start & Airport Arrival**: Start from home with buffer for city traffic; arrive at origin airport **2 to 2.5 hours before scheduled departure** for domestic flights.\n"
                 f"   • 🏢 **Stage 3: At Origin Airport (Entry to Boarding)**: Show e-ticket & ID at terminal entry gate, proceed to airline counter/kiosk for baggage drop & tag printing, pass through CISF security check (place laptop/liquids/jackets in separate trays), proceed to your assigned boarding gate, and board when your zone is announced (gates close 25 mins prior).\n"
-                f"   • ✈️ **Stage 4: In-Flight Experience**: Fasten seatbelts, switch phones to airplane mode, enjoy the direct flight time (~1h 30m cruising at ~800 km/h), stay hydrated, and prepare for descent.\n"
-                f"   • 🛬 **Stage 5: Arrival & Transfer to Destination City**: Deplane calmly, follow baggage reclaim signage to your flight carousel, collect checked bags, exit through arrival gates, and use verified official prepaid airport taxi booths / Metro Red/Blue lines / designated app cab pickup zones.\n\n"
-                f"4. **✅ Essential DOs and ❌ Critical DON'Ts for a Problem-Free Journey**:\n"
+                f"   • ✈️ **Stage 4: In-Flight Experience**: Fasten seatbelts, switch phones to airplane mode, enjoy direct flight time (~1h 30m cruising at ~800 km/h), stay hydrated, and prepare for descent.\n"
+                f"   • 🛬 **Stage 5: Arrival & Transfer to Destination City**: Deplane calmly, follow baggage reclaim signage to your flight carousel, collect checked bags, exit through arrival gates, and choose your transfer: **Destination Metro Line vs Official Prepaid Airport Taxi Kiosks vs App-Based Cabs (Uber/Ola)**.\n\n"
+                f"4. **🌤️ Day-by-Day Weather-Adaptive Plan for {trip_days}**:\n"
+                f"   Explain day-by-day recommendations matching the weather:\n"
+                f"   • For rainy/monsoon days: Prioritize indoor air-conditioned museums, cultural galleries, and rain-proof indoor attractions.\n"
+                f"   • For hot/sunny days: Recommend early morning (6-8 AM) or sunset (5-7 PM) visits to shaded heritage monuments to avoid midday heat.\n"
+                f"   • For pleasant weather: Recommend outdoor lakeside promenades and scenic viewpoints.\n\n"
+                f"5. **✅ Essential DOs and ❌ Critical DON'Ts for a Problem-Free Journey**:\n"
                 f"   • **DOs**: Keep boarding pass/ID accessible, verify baggage tags match claim slips, use official airport prepaid taxi counters, inform restaurant servers about **{allergies or 'allergies'}** in advance, keep emergency contacts on speed dial.\n"
                 f"   • **DON'Ts**: Do NOT leave baggage unattended, do NOT accept rides from unsolicited drivers/touts outside terminals, do NOT pack powerbanks/lighters in check-in bags, do NOT carry liquids over 100ml in cabin bags, do NOT venture into poorly-lit isolated alleys late at night.\n\n"
-                f"5. **Detailed Narrative Travel Guides (Hotels, Food & Viewpoints)**:\n"
-                f"   Write clear paragraphs describing:\n"
-                f"   • ✈️ **Flight Logistics & Airlines**: Geodesic distance, direct flight duration, major airlines, and city transfer options.\n"
-                f"   • 🌤️ **3-Day Weather Prediction & Gear**: Detailed forecast with explicit gear advice (umbrella, rain-jacket, sun protection).\n"
-                f"   • 🏨 **Top Accommodations Overview**: Highlight 3 nearest budget hotels matching {budget or 'Moderate'} with distances and weather-proof indoor amenities.\n"
-                f"   • 🍽️ **Dining & Allergy-Safe Food Guide**: Recommended eateries tailored to {food_pref or 'all preferences'} and strictly allergy-safe for {allergies or 'general safety'}.\n"
-                f"   • 📍 **Top City Attractions & Viewpoints**: Best sightseeing spots, optimal visiting hours, and metro route connections.\n\n"
                 f"6. **JSON Travel Block for Interactive Visual Map Cards**:\n"
                 f"   At the very end of your response, output a clean JSON block fenced by ```json_travel_data and ``` with keys:\n"
                 f"   'destination_city' (string), 'weather_alert' (string), 'umbrella_needed' (true/false),\n"
+                f"   'weather_forecast_days': array of objects with ('day', 'temp', 'rain_probability', 'condition', 'activity_advice'),\n"
+                f"   'hospitals': array of objects with ('name', 'distance', 'emergency_phone', 'specialty', 'map_query'),\n"
                 f"   'hotels': array of objects with ('name', 'price', 'distance', 'rating', 'amenities', 'weather_tag' ('☔ Rain-Protected (100% AC)' / '☀️ Full AC & Shaded' / '⛅ Pleasant AC'), 'why_recommended', 'cautions_requirements', 'map_query'),\n"
                 f"   'foodlets': array of objects with ('name', 'type' ('Veg'/'Non-Veg'/'Multi'), 'cuisine', 'special_dish', 'price_range', 'weather_tag' ('☔ Cozy Indoor AC' / '☀️ AC Dining Room' / '⛅ Covered Open-Air'), 'why_recommended', 'cautions_requirements', 'map_query'),\n"
                 f"   'famous_places': array of objects with ('name', 'type', 'best_time', 'entry_fee', 'weather_tag' ('☔ Indoor / Rain-Safe' / '☀️ Shaded / Air-Conditioned' / '⛅ Outdoor Scenic'), 'why_recommended', 'cautions_requirements', 'map_query'),\n"

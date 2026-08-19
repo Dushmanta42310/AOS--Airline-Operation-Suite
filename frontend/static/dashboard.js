@@ -4706,6 +4706,7 @@ const gaganSaathiSubmitBtn = document.getElementById("gaganSaathiSubmitBtn");
 
 const gsPassengerName = document.getElementById("gsPassengerName");
 const gsTravelDate = document.getElementById("gsTravelDate");
+const gsTripDays = document.getElementById("gsTripDays");
 const gsFromAirport = document.getElementById("gsFromAirport");
 const gsToAirport = document.getElementById("gsToAirport");
 const gsBudget = document.getElementById("gsBudget");
@@ -4964,6 +4965,13 @@ function formatBotMessage(text, travelData = null) {
         "https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=500&auto=format&fit=crop&q=80"
     ];
 
+    const hospitalImages = [
+        "https://images.unsplash.com/photo-1587351021759-3e566b6af7cc?w=500&auto=format&fit=crop&q=80",
+        "https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?w=500&auto=format&fit=crop&q=80",
+        "https://images.unsplash.com/photo-1516549655169-df83a0774514?w=500&auto=format&fit=crop&q=80",
+        "https://images.unsplash.com/photo-1538108149393-fbbd81895907?w=500&auto=format&fit=crop&q=80"
+    ];
+
     // Build Rich Widgets if travelData is provided
     let richWidgets = "";
     if (travelData) {
@@ -4973,17 +4981,86 @@ function formatBotMessage(text, travelData = null) {
         if (travelData.umbrella_needed || travelData.weather_alert) {
             richWidgets += `
                 <div class="gs-weather-box" style="margin-top: 12px;">
-                    <div class="gs-section-title">🌤️ 3-Day Weather Prediction & Advisory</div>
+                    <div class="gs-section-title">🌤️ Trip Weather Prediction & Gear Advisory</div>
                     ${travelData.umbrella_needed ? `
                         <div class="gs-umbrella-alert">
                             <span style="font-size: 20px;">☔</span>
                             <div>
                                 <strong>Precipitation & Umbrella Advisory:</strong>
-                                <div>Rain expected during your travel window. Please pack an umbrella and rain gear!</div>
+                                <div>Rain expected during your travel window. Please carry an umbrella and rain-proof gear!</div>
                             </div>
                         </div>
                     ` : ''}
                     ${travelData.weather_alert ? `<div style="font-size: 11.5px; color: var(--text-main); margin-top: 4px;"><strong>Forecast Summary:</strong> ${travelData.weather_alert}</div>` : ''}
+                </div>
+            `;
+        }
+
+        // 1b. Day-by-Day Weather Forecast & Activity Advisory Cards
+        const forecastDays = Array.isArray(travelData.weather_forecast_days) && travelData.weather_forecast_days.length > 0 
+            ? travelData.weather_forecast_days 
+            : Array.isArray(travelData.weather_days) && travelData.weather_days.length > 0 
+                ? travelData.weather_days 
+                : [];
+
+        if (forecastDays.length > 0) {
+            richWidgets += `
+                <div style="margin-top: 14px;">
+                    <div class="gs-section-title">🌤️ Day-by-Day Weather & Activity Match</div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-top: 8px;">
+                        ${forecastDays.map(d => `
+                            <div style="background: rgba(15, 23, 42, 0.75); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 10px; padding: 12px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                                    <strong style="color: #38BDF8; font-size: 12.5px;">${d.day || 'Day'}</strong>
+                                    <span style="font-size: 11px; font-weight: 700; color: #F59E0B;">${d.temp || ''}</span>
+                                </div>
+                                <div style="font-size: 11px; color: #CBD5E1; margin-bottom: 3px;">🌧️ Rain: <strong>${d.rain_probability || 'Low'}</strong></div>
+                                <div style="font-size: 10.5px; color: #94A3B8; margin-bottom: 6px;">${d.condition || 'Clear Sky'}</div>
+                                <div style="font-size: 10.5px; background: rgba(56, 189, 248, 0.1); border-left: 2px solid #38BDF8; padding: 4px 6px; border-radius: 4px; color: #E2E8F0;">
+                                    <strong>🧭 Plan:</strong> ${d.activity_advice || d.packing_advice || 'Ideal for sightseeing'}
+                                </div>
+                            </div>
+                        `).join("")}
+                    </div>
+                </div>
+            `;
+        }
+
+        // 2. Nearest Emergency Hospitals Cards with Google Maps Button
+        const hospitalList = Array.isArray(travelData.hospitals) && travelData.hospitals.length > 0 
+            ? travelData.hospitals 
+            : Array.isArray(travelData.nearest_hospitals) && travelData.nearest_hospitals.length > 0 
+                ? travelData.nearest_hospitals 
+                : [];
+
+        if (hospitalList.length > 0) {
+            richWidgets += `
+                <div style="margin-top: 14px;">
+                    <div class="gs-section-title">🏥 Nearest 24/7 Emergency Hospitals & Trauma Centers (with Google Maps)</div>
+                    <div class="gs-hotels-grid">
+                        ${hospitalList.map((hp, idx) => {
+                            const mapQuery = encodeURIComponent(`${hp.name || 'Hospital'} ${destCity}`.trim());
+                            const mapUrl = `https://www.google.com/maps/search/?api=1&query=${mapQuery}`;
+                            return `
+                                <div class="gs-hotel-card">
+                                    <img src="${hospitalImages[idx % hospitalImages.length]}" alt="${hp.name || 'Hospital'}" class="gs-hotel-img" loading="lazy">
+                                    <div class="gs-hotel-info">
+                                        <div class="gs-hotel-name">${hp.name || 'Emergency Hospital'}</div>
+                                        <div class="gs-hotel-meta">
+                                            <span>📍 ${hp.distance || 'Near Airport / Downtown'}</span>
+                                            <span style="color: #EF4444; font-weight: 700;">🚨 24/7 Emergency</span>
+                                        </div>
+                                        ${hp.emergency_phone ? `<div style="font-size: 11.5px; font-weight: 800; color: #EF4444; margin: 4px 0;">📞 Helpline: ${hp.emergency_phone}</div>` : ''}
+                                        ${hp.specialty ? `<div style="font-size: 10.5px; color: #CBD5E1; margin: 2px 0;"><strong>🏥 Services:</strong> ${hp.specialty}</div>` : ''}
+                                        <a href="${mapUrl}" target="_blank" rel="noopener noreferrer" class="gs-map-link-btn" style="background: rgba(239, 68, 68, 0.2); border-color: #EF4444; color: #FCA5A5;" title="Navigate to ${hp.name} on Google Maps">
+                                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
+                                            <span>Emergency Route on Map</span>
+                                        </a>
+                                    </div>
+                                </div>
+                            `;
+                        }).join("")}
+                    </div>
                 </div>
             `;
         }
@@ -5244,6 +5321,7 @@ if (gaganSaathiSubmitBtn) {
     gaganSaathiSubmitBtn.addEventListener("click", async () => {
         const pName = gsPassengerName ? gsPassengerName.value.trim() : "Passenger";
         const tDate = gsTravelDate ? gsTravelDate.value : "";
+        const tripDays = gsTripDays ? gsTripDays.value : "3 Days Trip";
         const fromApt = gsFromAirport ? gsFromAirport.value.trim() : "";
         const toApt = gsToAirport ? gsToAirport.value.trim() : "";
         const budget = gsBudget ? gsBudget.value : "Moderate";
@@ -5258,7 +5336,7 @@ if (gaganSaathiSubmitBtn) {
         }
 
         // Build User Prompt Summary
-        const userPrompt = `✈️ **Trip Request (Gagan Saathi)**:\n• Passenger: ${pName}\n• Route: ${fromApt || 'Current Location'} ➔ ${toApt || 'Destination'}\n• Date: ${tDate}\n• Budget: ${budget}\n• Diet: ${foodPref}${allergies ? ' (Allergies: ' + allergies + ')' : ''}\n${safetyNotes ? '• Safety/Viewpoints: ' + safetyNotes : ''}`;
+        const userPrompt = `✈️ **Trip Request (Gagan Saathi)**:\n• Passenger: ${pName}\n• Route: ${fromApt || 'Current Location'} ➔ ${toApt || 'Destination'}\n• Travel Date & Duration: ${tDate} (${tripDays})\n• Budget: ${budget}\n• Diet: ${foodPref}${allergies ? ' (Allergies: ' + allergies + ')' : ''}\n${safetyNotes ? '• Safety/Viewpoints: ' + safetyNotes : ''}`;
 
         appendMessage("user", userPrompt);
 
@@ -5271,10 +5349,11 @@ if (gaganSaathiSubmitBtn) {
             const payload = {
                 mode: "gagansaathi",
                 isGaganSaathi: true,
-                message: `Please generate a comprehensive Gagan Saathi travel guide for ${pName} traveling from ${fromApt} to ${toApt} on ${tDate}. Include 3-day weather prediction, umbrella advisory, budget hotels, food/allergy recommendations, night crime safety alert, and city viewpoints.`,
+                message: `Please generate a comprehensive Gagan Saathi travel guide for ${pName} traveling from ${fromApt} to ${toApt} on ${tDate} for a ${tripDays}. Include pre-departure prep, airport timing, destination transit (Metro vs Prepaid Cabs vs App Cabs), day-by-day weather-matched itinerary, nearest 24/7 emergency hospitals, budget hotels, allergy-safe foodlets, night crime safety alert, and city viewpoints.`,
                 travelDetails: {
                     passengerName: pName,
                     travelDate: tDate,
+                    tripDays: tripDays,
                     fromAirport: fromApt,
                     toAirport: toApt,
                     budget: budget,
