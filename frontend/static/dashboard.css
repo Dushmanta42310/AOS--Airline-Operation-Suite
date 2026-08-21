@@ -2155,6 +2155,238 @@ body.light-theme .gs-safety-text {
     color: #334155;
 }
 
+/* Clickable Entity Links in Narrative Paragraphs */
+.gs-entity-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    color: #38BDF8;
+    background: rgba(56, 189, 248, 0.12);
+    border: 1px solid rgba(56, 189, 248, 0.35);
+    padding: 1px 6px;
+    border-radius: 6px;
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.22s ease-in-out;
+    vertical-align: baseline;
+    line-height: 1.4;
+}
+
+.gs-entity-link:hover {
+    background: rgba(56, 189, 248, 0.28);
+    border-color: #38BDF8;
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+    transform: translateY(-1px);
+    color: #FFFFFF;
+}
+
+body.light-theme .gs-entity-link {
+    background: rgba(2, 132, 199, 0.1);
+    border-color: rgba(2, 132, 199, 0.3);
+    color: #0284C7;
+}
+
+body.light-theme .gs-entity-link:hover {
+    background: rgba(2, 132, 199, 0.2);
+    border-color: #0284C7;
+    color: #0369A1;
+}
+
+/* Pulsating Card Highlight Glow */
+@keyframes gsCardPulseGlow {
+    0% {
+        box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.9);
+        border-color: #38BDF8;
+        transform: scale(1);
+    }
+    30% {
+        box-shadow: 0 0 25px 8px rgba(56, 189, 248, 0.85);
+        border-color: #38BDF8;
+        transform: scale(1.035);
+    }
+    60% {
+        box-shadow: 0 0 15px 4px rgba(56, 189, 248, 0.6);
+        border-color: #38BDF8;
+        transform: scale(1.02);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(56, 189, 248, 0);
+        border-color: rgba(56, 189, 248, 0.25);
+        transform: scale(1);
+    }
+}
+
+.gs-card-highlighted {
+    animation: gsCardPulseGlow 1.6s cubic-bezier(0.25, 1, 0.5, 1) infinite;
+    border: 2px solid #38BDF8 !important;
+    z-index: 10;
+    position: relative;
+}
+
+/* 7-Line Executive Highlights Matrix */
+.gs-seven-lines-container {
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.92) 0%, rgba(30, 41, 59, 0.88) 100%);
+    border: 1.5px solid rgba(56, 189, 248, 0.4);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35), inset 0 0 20px rgba(56, 189, 248, 0.08);
+    border-radius: 14px;
+    padding: 16px 18px;
+    margin: 14px 0;
+    backdrop-filter: blur(10px);
+}
+
+body.light-theme .gs-seven-lines-container {
+    background: linear-gradient(135deg, #F8FAFC 0%, #EFF6FF 100%);
+    border-color: rgba(2, 132, 199, 0.35);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+}
+
+.gs-seven-lines-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 13px;
+    font-weight: 800;
+    color: #38BDF8;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(56, 189, 248, 0.2);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+body.light-theme .gs-seven-lines-header {
+    color: #0284C7;
+    border-bottom-color: rgba(2, 132, 199, 0.2);
+}
+
+.gs-seven-line-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    margin-bottom: 6px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    transition: all 0.2s ease;
+    font-size: 12.5px;
+    line-height: 1.5;
+}
+
+.gs-seven-line-row:hover {
+    background: rgba(56, 189, 248, 0.08);
+    border-color: rgba(56, 189, 248, 0.3);
+    transform: translateX(3px);
+}
+
+body.light-theme .gs-seven-line-row {
+    background: #FFFFFF;
+    border-color: #E2E8F0;
+}
+
+body.light-theme .gs-seven-line-row:hover {
+    background: #F0F9FF;
+    border-color: #BAE6FD;
+}
+
+.gs-seven-line-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    background: rgba(56, 189, 248, 0.2);
+    border: 1px solid #38BDF8;
+    color: #38BDF8;
+    font-weight: 800;
+    font-size: 11px;
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+body.light-theme .gs-seven-line-num {
+    background: #E0F2FE;
+    border-color: #0284C7;
+    color: #0284C7;
+}
+
+.gs-seven-line-content {
+    flex: 1;
+    color: #E2E8F0;
+}
+
+body.light-theme .gs-seven-line-content {
+    color: #334155;
+}
+
+/* Highlight & Warning Tags */
+.gs-highlight-tag {
+    display: inline-block;
+    background: rgba(245, 158, 11, 0.15);
+    border: 1px solid rgba(245, 158, 11, 0.4);
+    color: #FBBF24;
+    padding: 0.5px 6px;
+    border-radius: 4px;
+    font-weight: 700;
+    font-size: 11.5px;
+}
+
+body.light-theme .gs-highlight-tag {
+    background: #FEF3C7;
+    border-color: #FCD34D;
+    color: #D97706;
+}
+
+.gs-warning-tag {
+    display: inline-block;
+    background: rgba(239, 68, 68, 0.18);
+    border: 1px solid rgba(239, 68, 68, 0.45);
+    color: #F87171;
+    padding: 0.5px 6px;
+    border-radius: 4px;
+    font-weight: 700;
+    font-size: 11.5px;
+}
+
+body.light-theme .gs-warning-tag {
+    background: #FEE2E2;
+    border-color: #FCA5A5;
+    color: #DC2626;
+}
+
+/* Predictive Weather Prevention Card Enhancements */
+.gs-weather-prevention-card {
+    background: linear-gradient(135deg, rgba(14, 116, 144, 0.2) 0%, rgba(15, 23, 42, 0.8) 100%);
+    border: 1px solid rgba(6, 182, 212, 0.4);
+    border-radius: 10px;
+    padding: 12px;
+    margin-top: 8px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+body.light-theme .gs-weather-prevention-card {
+    background: linear-gradient(135deg, #ECFEFF 0%, #F0FDFA 100%);
+    border-color: #A5F3FC;
+}
+
+.gs-rain-bar-container {
+    width: 100%;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+    overflow: hidden;
+    margin: 4px 0 6px 0;
+}
+
+.gs-rain-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #38BDF8 0%, #0284C7 100%);
+    border-radius: 3px;
+}
+
 /* Bottom Chat Input Bar */
 .chatbot-input-area {
     padding: 12px 16px;

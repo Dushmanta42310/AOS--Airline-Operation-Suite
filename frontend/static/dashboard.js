@@ -4887,7 +4887,7 @@ function setupAirportAutocomplete(inputEl, suggestionsBoxEl) {
 setupAirportAutocomplete(gsFromAirport, fromSuggestionsBox);
 setupAirportAutocomplete(gsToAirport, toSuggestionsBox);
 
-// 5. Markdown & Rich Card Parser
+// 5. Markdown & Rich Card Parser with Interactive In-Text Entity Links
 function formatBotMessage(text, travelData = null) {
     if (!text) return "";
 
@@ -4902,6 +4902,24 @@ function formatBotMessage(text, travelData = null) {
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;");
+
+    // Build entity lookup dictionary for interactive in-text redirection
+    const entityMap = new Map();
+    if (travelData) {
+        (travelData.hotels || []).forEach(h => {
+            if (h && h.name) entityMap.set(h.name.toLowerCase().trim(), { name: h.name, type: '🏨' });
+        });
+        (travelData.famous_places || travelData.top_viewpoints || []).forEach(p => {
+            const pName = typeof p === 'string' ? p : (p && p.name ? p.name : '');
+            if (pName) entityMap.set(pName.toLowerCase().trim(), { name: pName, type: '📍' });
+        });
+        (travelData.foodlets || travelData.food_recommendations || []).forEach(f => {
+            if (f && f.name) entityMap.set(f.name.toLowerCase().trim(), { name: f.name, type: '🍽️' });
+        });
+        (travelData.hospitals || travelData.nearest_hospitals || []).forEach(hp => {
+            if (hp && hp.name) entityMap.set(hp.name.toLowerCase().trim(), { name: hp.name, type: '🏥' });
+        });
+    }
 
     // Convert markdown tables | col | col | to sleek HTML tables
     formatted = formatted.replace(/((?:\|[^\n]+\|\r?\n)+)/g, (match) => {
@@ -4931,13 +4949,62 @@ function formatBotMessage(text, travelData = null) {
     formatted = formatted.replace(/^---$/gim, '<hr class="gs-chat-divider">');
 
     // Headers
-    formatted = formatted.replace(/^### (.*$)/gim, '<h4 style="margin: 14px 0 6px 0; color: #38BDF8; font-size: 14.5px; font-weight: 800; letter-spacing: 0.3px;">$1</h4>');
-    formatted = formatted.replace(/^## (.*$)/gim, '<h3 style="margin: 16px 0 8px 0; color: #0284C7; font-size: 15.5px; font-weight: 800;">$1</h3>');
-    formatted = formatted.replace(/^# (.*$)/gim, '<h2 style="margin: 18px 0 10px 0; color: #0284C7; font-size: 16.5px; font-weight: 800;">$1</h2>');
+    formatted = formatted.replace(/^### (.*$)/gim, '<h4 style="margin: 16px 0 8px 0; color: #38BDF8; font-size: 15px; font-weight: 800; letter-spacing: 0.3px;">$1</h4>');
+    formatted = formatted.replace(/^## (.*$)/gim, '<h3 style="margin: 18px 0 10px 0; color: #0284C7; font-size: 16px; font-weight: 800;">$1</h3>');
+    formatted = formatted.replace(/^# (.*$)/gim, '<h2 style="margin: 20px 0 12px 0; color: #0284C7; font-size: 17px; font-weight: 800;">$1</h2>');
 
-    // Bold and Italic
-    formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong style="color: #38BDF8; font-weight: 700;">$1</strong>');
+    // Bold formatting with smart Entity Recognition & Clickable Card Redirection
+    formatted = formatted.replace(/\*\*(.*?)\*\*/g, (match, p1) => {
+        const rawName = p1.trim();
+        const cleanName = rawName.toLowerCase();
+        
+        // Match against known hotels, food outlets, monuments, and hospitals
+        let matchedEntity = entityMap.get(cleanName);
+        if (!matchedEntity) {
+            for (const [key, ent] of entityMap.entries()) {
+                if (key.length >= 4 && (cleanName.includes(key) || key.includes(cleanName))) {
+                    matchedEntity = ent;
+                    break;
+                }
+            }
+        }
+
+        if (matchedEntity) {
+            const safeName = matchedEntity.name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            return `<a href="javascript:void(0)" class="gs-entity-link" onclick="window.scrollToGSCard('${safeName}'); event.stopPropagation();" title="Click to view photo card & map for ${matchedEntity.name}"><span>${matchedEntity.type} ${p1}</span> <span style="font-size: 10px; opacity: 0.85;">🔍</span></a>`;
+        }
+        return `<strong style="color: #38BDF8; font-weight: 700;">${p1}</strong>`;
+    });
+
     formatted = formatted.replace(/\*(.*?)\*/g, '<em>$1</em>');
+
+    // Transform 7-Line Executive Matrix into sleek interactive cards
+    formatted = formatted.replace(/(?:^|\n)### 🌟 \*\*7-Line Executive Trip Highlights & Interactive Overview\*\*:\s*([\s\S]*?)(?=\n###|\n---|$)/i, (match, content) => {
+        const lines = content.trim().split(/\r?\n/).filter(l => l.trim().length > 0);
+        let rowsHtml = '';
+        lines.forEach((line, idx) => {
+            const cleanLine = line.replace(/^\s*(?:\d+[\.\)]|[\-\*•])\s*/, '');
+            rowsHtml += `
+                <div class="gs-seven-line-row">
+                    <span class="gs-seven-line-num">${idx + 1}</span>
+                    <div class="gs-seven-line-content">${cleanLine}</div>
+                </div>
+            `;
+        });
+        return `
+            <div class="gs-seven-lines-container">
+                <div class="gs-seven-lines-header">
+                    <span>🌟 7-Line Executive Highlights & Action Matrix</span>
+                    <span style="font-size: 11px; opacity: 0.85; font-weight: normal;">Tap any entity to inspect below</span>
+                </div>
+                ${rowsHtml}
+            </div>
+        `;
+    });
+
+    // Highlight critical codes, fares, and emergency helplines
+    formatted = formatted.replace(/\b(`(?:112|100|108|181|1800-180-1234|1800-425-2026|1066)[\w\-]*`)\b/g, '<span class="gs-warning-tag">🚨 $1</span>');
+    formatted = formatted.replace(/(₹\s?[\d,]+(?:\s?–\s?₹?\s?[\d,]+)?(?:\s?\/\s?(?:night|person|visitor))?)/g, '<span class="gs-highlight-tag">💰 $1</span>');
 
     // Bullet points rendered as rich spacious paragraph blocks
     formatted = formatted.replace(/^\s*[\-\*•]\s+(.*$)/gim, '<div class="gs-bullet-block"><span class="gs-bullet-dot">🔹</span><div class="gs-bullet-text">$1</div></div>');
@@ -4946,7 +5013,7 @@ function formatBotMessage(text, travelData = null) {
     formatted = formatted.replace(/^\s*(\d+)\.\s+(.*$)/gim, '<div class="gs-bullet-block"><span class="gs-num-badge">$1</span><div class="gs-bullet-text">$2</div></div>');
 
     // Convert newlines
-    formatted = formatted.replace(/\n\n/g, '<div style="height: 10px;"></div>');
+    formatted = formatted.replace(/\n\n/g, '<div style="height: 12px;"></div>');
     formatted = formatted.replace(/\n/g, '<br>');
 
     // Image Fallback Libraries
@@ -4961,14 +5028,18 @@ function formatBotMessage(text, travelData = null) {
         "https://images.unsplash.com/photo-1477959858617-67f30bc75b82?w=500&auto=format&fit=crop&q=80",
         "https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=500&auto=format&fit=crop&q=80",
         "https://images.unsplash.com/photo-1508807526345-15e9b5f4eaff?w=500&auto=format&fit=crop&q=80",
-        "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=500&auto=format&fit=crop&q=80"
+        "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=500&auto=format&fit=crop&q=80",
+        "https://images.unsplash.com/photo-1599818816933-4f9643448493?w=500&auto=format&fit=crop&q=80",
+        "https://images.unsplash.com/photo-1587474260584-136574528ed5?w=500&auto=format&fit=crop&q=80"
     ];
 
     const foodImages = [
         "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=500&auto=format&fit=crop&q=80",
         "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=500&auto=format&fit=crop&q=80",
         "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=500&auto=format&fit=crop&q=80",
-        "https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=500&auto=format&fit=crop&q=80"
+        "https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=500&auto=format&fit=crop&q=80",
+        "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=500&auto=format&fit=crop&q=80",
+        "https://images.unsplash.com/photo-1601050690597-df0568f70950?w=500&auto=format&fit=crop&q=80"
     ];
 
     const hospitalImages = [
@@ -4978,7 +5049,7 @@ function formatBotMessage(text, travelData = null) {
         "https://images.unsplash.com/photo-1538108149393-fbbd81895907?w=500&auto=format&fit=crop&q=80"
     ];
 
-    // Build Rich Widgets if travelData is provided
+    // Build Rich Interactive Widgets if travelData is provided
     let richWidgets = "";
     if (travelData) {
         const destCity = travelData.destination_city || "";
@@ -4986,14 +5057,14 @@ function formatBotMessage(text, travelData = null) {
         // 1. Weather & Umbrella Alert Widget
         if (travelData.umbrella_needed || travelData.weather_alert) {
             richWidgets += `
-                <div class="gs-weather-box" style="margin-top: 12px;">
-                    <div class="gs-section-title">🌤️ Trip Weather Prediction & Gear Advisory</div>
+                <div class="gs-weather-box" style="margin-top: 14px;" id="gs-section-weather" data-card-name="weather">
+                    <div class="gs-section-title">🌤️ Predictive Weather Intelligence & Prevention Hub</div>
                     ${travelData.umbrella_needed ? `
                         <div class="gs-umbrella-alert">
                             <span style="font-size: 20px;">☔</span>
                             <div>
                                 <strong>Precipitation & Umbrella Advisory:</strong>
-                                <div>Rain expected during your travel window. Please carry an umbrella and rain-proof gear!</div>
+                                <div>Passing showers expected. Carry a windproof umbrella and water-resistant footwear!</div>
                             </div>
                         </div>
                     ` : ''}
@@ -5002,7 +5073,7 @@ function formatBotMessage(text, travelData = null) {
             `;
         }
 
-        // 1b. Day-by-Day Weather Forecast & Activity Advisory Cards
+        // 1b. Day-by-Day Weather Forecast & Prevention Cards
         const forecastDays = Array.isArray(travelData.weather_forecast_days) && travelData.weather_forecast_days.length > 0 
             ? travelData.weather_forecast_days 
             : Array.isArray(travelData.weather_days) && travelData.weather_days.length > 0 
@@ -5012,21 +5083,31 @@ function formatBotMessage(text, travelData = null) {
         if (forecastDays.length > 0) {
             richWidgets += `
                 <div style="margin-top: 14px;">
-                    <div class="gs-section-title">🌤️ Day-by-Day Weather & Activity Match</div>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-top: 8px;">
-                        ${forecastDays.map(d => `
-                            <div style="background: rgba(15, 23, 42, 0.75); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 10px; padding: 12px;">
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                                    <strong style="color: #38BDF8; font-size: 12.5px;">${d.day || 'Day'}</strong>
-                                    <span style="font-size: 11px; font-weight: 700; color: #F59E0B;">${d.temp || ''}</span>
+                    <div class="gs-section-title">🌦️ Multi-Day Predictive Weather Cards & Prevention Strategy</div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-top: 8px;">
+                        ${forecastDays.map((d, idx) => {
+                            const rainProb = parseInt(d.rain_probability || '30') || 35;
+                            const advice = d.activity_advice || d.packing_advice || 'Carry light rain gear & stay hydrated';
+                            return `
+                                <div class="gs-weather-day-card gs-weather-prevention-card" data-card-name="${d.day || ('day ' + (idx + 1))}">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                                        <strong style="color: #38BDF8; font-size: 13px;">${d.day || 'Day ' + (idx + 1)}</strong>
+                                        <span class="gs-highlight-tag">${d.temp || '28°C – 32°C'}</span>
+                                    </div>
+                                    <div style="font-size: 11.5px; color: #CBD5E1; margin: 4px 0 2px 0; display: flex; justify-content: space-between;">
+                                        <span>🌧️ Rain Probability:</span>
+                                        <strong style="color: ${rainProb >= 50 ? '#38BDF8' : '#10B981'};">${d.rain_probability || rainProb + '%'}</strong>
+                                    </div>
+                                    <div class="gs-rain-bar-container">
+                                        <div class="gs-rain-bar-fill" style="width: ${Math.min(100, Math.max(15, rainProb))}%;"></div>
+                                    </div>
+                                    <div style="font-size: 11px; color: #94A3B8; margin-bottom: 8px;">${d.condition || 'Partly Cloudy'}</div>
+                                    <div style="font-size: 10.5px; background: rgba(56, 189, 248, 0.1); border-left: 3px solid #38BDF8; padding: 6px 8px; border-radius: 4px; color: #E2E8F0; line-height: 1.4;">
+                                        <strong style="color: #38BDF8;">🛡️ Prevention & Action:</strong> ${advice}
+                                    </div>
                                 </div>
-                                <div style="font-size: 11px; color: #CBD5E1; margin-bottom: 3px;">🌧️ Rain: <strong>${d.rain_probability || 'Low'}</strong></div>
-                                <div style="font-size: 10.5px; color: #94A3B8; margin-bottom: 6px;">${d.condition || 'Clear Sky'}</div>
-                                <div style="font-size: 10.5px; background: rgba(56, 189, 248, 0.1); border-left: 2px solid #38BDF8; padding: 4px 6px; border-radius: 4px; color: #E2E8F0;">
-                                    <strong>🧭 Plan:</strong> ${d.activity_advice || d.packing_advice || 'Ideal for sightseeing'}
-                                </div>
-                            </div>
-                        `).join("")}
+                            `;
+                        }).join("")}
                     </div>
                 </div>
             `;
@@ -5041,24 +5122,25 @@ function formatBotMessage(text, travelData = null) {
 
         if (hospitalList.length > 0) {
             richWidgets += `
-                <div style="margin-top: 14px;">
+                <div style="margin-top: 14px;" id="gs-section-hospitals">
                     <div class="gs-section-title">🏥 Nearest 24/7 Emergency Hospitals & Trauma Centers (with Google Maps)</div>
                     <div class="gs-hotels-grid">
                         ${hospitalList.map((hp, idx) => {
-                            const mapQuery = encodeURIComponent(`${hp.name || 'Hospital'} ${destCity}`.trim());
+                            const hpName = hp.name || 'Emergency Hospital';
+                            const mapQuery = encodeURIComponent(`${hpName} ${destCity}`.trim());
                             const mapUrl = `https://www.google.com/maps/search/?api=1&query=${mapQuery}`;
                             return `
-                                <div class="gs-hotel-card">
-                                    <img src="${hospitalImages[idx % hospitalImages.length]}" alt="${hp.name || 'Hospital'}" class="gs-hotel-img" loading="lazy">
+                                <div class="gs-hotel-card gs-hospital-card" id="gs-card-hosp-${idx}" data-card-name="${hpName}">
+                                    <img src="${hospitalImages[idx % hospitalImages.length]}" alt="${hpName}" class="gs-hotel-img" loading="lazy">
                                     <div class="gs-hotel-info">
-                                        <div class="gs-hotel-name">${hp.name || 'Emergency Hospital'}</div>
+                                        <div class="gs-hotel-name">${hpName}</div>
                                         <div class="gs-hotel-meta">
                                             <span>📍 ${hp.distance || 'Near Airport / Downtown'}</span>
                                             <span style="color: #EF4444; font-weight: 700;">🚨 24/7 Emergency</span>
                                         </div>
                                         ${hp.emergency_phone ? `<div style="font-size: 11.5px; font-weight: 800; color: #EF4444; margin: 4px 0;">📞 Helpline: ${hp.emergency_phone}</div>` : ''}
                                         ${hp.specialty ? `<div style="font-size: 10.5px; color: #CBD5E1; margin: 2px 0;"><strong>🏥 Services:</strong> ${hp.specialty}</div>` : ''}
-                                        <a href="${mapUrl}" target="_blank" rel="noopener noreferrer" class="gs-map-link-btn" style="background: rgba(239, 68, 68, 0.2); border-color: #EF4444; color: #FCA5A5;" title="Navigate to ${hp.name} on Google Maps">
+                                        <a href="${mapUrl}" target="_blank" rel="noopener noreferrer" class="gs-map-link-btn" style="background: rgba(239, 68, 68, 0.2); border-color: #EF4444; color: #FCA5A5;" title="Emergency Route to ${hpName} on Google Maps">
                                             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
                                             <span>Emergency Route on Map</span>
                                         </a>
@@ -5071,21 +5153,22 @@ function formatBotMessage(text, travelData = null) {
             `;
         }
 
-        // 2. Hotel Recommendations Cards with Google Maps Button
+        // 3. Hotel Recommendations Cards with Google Maps Button
         if (Array.isArray(travelData.hotels) && travelData.hotels.length > 0) {
             richWidgets += `
-                <div style="margin-top: 14px;">
+                <div style="margin-top: 14px;" id="gs-section-hotels">
                     <div class="gs-section-title">🏨 Nearest Budget-Matched Hotels (with Google Maps & Weather Suitability)</div>
                     <div class="gs-hotels-grid">
                         ${travelData.hotels.map((h, idx) => {
-                            const mapQuery = encodeURIComponent(`${h.name || 'Hotel'} ${destCity}`.trim());
+                            const hName = h.name || 'Premium Living Stay';
+                            const mapQuery = encodeURIComponent(`${hName} ${destCity}`.trim());
                             const mapUrl = `https://www.google.com/maps/search/?api=1&query=${mapQuery}`;
                             const weatherTag = h.weather_tag || '☔ 100% AC & Rain-Protected';
                             return `
-                                <div class="gs-hotel-card">
-                                    <img src="${hotelImages[idx % hotelImages.length]}" alt="${h.name || 'Hotel'}" class="gs-hotel-img" loading="lazy">
+                                <div class="gs-hotel-card" id="gs-card-hotel-${idx}" data-card-name="${hName}">
+                                    <img src="${hotelImages[idx % hotelImages.length]}" alt="${hName}" class="gs-hotel-img" loading="lazy">
                                     <div class="gs-hotel-info">
-                                        <div class="gs-hotel-name">${h.name || 'Premium Living Stay'}</div>
+                                        <div class="gs-hotel-name">${hName}</div>
                                         <div class="gs-hotel-meta">
                                             <span>📍 ${h.distance || 'Near Airport'}</span>
                                             <span>⭐ ${h.rating || '4.5/5'}</span>
@@ -5094,7 +5177,7 @@ function formatBotMessage(text, travelData = null) {
                                         <div style="margin: 4px 0;"><span class="gs-diet-badge" style="background: rgba(56, 189, 248, 0.15); color: #38BDF8; font-size: 10px; font-weight: 700;">${weatherTag}</span></div>
                                         ${h.why_recommended ? `<div style="font-size: 10.5px; color: #CBD5E1; margin: 4px 0; line-height: 1.35;"><strong>💡 Why Good:</strong> ${h.why_recommended}</div>` : ''}
                                         ${h.cautions_requirements ? `<div style="font-size: 10px; color: #F59E0B; margin-bottom: 6px; line-height: 1.3;"><strong>⚠️ Caution:</strong> ${h.cautions_requirements}</div>` : ''}
-                                        <a href="${mapUrl}" target="_blank" rel="noopener noreferrer" class="gs-map-link-btn" title="View ${h.name} on Google Maps">
+                                        <a href="${mapUrl}" target="_blank" rel="noopener noreferrer" class="gs-map-link-btn" title="View ${hName} on Google Maps">
                                             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
                                             <span>Google Maps</span>
                                         </a>
@@ -5107,7 +5190,7 @@ function formatBotMessage(text, travelData = null) {
             `;
         }
 
-        // 3. Famous Places & Viewpoints Cards with Google Maps Button
+        // 4. Famous Places & Viewpoints Cards with Google Maps Button
         const placesList = Array.isArray(travelData.famous_places) && travelData.famous_places.length > 0 
             ? travelData.famous_places 
             : Array.isArray(travelData.top_viewpoints) && travelData.top_viewpoints.length > 0 
@@ -5116,7 +5199,7 @@ function formatBotMessage(text, travelData = null) {
 
         if (placesList.length > 0) {
             richWidgets += `
-                <div style="margin-top: 14px;">
+                <div style="margin-top: 14px;" id="gs-section-places">
                     <div class="gs-section-title">📍 Famous Places & City Viewpoints (with Google Maps & Weather Advice)</div>
                     <div class="gs-places-grid">
                         ${placesList.map((p, idx) => {
@@ -5125,7 +5208,7 @@ function formatBotMessage(text, travelData = null) {
                             const mapUrl = `https://www.google.com/maps/search/?api=1&query=${mapQuery}`;
                             const weatherTag = p.weather_tag || '⛅ Scenic Landmark';
                             return `
-                                <div class="gs-place-card">
+                                <div class="gs-place-card" id="gs-card-place-${idx}" data-card-name="${pName}">
                                     <img src="${placeImages[idx % placeImages.length]}" alt="${pName}" class="gs-place-img" loading="lazy">
                                     <div class="gs-place-info">
                                         <div class="gs-place-name">${pName}</div>
@@ -5150,7 +5233,7 @@ function formatBotMessage(text, travelData = null) {
             `;
         }
 
-        // 4. Foodlets & Dining Centers Cards with Google Maps Button
+        // 5. Foodlets & Dining Centers Cards with Google Maps Button
         const foodList = Array.isArray(travelData.foodlets) && travelData.foodlets.length > 0 
             ? travelData.foodlets 
             : Array.isArray(travelData.food_recommendations) && travelData.food_recommendations.length > 0 
@@ -5159,7 +5242,7 @@ function formatBotMessage(text, travelData = null) {
 
         if (foodList.length > 0) {
             richWidgets += `
-                <div style="margin-top: 14px;">
+                <div style="margin-top: 14px;" id="gs-section-food">
                     <div class="gs-section-title">🍽️ Foodlets & Allergy-Safe Dining Centers (with Google Maps)</div>
                     <div class="gs-foodlets-grid">
                         ${foodList.map((f, idx) => {
@@ -5169,7 +5252,7 @@ function formatBotMessage(text, travelData = null) {
                             const isVeg = (f.type || '').toLowerCase().includes('veg') && !(f.type || '').toLowerCase().includes('non');
                             const weatherTag = f.weather_tag || '☀️ AC Dining Room';
                             return `
-                                <div class="gs-foodlet-card">
+                                <div class="gs-foodlet-card" id="gs-card-food-${idx}" data-card-name="${fName}">
                                     <img src="${foodImages[idx % foodImages.length]}" alt="${fName}" class="gs-foodlet-img" loading="lazy">
                                     <div class="gs-foodlet-info">
                                         <div class="gs-foodlet-header">
@@ -5200,11 +5283,11 @@ function formatBotMessage(text, travelData = null) {
             `;
         }
 
-        // 5. Safety & Night Crime Alert Widget
+        // 6. Safety & Night Crime Alert Widget
         if (travelData.night_safety_summary || travelData.safety_level) {
             const levelClass = (travelData.safety_level || "").toLowerCase().includes("safe") ? "safe" : (travelData.safety_level || "").toLowerCase().includes("caution") ? "caution" : "moderate";
             richWidgets += `
-                <div class="gs-safety-box" style="margin-top: 14px;">
+                <div class="gs-safety-box" style="margin-top: 14px;" data-card-name="safety">
                     <div class="gs-safety-header">
                         <div class="gs-section-title" style="color: #EF4444; margin: 0;">🛡️ Night Safety & Crime Alert</div>
                         <span class="gs-safety-level-badge ${levelClass}">${travelData.safety_level || 'Safe'}</span>
@@ -5214,7 +5297,7 @@ function formatBotMessage(text, travelData = null) {
             `;
         }
 
-        // 6. Interactive Quick Google Map Destination Hub
+        // 7. Interactive Quick Google Map Destination Hub
         if (destCity) {
             const allHotelsMap = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent('Hotels in ' + destCity)}`;
             const allFoodMap = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent('Restaurants and Food in ' + destCity)}`;
@@ -5235,6 +5318,38 @@ function formatBotMessage(text, travelData = null) {
 
     return `<div class="bot-content">${formatted}</div>${richWidgets}`;
 }
+
+// Global Scroll-to-Card with Pulse Animation
+window.scrollToGSCard = function(targetName) {
+    if (!targetName) return;
+    const cleanTarget = targetName.toLowerCase().trim();
+    
+    // Select all cards in chat messages
+    const allCards = document.querySelectorAll('.gs-hotel-card, .gs-place-card, .gs-foodlet-card, .gs-hospital-card, .gs-weather-day-card, .gs-weather-box, .gs-safety-box');
+    let matchedCard = null;
+
+    for (const card of allCards) {
+        const cardName = (card.getAttribute('data-card-name') || '').toLowerCase();
+        const textContent = (card.innerText || '').toLowerCase();
+        
+        if (cardName && (cardName.includes(cleanTarget) || cleanTarget.includes(cardName))) {
+            matchedCard = card;
+            break;
+        } else if (textContent.includes(cleanTarget)) {
+            matchedCard = card;
+            break;
+        }
+    }
+
+    if (matchedCard) {
+        matchedCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        document.querySelectorAll('.gs-card-highlighted').forEach(el => el.classList.remove('gs-card-highlighted'));
+        matchedCard.classList.add('gs-card-highlighted');
+        setTimeout(() => {
+            matchedCard.classList.remove('gs-card-highlighted');
+        }, 3200);
+    }
+};
 
 function appendMessage(sender, text, travelData = null) {
     if (!chatbotMessages) return;
