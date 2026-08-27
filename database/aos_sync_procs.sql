@@ -1,0 +1,1337 @@
+-- =============================================================================
+-- aos_sync_procs.sql
+-- =============================================================================
+-- PURPOSE:
+--   Bring the Oracle database XEPDB1 (schema AIRLINE) up to date so that
+--   backend/app.py can run 100% on Stored Procedures (cur.callproc) instead of
+--   inline SQL (cur.execute).
+--
+-- HOW TO RUN (any ONE of these):
+--   SQL*Plus  :  sqlplus airline/airline@localhost:1521/xepdb1 @aos_sync_procs.sql
+--   SQLcl     :  sql airline/airline@localhost:1521/xepdb1 @aos_sync_procs.sql
+--   SQL Dev   :  Open the file and run EVERY statement (Run Script F5).
+--
+-- WHAT IT DOES:
+--   1. ALTER TABLE statements (add columns that schema.sql already has but the
+--      live DB is missing). Every ALTER is guarded so re-running is harmless.
+--   2. CREATE OR REPLACE for stored procedures that schema.sql defines but the
+--      live DB is missing (AIRLINE_CUSTOMER_REGD_USER_USP).
+--   3. CREATE OR REPLACE for stored procedures whose signature must be updated.
+--   4. CREATE OR REPLACE for all NEW stored procedures used by app.py callproc.
+--
+-- You may run the whole file safely multiple times.
+-- =============================================================================
+
+-- =============================================================================
+-- 0) TABLE / SEQUENCE SYNC  (idempotent guards)
+-- =============================================================================
+
+-- AIRLINE_USER_MSTR_TBL: add passenger-profile columns (already in schema.sql)
+BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AIRLINE_USER_MSTR_TBL ADD (FULL_NAME VARCHAR2(200))'; EXCEPTION WHEN OTHERS THEN NULL; END;
+/
+BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AIRLINE_USER_MSTR_TBL ADD (GENDER CHAR(1))'; EXCEPTION WHEN OTHERS THEN NULL; END;
+/
+BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AIRLINE_USER_MSTR_TBL ADD (DOB DATE)'; EXCEPTION WHEN OTHERS THEN NULL; END;
+/
+BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AIRLINE_USER_MSTR_TBL ADD (PASSPORT_NO VARCHAR2(50))'; EXCEPTION WHEN OTHERS THEN NULL; END;
+/
+BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AIRLINE_USER_MSTR_TBL ADD (MEMBER_TIER VARCHAR2(50))'; EXCEPTION WHEN OTHERS THEN NULL; END;
+/
+BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AIRLINE_USER_MSTR_TBL ADD (DISCOUNT_PCT NUMBER(5,2) DEFAULT 0)'; EXCEPTION WHEN OTHERS THEN NULL; END;
+/
+
+-- AIRLINE_PASSENGERS_REGD_FORM_MSTR_TBL: add PROFILE_IMG (already in schema.sql)
+BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AIRLINE_PASSENGERS_REGD_FORM_MSTR_TBL ADD (PROFILE_IMG VARCHAR2(2000))'; EXCEPTION WHEN OTHERS THEN NULL; END;
+/
+
+-- AIRLINE_TICKET_BOOKING_TRANSACTION_TBL: add PAYMENT_METHOD (used by book-seat)
+BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AIRLINE_TICKET_BOOKING_TRANSACTION_TBL ADD (PAYMENT_METHOD VARCHAR2(20))'; EXCEPTION WHEN OTHERS THEN NULL; END;
+/
+
+-- AIRLINE_PASSENGER_MEMBERSHIP_MAP_TBL: add columns required by AIRLINE_CUSTOMER_REGD_USER_USP
+BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AIRLINE_PASSENGER_MEMBERSHIP_MAP_TBL ADD (USER_ID NUMBER)'; EXCEPTION WHEN OTHERS THEN NULL; END;
+/
+BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AIRLINE_PASSENGER_MEMBERSHIP_MAP_TBL ADD (PAYMENT_METHOD VARCHAR2(20))'; EXCEPTION WHEN OTHERS THEN NULL; END;
+/
+BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AIRLINE_PASSENGER_MEMBERSHIP_MAP_TBL ADD (PAYMENT_STATUS VARCHAR2(20))'; EXCEPTION WHEN OTHERS THEN NULL; END;
+/
+BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AIRLINE_PASSENGER_MEMBERSHIP_MAP_TBL ADD (RAZORPAY_ORDER_ID VARCHAR2(100))'; EXCEPTION WHEN OTHERS THEN NULL; END;
+/
+BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AIRLINE_PASSENGER_MEMBERSHIP_MAP_TBL ADD (RAZORPAY_PAYMENT_ID VARCHAR2(100))'; EXCEPTION WHEN OTHERS THEN NULL; END;
+/
+BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AIRLINE_PASSENGER_MEMBERSHIP_MAP_TBL ADD (CREATED_TIME TIMESTAMP)'; EXCEPTION WHEN OTHERS THEN NULL; END;
+/
+
+-- Sequence AIRLINE_PASSENGER_MEMBERSHIP_SEQ (used by AIRLINE_CUSTOMER_REGD_USER_USP)
+BEGIN
+    EXECUTE IMMEDIATE 'CREATE SEQUENCE AIRLINE_PASSENGER_MEMBERSHIP_SEQ MINVALUE 1 START WITH 100001 INCREMENT BY 1 NOCACHE';
+EXCEPTION WHEN OTHERS THEN NULL; END;
+/
+
+-- =============================================================================
+-- 1) AIRLINE_CUSTOMER_REGD_USER_USP
+--    EXISTING in schema.sql, MISSING in the live DB -> must be created.
+--    Registers a passenger directly in AIRLINE_USER_MSTR_TBL (PASSENGER role),
+--    maps the role and records membership in AIRLINE_PASSENGER_MEMBERSHIP_MAP_TBL.
+-- =============================================================================
+CREATE OR REPLACE PROCEDURE AIRLINE_CUSTOMER_REGD_USER_USP (
+    P_FULL_NAME      IN  VARCHAR2,
+    P_GENDER         IN  VARCHAR2,
+    P_DOB            IN  DATE,
+    P_MOBILENO       IN  NUMBER,
+    P_EMAILID        IN  VARCHAR2,
+    P_PASSPORTNO     IN  VARCHAR2,
+    P_MEMBER_TIER    IN  VARCHAR2,
+    P_PASSWD         IN  VARCHAR2,
+    P_MPIN           IN  NUMBER,
+    P_PAYMENT_METHOD IN  VARCHAR2,
+    P_PAYMENT_STATUS IN  VARCHAR2,
+    P_RAZORPAY_ORDER_ID IN VARCHAR2,
+    P_RAZORPAY_PAYMENT_ID IN VARCHAR2,
+    O_USER_ID        OUT NUMBER,
+    O_STATUS_MSG     OUT VARCHAR2
+) AS
+    V_USER_ID       NUMBER(10);
+    V_ROLE_ID       NUMBER(10);
+    V_COUNT         NUMBER;
+    V_MEMBER_FEE    NUMBER(10,2) := 0;
+    V_DISCOUNT_PCT  NUMBER(5,2) := 0;
+    V_TIER_UPPER    VARCHAR2(50);
+BEGIN
+    V_TIER_UPPER := UPPER(NVL(P_MEMBER_TIER, 'No Membership'));
+
+    -- Membership fee & discount based on tier
+    IF V_TIER_UPPER LIKE '%EXECUTIVE%' OR V_TIER_UPPER LIKE '%PLATINUM%' THEN
+        V_MEMBER_FEE := 1500; V_DISCOUNT_PCT := 15;
+    ELSIF V_TIER_UPPER LIKE '%GOLD%' THEN
+        V_MEMBER_FEE := 1000; V_DISCOUNT_PCT := 10;
+    ELSIF V_TIER_UPPER LIKE '%SILVER%' THEN
+        V_MEMBER_FEE := 500; V_DISCOUNT_PCT := 5;
+    END IF;
+
+    -- Check duplicate customer by mobile or email in user master
+    SELECT COUNT(*)
+    INTO V_COUNT
+    FROM AIRLINE_USER_MSTR_TBL
+    WHERE MOBILENO = P_MOBILENO
+       OR LOWER(USERNAME) = LOWER(P_EMAILID);
+
+    IF V_COUNT > 0 THEN
+        O_USER_ID := 0;
+        O_STATUS_MSG := 'THE CUSTOMER IS ALREADY REGISTERED';
+        RETURN;
+    END IF;
+
+    -- 1. Insert passenger into USER MASTER with PASSENGER login credentials
+    V_USER_ID := AIRLINE_USER_MSTR_SEQ.NEXTVAL;
+    INSERT INTO AIRLINE_USER_MSTR_TBL (
+        USER_ID, USERNAME, MOBILENO, PASSWD, MPIN, PASSPORT_IMG,
+        FULL_NAME, GENDER, DOB, PASSPORT_NO, MEMBER_TIER, DISCOUNT_PCT,
+        IS_ACTIVE, CREATED_BY, CREATED_IP
+    ) VALUES (
+        V_USER_ID, LOWER(NVL(P_EMAILID, 'passenger' || V_USER_ID || '@aos.com')), P_MOBILENO,
+        NVL(P_PASSWD, 'pass@123'), NVL(P_MPIN, 1234), NULL,
+        UPPER(P_FULL_NAME), NVL(UPPER(SUBSTR(P_GENDER, 1, 1)), 'M'), P_DOB,
+        UPPER(NVL(P_PASSPORTNO, 'N/A')), NVL(P_MEMBER_TIER, 'No Membership'), V_DISCOUNT_PCT,
+        'Y', 'SYSTEM', '127.0.0.1'
+    );
+
+    -- 2. Map PASSENGER role
+    SELECT NVL(MIN(ROLE_ID), 0) INTO V_ROLE_ID
+    FROM AIRLINE_ROLE_MSTR_TBL
+    WHERE UPPER(ROLE_NAME) = 'PASSENGER' AND ROWNUM = 1;
+
+    IF V_ROLE_ID = 0 THEN
+        V_ROLE_ID := AIRLINE_ROLE_MSTR_SEQ.NEXTVAL;
+        INSERT INTO AIRLINE_ROLE_MSTR_TBL (ROLE_ID, ROLE_NAME, IS_ACTIVE, CREATED_BY, CREATED_IP)
+        VALUES (V_ROLE_ID, 'PASSENGER', 'Y', 'SYSTEM', '127.0.0.1');
+    END IF;
+
+    INSERT INTO AIRLINE_USER_ROLE_MAP_TBL (USER_ID, ROLE_ID, IS_ACTIVE, CREATED_BY, CREATED_IP)
+    VALUES (V_USER_ID, V_ROLE_ID, 'Y', 'SYSTEM', '127.0.0.1');
+
+    -- 3. Record membership in the child membership table
+    BEGIN
+        INSERT INTO AIRLINE_PASSENGER_MEMBERSHIP_MAP_TBL (
+            MAP_ID, USER_ID, MEMBER_TIER, MEMBERSHIP_FEE, DISCOUNT_PCT,
+            START_DATE, EXPIRY_DATE, STATUS, PAYMENT_METHOD, PAYMENT_STATUS,
+            RAZORPAY_ORDER_ID, RAZORPAY_PAYMENT_ID, CREATED_BY
+        ) VALUES (
+            AIRLINE_PASSENGER_MEMBERSHIP_SEQ.NEXTVAL, V_USER_ID,
+            NVL(P_MEMBER_TIER, 'No Membership'), V_MEMBER_FEE, V_DISCOUNT_PCT,
+            SYSDATE, SYSDATE + 365,
+            NVL(P_PAYMENT_STATUS, 'PAID'), NVL(P_PAYMENT_METHOD, 'ONLINE'),
+            NVL(P_PAYMENT_STATUS, 'PAID'), P_RAZORPAY_ORDER_ID, P_RAZORPAY_PAYMENT_ID,
+            'SYSTEM'
+        );
+    EXCEPTION
+        WHEN OTHERS THEN
+            EXECUTE IMMEDIATE 'INSERT INTO AIRLINE_ERROR_LOG_TBL(ERROR_DESC) VALUES (:1)'
+            USING 'MEMBERSHIP MAP insert failed: ' || SQLERRM;
+    END;
+
+    COMMIT;
+
+    O_USER_ID := V_USER_ID;
+    O_STATUS_MSG := 'CUSTOMER REGISTERED SUCCESSFULLY';
+
+EXCEPTION
+    WHEN OTHERS THEN
+        ROLLBACK;
+        O_USER_ID := 0;
+        O_STATUS_MSG := 'ERROR: ' || SQLERRM;
+        BEGIN
+            EXECUTE IMMEDIATE 'INSERT INTO AIRLINE_ERROR_LOG_TBL(ERROR_DESC) VALUES (:1)'
+            USING 'AIRLINE_CUSTOMER_REGD_USER_USP: ' || SQLERRM;
+            COMMIT;
+        EXCEPTION WHEN OTHERS THEN NULL;
+        END;
+END AIRLINE_CUSTOMER_REGD_USER_USP;
+/
+
+-- =============================================================================
+-- 2) AIRLINE_CHANGE_PASSWORD
+--    EXISTS in the live DB, MISSING in schema.sql -> kept here so the schema
+--    and DB stay identical. Changing password by old password or by OTP.
+-- =============================================================================
+CREATE OR REPLACE PROCEDURE AIRLINE_CHANGE_PASSWORD (
+    P_ACTION     IN VARCHAR2,
+    P_USERNAME   IN VARCHAR2,
+    P_OLD_PASSWD IN VARCHAR2,
+    P_NEW_PASSWD IN VARCHAR2,
+    P_DATA       OUT VARCHAR2
+) IS
+    V_COUNT NUMBER;
+BEGIN
+    IF P_ACTION = 'Old Password' THEN
+        SELECT COUNT(*) INTO V_COUNT
+        FROM AIRLINE_USER_MSTR_TBL
+        WHERE USERNAME = P_USERNAME
+          AND PASSWD = P_OLD_PASSWD;
+
+        IF V_COUNT > 0 THEN
+            UPDATE AIRLINE_USER_MSTR_TBL
+            SET PASSWD = P_NEW_PASSWD
+            WHERE USERNAME = P_USERNAME;
+            COMMIT;
+            P_DATA := 'The password is changed';
+        ELSE
+            P_DATA := 'The password is incorrect';
+        END IF;
+
+    ELSIF P_ACTION = 'OTP' THEN
+        SELECT COUNT(*) INTO V_COUNT
+        FROM AIRLINE_USER_MSTR_TBL
+        WHERE (USERNAME = P_USERNAME OR TO_CHAR(MOBILENO) = P_USERNAME)
+          AND OTP = TO_NUMBER(P_OLD_PASSWD);
+
+        IF V_COUNT > 0 THEN
+            UPDATE AIRLINE_USER_MSTR_TBL
+            SET PASSWD = P_NEW_PASSWD,
+                OTP = NULL
+            WHERE (USERNAME = P_USERNAME OR TO_CHAR(MOBILENO) = P_USERNAME);
+            COMMIT;
+            P_DATA := 'The password is changed';
+        ELSE
+            P_DATA := 'The OTP is incorrect';
+        END IF;
+
+    ELSE
+        P_DATA := 'Invalid action mode';
+    END IF;
+END AIRLINE_CHANGE_PASSWORD;
+/
+
+-- =============================================================================
+-- 3) AIRLINE_FLIGHT_CREATE_USP  (UPDATED: 6 args w/ P_TOTAL_SEATS)
+--    EXISTS in the live DB with 5 args -> replace with the schema.sql version.
+-- =============================================================================
+CREATE OR REPLACE PROCEDURE AIRLINE_FLIGHT_CREATE_USP (
+    P_FLIGHT_ID   IN NUMBER,
+    P_FLIGHT_NO   IN VARCHAR2,
+    P_COMPANY_ID  IN NUMBER,
+    P_FLIGHT_NAME IN VARCHAR2,
+    P_TOTAL_SEATS IN NUMBER,
+    P_DATA        OUT VARCHAR2
+)
+IS
+    V_COUNT NUMBER;
+BEGIN
+    SELECT COUNT(*) INTO V_COUNT
+    FROM AIRLINE_FLIGHT_MSTR_TBL
+    WHERE FLIGHT_ID = P_FLIGHT_ID
+       OR UPPER(FLIGHT_NO) = UPPER(P_FLIGHT_NO);
+
+    IF V_COUNT > 0 THEN
+        P_DATA := 'The Flight Already Exists';
+    ELSE
+        INSERT INTO AIRLINE_FLIGHT_MSTR_TBL (
+            FLIGHT_ID, FLIGHT_NO, COMPANY_ID, FLIGHT_NAME, TOTAL_SEATS, IS_ACTIVE, CREATED_BY, CREATED_IP
+        ) VALUES (
+            AIRLINE_FLIGHT_MSTR_TBL_SEQ.NEXTVAL, P_FLIGHT_NO, P_COMPANY_ID, P_FLIGHT_NAME, NVL(P_TOTAL_SEATS, 180), 'Y', 'DUSHMANTA', '127.0.0.1'
+        );
+        P_DATA := 'Flight Inserted Successfully';
+        COMMIT;
+    END IF;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        ROLLBACK;
+        P_DATA := SQLERRM;
+END AIRLINE_FLIGHT_CREATE_USP;
+/
+
+-- =============================================================================
+-- 4) NEW STORED PROCEDURES USED BY app.py callproc
+-- =============================================================================
+
+-- -----------------------------------------------------------------------------
+-- 4.1 AIRLINE_GET_CONFIG_VALUE_USP
+--     Read a single value from AIRLINE_SYSTEM_CONFIG (used by get_db_config).
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE PROCEDURE AIRLINE_GET_CONFIG_VALUE_USP (
+    P_CONFIG_KEY   IN  VARCHAR2,
+    P_CONFIG_VALUE OUT VARCHAR2
+) IS
+BEGIN
+    SELECT CONFIG_VALUE INTO P_CONFIG_VALUE
+    FROM AIRLINE_SYSTEM_CONFIG
+    WHERE CONFIG_KEY = P_CONFIG_KEY;
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN P_CONFIG_VALUE := NULL;
+    WHEN OTHERS THEN P_CONFIG_VALUE := NULL;
+END AIRLINE_GET_CONFIG_VALUE_USP;
+/
+
+-- -----------------------------------------------------------------------------
+-- 4.2 AIRLINE_RESOLVE_USERNAME_USP
+--     Expand a partial username to the full stored username (login).
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE PROCEDURE AIRLINE_RESOLVE_USERNAME_USP (
+    P_USERNAME IN VARCHAR2,
+    P_RESULT   OUT SYS_REFCURSOR
+) IS
+BEGIN
+    OPEN P_RESULT FOR
+        SELECT USERNAME
+        FROM AIRLINE_USER_MSTR_TBL
+        WHERE LOWER(USERNAME) = LOWER(P_USERNAME)
+           OR LOWER(USERNAME) LIKE LOWER(P_USERNAME || '@%');
+EXCEPTION
+    WHEN OTHERS THEN NULL;
+END AIRLINE_RESOLVE_USERNAME_USP;
+/
+
+-- -----------------------------------------------------------------------------
+-- 4.3 AIRLINE_LOGIN_FALLBACK_USP
+--     Direct credential lookup when AIRLINE_USER_LOGIN_USP returns != 'Y'.
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE PROCEDURE AIRLINE_LOGIN_FALLBACK_USP (
+    P_USERNAME IN VARCHAR2,
+    P_RESULT   OUT SYS_REFCURSOR
+) IS
+BEGIN
+    OPEN P_RESULT FOR
+        SELECT USERNAME, PASSWD, MPIN
+        FROM AIRLINE_USER_MSTR_TBL
+        WHERE LOWER(USERNAME) = LOWER(P_USERNAME)
+           OR LOWER(USERNAME) LIKE LOWER(P_USERNAME || '@%')
+           OR TO_CHAR(MOBILENO) = P_USERNAME;
+EXCEPTION
+    WHEN OTHERS THEN NULL;
+END AIRLINE_LOGIN_FALLBACK_USP;
+/
+
+-- -----------------------------------------------------------------------------
+-- 4.4 AIRLINE_PASSENGER_LOOKUP_USP
+--     Look up a registered passenger by email or mobile number.
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE PROCEDURE AIRLINE_PASSENGER_LOOKUP_USP (
+    P_IDENTIFIER IN VARCHAR2,
+    P_RESULT     OUT SYS_REFCURSOR
+) IS
+BEGIN
+    OPEN P_RESULT FOR
+        SELECT PASSENGER_ID, EMAIL_ID, MOBILE_NO, PASSENGER_NAME
+        FROM AIRLINE_PASSENGERS_REGD_FORM_MSTR_TBL
+        WHERE LOWER(EMAIL_ID) = LOWER(P_IDENTIFIER)
+           OR TO_CHAR(MOBILE_NO) = P_IDENTIFIER;
+EXCEPTION
+    WHEN OTHERS THEN NULL;
+END AIRLINE_PASSENGER_LOOKUP_USP;
+/
+
+-- -----------------------------------------------------------------------------
+-- 4.5 AIRLINE_AUTO_LINK_PASSENGER_USP
+--     Auto-link a legacy passenger into AIRLINE_USER_MSTR_TBL + role map.
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE PROCEDURE AIRLINE_AUTO_LINK_PASSENGER_USP (
+    P_PASSENGER_ID IN NUMBER,
+    P_USERNAME     IN VARCHAR2,
+    P_MOBILENO     IN NUMBER,
+    P_PASSWD       IN VARCHAR2,
+    P_DATA         OUT VARCHAR2
+) IS
+BEGIN
+    MERGE INTO AIRLINE_USER_MSTR_TBL target
+    USING (SELECT P_PASSENGER_ID AS USER_ID, P_USERNAME AS USERNAME,
+                  P_MOBILENO AS MOBILENO, P_PASSWD AS PASSWD, 1234 AS MPIN FROM DUAL) source
+    ON (target.USER_ID = source.USER_ID OR target.MOBILENO = source.MOBILENO
+        OR LOWER(target.USERNAME) = LOWER(source.USERNAME))
+    WHEN NOT MATCHED THEN
+        INSERT (USER_ID, USERNAME, MOBILENO, PASSWD, MPIN, IS_ACTIVE, CREATED_BY)
+        VALUES (source.USER_ID, source.USERNAME, source.MOBILENO, source.PASSWD, source.MPIN, 'Y', 'SYSTEM');
+
+    MERGE INTO AIRLINE_USER_ROLE_MAP_TBL target
+    USING (SELECT P_PASSENGER_ID AS USER_ID,
+                  (SELECT ROLE_ID FROM AIRLINE_ROLE_MSTR_TBL
+                   WHERE UPPER(ROLE_NAME) = 'PASSENGER' AND ROWNUM = 1) AS ROLE_ID FROM DUAL) source
+    ON (target.USER_ID = source.USER_ID AND target.ROLE_ID = source.ROLE_ID)
+    WHEN NOT MATCHED THEN
+        INSERT (USER_ID, ROLE_ID, IS_ACTIVE, CREATED_BY)
+        VALUES (source.USER_ID, source.ROLE_ID, 'Y', 'SYSTEM');
+
+    P_DATA := 'LINKED';
+EXCEPTION
+    WHEN OTHERS THEN P_DATA := SQLERRM;
+END AIRLINE_AUTO_LINK_PASSENGER_USP;
+/
+
+-- -----------------------------------------------------------------------------
+-- 4.6 AIRLINE_GET_USER_ROLE_NAME_USP
+--     Return the role name for a username / mobile number.
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE PROCEDURE AIRLINE_GET_USER_ROLE_NAME_USP (
+    P_USER_ID   IN  VARCHAR2,
+    P_ROLE_NAME OUT VARCHAR2
+) IS
+BEGIN
+    SELECT NVL(r.ROLE_NAME, 'ADMIN')
+      INTO P_ROLE_NAME
+    FROM AIRLINE_USER_MSTR_TBL u
+    LEFT JOIN AIRLINE_USER_ROLE_MAP_TBL urm ON u.USER_ID = urm.USER_ID AND urm.IS_ACTIVE = 'Y'
+    LEFT JOIN AIRLINE_ROLE_MSTR_TBL r ON urm.ROLE_ID = r.ROLE_ID AND r.IS_ACTIVE = 'Y'
+    WHERE LOWER(u.USERNAME) = LOWER(P_USER_ID)
+       OR (REGEXP_LIKE(P_USER_ID, '^[0-9]+$') AND u.MOBILENO = TO_NUMBER(P_USER_ID));
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN P_ROLE_NAME := 'ADMIN';
+    WHEN OTHERS THEN P_ROLE_NAME := 'ADMIN';
+END AIRLINE_GET_USER_ROLE_NAME_USP;
+/
+
+-- -----------------------------------------------------------------------------
+-- 4.7 AIRLINE_GET_USER_PROFILE_DIRECT_USP
+--     Direct lookup in AIRLINE_USER_MSTR_TBL (used by /api/me fallback).
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE PROCEDURE AIRLINE_GET_USER_PROFILE_DIRECT_USP (
+    P_USER_IDENTIFIER IN VARCHAR2,
+    P_RESULT          OUT SYS_REFCURSOR
+) IS
+BEGIN
+    OPEN P_RESULT FOR
+        SELECT u.USER_ID, u.USERNAME, u.MOBILENO, u.PASSPORT_IMG, u.IS_ACTIVE, NVL(r.ROLE_NAME, 'PASSENGER')
+        FROM AIRLINE_USER_MSTR_TBL u
+        LEFT JOIN AIRLINE_USER_ROLE_MAP_TBL urm ON u.USER_ID = urm.USER_ID
+        LEFT JOIN AIRLINE_ROLE_MSTR_TBL r ON urm.ROLE_ID = r.ROLE_ID
+        WHERE LOWER(u.USERNAME) = LOWER(P_USER_IDENTIFIER)
+           OR LOWER(u.USERNAME) LIKE LOWER(P_USER_IDENTIFIER || '@%')
+           OR TO_CHAR(u.MOBILENO) = P_USER_IDENTIFIER;
+EXCEPTION
+    WHEN OTHERS THEN NULL;
+END AIRLINE_GET_USER_PROFILE_DIRECT_USP;
+/
+
+-- -----------------------------------------------------------------------------
+-- 4.8 AIRLINE_GET_PASSENGER_PROFILE_USP
+--     Direct lookup in AIRLINE_PASSENGERS_REGD_FORM_MSTR_TBL (used by /api/me).
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE PROCEDURE AIRLINE_GET_PASSENGER_PROFILE_USP (
+    P_IDENTIFIER   IN VARCHAR2,
+    P_NAME_PATTERN IN VARCHAR2,
+    P_RESULT       OUT SYS_REFCURSOR
+) IS
+BEGIN
+    OPEN P_RESULT FOR
+        SELECT PASSENGER_ID, EMAIL_ID, MOBILE_NO, PASSPORT_NO, IS_ACTIVE, MEMBER_TIER, PASSENGER_NAME
+        FROM AIRLINE_PASSENGERS_REGD_FORM_MSTR_TBL
+        WHERE LOWER(EMAIL_ID) = LOWER(P_IDENTIFIER)
+           OR TO_CHAR(MOBILE_NO) = P_IDENTIFIER
+           OR LOWER(PASSENGER_NAME) LIKE LOWER(P_NAME_PATTERN);
+EXCEPTION
+    WHEN OTHERS THEN NULL;
+END AIRLINE_GET_PASSENGER_PROFILE_USP;
+/
+
+-- -----------------------------------------------------------------------------
+-- 4.9 AIRLINE_GET_MENUS_BY_ROLE_USP
+--     Menus strictly mapped to the current role with active status.
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE PROCEDURE AIRLINE_GET_MENUS_BY_ROLE_USP (
+    P_USERNAME  IN VARCHAR2,
+    P_ROLE_NAME IN VARCHAR2,
+    P_RESULT    OUT SYS_REFCURSOR
+) IS
+BEGIN
+    OPEN P_RESULT FOR
+        SELECT DISTINCT MM.MENU_NAME
+        FROM AIRLINE_USER_MSTR_TBL U
+        JOIN AIRLINE_USER_ROLE_MAP_TBL UR ON U.USER_ID = UR.USER_ID AND (UR.IS_ACTIVE = 'Y' OR UR.IS_ACTIVE IS NULL)
+        JOIN AIRLINE_ROLE_MSTR_TBL R ON UR.ROLE_ID = R.ROLE_ID AND (R.IS_ACTIVE = 'Y' OR R.IS_ACTIVE IS NULL)
+        JOIN AIRLINE_ROLE_MENU_MAP_TBL RM ON R.ROLE_ID = RM.ROLE_ID AND (RM.IS_ACTIVE = 'Y' OR RM.IS_ACTIVE IS NULL)
+        JOIN AIRLINE_MENU_MSTR_TBL MM ON RM.MENU_ID = MM.MENU_ID AND (MM.IS_ACTIVE = 'Y' OR MM.IS_ACTIVE IS NULL)
+        WHERE (LOWER(U.USERNAME) = LOWER(P_USERNAME) OR TO_CHAR(U.MOBILENO) = P_USERNAME)
+          AND UPPER(R.ROLE_NAME) = UPPER(P_ROLE_NAME)
+        ORDER BY MM.MENU_NAME;
+EXCEPTION
+    WHEN OTHERS THEN NULL;
+END AIRLINE_GET_MENUS_BY_ROLE_USP;
+/
+
+-- -----------------------------------------------------------------------------
+-- 4.10 AIRLINE_COUNT_ACTIVE_FLIGHTS_USP
+--      Greatest of active dynamic-price rows and active flight master rows.
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE PROCEDURE AIRLINE_COUNT_ACTIVE_FLIGHTS_USP (
+    P_COUNT OUT NUMBER
+) IS
+BEGIN
+    SELECT GREATEST(
+        (SELECT COUNT(*) FROM AIRLINE_FLIGHT_DYNAMIC_PRICE_MSTR_TBL WHERE IS_ACTIVE = 'Y' OR IS_ACTIVE IS NULL),
+        (SELECT COUNT(*) FROM AIRLINE_FLIGHT_MSTR_TBL WHERE IS_ACTIVE = 'Y' OR IS_ACTIVE IS NULL)
+    ) INTO P_COUNT FROM DUAL;
+EXCEPTION
+    WHEN OTHERS THEN
+        BEGIN
+            SELECT COUNT(*) INTO P_COUNT
+            FROM AIRLINE_FLIGHT_DYNAMIC_PRICE_MSTR_TBL WHERE IS_ACTIVE = 'Y' OR IS_ACTIVE IS NULL;
+        EXCEPTION WHEN OTHERS THEN P_COUNT := 0;
+        END;
+END AIRLINE_COUNT_ACTIVE_FLIGHTS_USP;
+/
+
+-- -----------------------------------------------------------------------------
+-- 4.11 AIRLINE_COUNT_ACTIVE_CREW_USP
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE PROCEDURE AIRLINE_COUNT_ACTIVE_CREW_USP (
+    P_COUNT OUT NUMBER
+) IS
+BEGIN
+    SELECT COUNT(*) INTO P_COUNT
+    FROM AIRLINE_USER_MSTR_TBL
+    WHERE IS_ACTIVE = 'Y' OR IS_ACTIVE IS NULL;
+EXCEPTION
+    WHEN OTHERS THEN P_COUNT := 0;
+END AIRLINE_COUNT_ACTIVE_CREW_USP;
+/
+
+-- -----------------------------------------------------------------------------
+-- 4.12 AIRLINE_GET_ALL_USERS_ROLE_USP
+--      Full user list with role name (distinct from 1-arg AIRLINE_GET_ALL_USERS_USP).
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE PROCEDURE AIRLINE_GET_ALL_USERS_ROLE_USP (
+    P_RESULT OUT SYS_REFCURSOR,
+    P_DATA   OUT VARCHAR2
+) IS
+BEGIN
+    OPEN P_RESULT FOR
+        SELECT u.USER_ID, u.USERNAME, u.MOBILENO, u.PASSPORT_IMG, u.IS_ACTIVE, NVL(r.ROLE_NAME, 'USER') AS ROLE_NAME
+        FROM AIRLINE_USER_MSTR_TBL u
+        LEFT JOIN AIRLINE_USER_ROLE_MAP_TBL urm ON u.USER_ID = urm.USER_ID AND urm.IS_ACTIVE = 'Y'
+        LEFT JOIN AIRLINE_ROLE_MSTR_TBL r ON urm.ROLE_ID = r.ROLE_ID AND r.IS_ACTIVE = 'Y'
+        ORDER BY u.USER_ID;
+    P_DATA := 'OK';
+EXCEPTION
+    WHEN OTHERS THEN P_DATA := SQLERRM;
+END AIRLINE_GET_ALL_USERS_ROLE_USP;
+/
+
+-- -----------------------------------------------------------------------------
+-- 4.13 AIRLINE_GET_PASSENGER_IMG_USP
+--      PROFILE_IMG of a legacy passenger (bypass for passport photo).
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE PROCEDURE AIRLINE_GET_PASSENGER_IMG_USP (
+    P_PASSENGER_ID IN NUMBER,
+    P_IMG          OUT VARCHAR2
+) IS
+BEGIN
+    SELECT PROFILE_IMG INTO P_IMG
+    FROM AIRLINE_PASSENGERS_REGD_FORM_MSTR_TBL
+    WHERE PASSENGER_ID = P_PASSENGER_ID;
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN P_IMG := NULL;
+    WHEN OTHERS THEN P_IMG := NULL;
+END AIRLINE_GET_PASSENGER_IMG_USP;
+/
+
+-- -----------------------------------------------------------------------------
+-- 4.14 AIRLINE_SET_CONFIG_VALUE_USP
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE PROCEDURE AIRLINE_SET_CONFIG_VALUE_USP (
+    P_CONFIG_KEY   IN VARCHAR2,
+    P_CONFIG_VALUE IN VARCHAR2,
+    P_DATA         OUT VARCHAR2
+) IS
+BEGIN
+    UPDATE AIRLINE_SYSTEM_CONFIG
+    SET CONFIG_VALUE = P_CONFIG_VALUE
+    WHERE CONFIG_KEY = P_CONFIG_KEY;
+    P_DATA := 'UPDATED';
+EXCEPTION
+    WHEN OTHERS THEN P_DATA := SQLERRM;
+END AIRLINE_SET_CONFIG_VALUE_USP;
+/
+
+-- -----------------------------------------------------------------------------
+-- 4.15 AIRLINE_GET_ALL_CONFIGS_USP
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE PROCEDURE AIRLINE_GET_ALL_CONFIGS_USP (
+    P_RESULT OUT SYS_REFCURSOR,
+    P_DATA   OUT VARCHAR2
+) IS
+BEGIN
+    OPEN P_RESULT FOR
+        SELECT CONFIG_KEY, CONFIG_VALUE, DESCRIPTION
+        FROM AIRLINE_SYSTEM_CONFIG
+        ORDER BY CONFIG_KEY;
+    P_DATA := 'OK';
+EXCEPTION
+    WHEN OTHERS THEN P_DATA := SQLERRM;
+END AIRLINE_GET_ALL_CONFIGS_USP;
+/
+
+-- -----------------------------------------------------------------------------
+-- 4.16 AIRLINE_ENSURE_FLIGHT_MENU_USP
+--      Seeds the "CREATE FLIGHT" menu and maps it to every role if missing.
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE PROCEDURE AIRLINE_ENSURE_FLIGHT_MENU_USP (
+    P_DATA OUT VARCHAR2
+) IS
+    V_MENU_ID NUMBER;
+BEGIN
+    BEGIN
+        SELECT MENU_ID INTO V_MENU_ID
+        FROM AIRLINE_MENU_MSTR_TBL
+        WHERE UPPER(MENU_NAME) = 'CREATE FLIGHT' AND ROWNUM = 1;
+    EXCEPTION
+        WHEN NO_DATA_FOUND THEN
+            V_MENU_ID := AIRLINE_MENU_MSTR_SEQ.NEXTVAL;
+            INSERT INTO AIRLINE_MENU_MSTR_TBL (MENU_ID, MENU_NAME, CREATED_BY, CREATED_IP)
+            VALUES (V_MENU_ID, 'CREATE FLIGHT', 'DUSHMANTA', '127.0.0.1');
+            FOR R IN (SELECT ROLE_ID FROM AIRLINE_ROLE_MSTR_TBL) LOOP
+                INSERT INTO AIRLINE_ROLE_MENU_MAP_TBL (ROLE_ID, MENU_ID, CREATED_BY, CREATED_IP)
+                VALUES (R.ROLE_ID, V_MENU_ID, 'DUSHMANTA', '127.0.0.1');
+            END LOOP;
+    END;
+    COMMIT;
+    P_DATA := 'OK';
+EXCEPTION
+    WHEN OTHERS THEN P_DATA := SQLERRM;
+END AIRLINE_ENSURE_FLIGHT_MENU_USP;
+/
+
+-- -----------------------------------------------------------------------------
+-- 4.17 AIRLINE_GET_FLIGHT_COMPANY_LIST_USP
+--      Flight company dropdown for create-flight GET.
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE PROCEDURE AIRLINE_GET_FLIGHT_COMPANY_LIST_USP (
+    P_RESULT OUT SYS_REFCURSOR,
+    P_DATA   OUT VARCHAR2
+) IS
+BEGIN
+    OPEN P_RESULT FOR
+        SELECT COMPANY_ID, COMPANY_NAME, COMPANY_CODE
+        FROM AIRLINE_FLIGHT_COMPANY_MSTR_TBL
+        WHERE IS_ACTIVE = 'Y' OR IS_ACTIVE IS NULL
+        ORDER BY COMPANY_NAME;
+    P_DATA := 'OK';
+EXCEPTION
+    WHEN OTHERS THEN P_DATA := SQLERRM;
+END AIRLINE_GET_FLIGHT_COMPANY_LIST_USP;
+/
+
+-- -----------------------------------------------------------------------------
+-- 4.18 AIRLINE_GET_NEXT_FLIGHT_ID_USP
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE PROCEDURE AIRLINE_GET_NEXT_FLIGHT_ID_USP (
+    P_NEXT_ID OUT NUMBER
+) IS
+BEGIN
+    SELECT NVL(MAX(FLIGHT_ID), 18000000) + 1 INTO P_NEXT_ID FROM AIRLINE_FLIGHT_MSTR_TBL;
+EXCEPTION
+    WHEN OTHERS THEN P_NEXT_ID := 18000001;
+END AIRLINE_GET_NEXT_FLIGHT_ID_USP;
+/
+
+-- -----------------------------------------------------------------------------
+-- 4.19 AIRLINE_GET_FLIGHTS_LIST_USP
+--      Flight list for create-flight GET.
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE PROCEDURE AIRLINE_GET_FLIGHTS_LIST_USP (
+    P_RESULT OUT SYS_REFCURSOR,
+    P_DATA   OUT VARCHAR2
+) IS
+BEGIN
+    OPEN P_RESULT FOR
+        SELECT f.FLIGHT_ID, f.FLIGHT_NO, f.COMPANY_ID, c.COMPANY_NAME, f.FLIGHT_NAME, f.IS_ACTIVE, NVL(f.TOTAL_SEATS, 180)
+        FROM AIRLINE_FLIGHT_MSTR_TBL f
+        LEFT JOIN AIRLINE_FLIGHT_COMPANY_MSTR_TBL c ON f.COMPANY_ID = c.COMPANY_ID
+        ORDER BY f.FLIGHT_ID DESC;
+    P_DATA := 'OK';
+EXCEPTION
+    WHEN OTHERS THEN P_DATA := SQLERRM;
+END AIRLINE_GET_FLIGHTS_LIST_USP;
+/
+
+-- -----------------------------------------------------------------------------
+-- 4.20 AIRLINE_GET_FLIGHTS_DROPDOWN_USP
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE PROCEDURE AIRLINE_GET_FLIGHTS_DROPDOWN_USP (
+    P_RESULT OUT SYS_REFCURSOR,
+    P_DATA   OUT VARCHAR2
+) IS
+BEGIN
+    OPEN P_RESULT FOR
+        SELECT FLIGHT_ID, FLIGHT_NO, FLIGHT_NAME
+        FROM AIRLINE_FLIGHT_MSTR_TBL
+        WHERE IS_ACTIVE = 'Y' OR IS_ACTIVE IS NULL
+        ORDER BY FLIGHT_NO;
+    P_DATA := 'OK';
+EXCEPTION
+    WHEN OTHERS THEN P_DATA := SQLERRM;
+END AIRLINE_GET_FLIGHTS_DROPDOWN_USP;
+/
+
+-- -----------------------------------------------------------------------------
+-- 4.21 AIRLINE_GET_AIRPORTS_WITH_CITY_USP
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE PROCEDURE AIRLINE_GET_AIRPORTS_WITH_CITY_USP (
+    P_RESULT OUT SYS_REFCURSOR,
+    P_DATA   OUT VARCHAR2
+) IS
+BEGIN
+    OPEN P_RESULT FOR
+        SELECT A.AIRPORT_ID, A.AIRPORT_NAME, A.AIRPORT_CODE, C.CITY_NAME
+        FROM AIRLINE_AIRPORT_MSTR_TBL A
+        LEFT JOIN AIRLINE_CITY_MSTR_TBL C ON A.CITY_ID = C.CITY_ID
+        WHERE A.IS_ACTIVE = 'Y' OR A.IS_ACTIVE IS NULL
+        ORDER BY A.AIRPORT_NAME;
+    P_DATA := 'OK';
+EXCEPTION
+    WHEN OTHERS THEN P_DATA := SQLERRM;
+END AIRLINE_GET_AIRPORTS_WITH_CITY_USP;
+/
+
+-- -----------------------------------------------------------------------------
+-- 4.22 AIRLINE_GET_DYNAMIC_PRICES_USP
+--      Full dynamic-price list for create-dynamic-price GET.
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE PROCEDURE AIRLINE_GET_DYNAMIC_PRICES_USP (
+    P_RESULT OUT SYS_REFCURSOR,
+    P_DATA   OUT VARCHAR2
+) IS
+BEGIN
+    OPEN P_RESULT FOR
+        SELECT
+            DP.DYNAMIC_PRICE_ID,
+            DP.FLIGHT_ID,
+            F.FLIGHT_NO,
+            F.FLIGHT_NAME,
+            C.COMPANY_NAME,
+            C.COMPANY_CODE,
+            DP.SOURCE_AIRPORT_ID,
+            SA.AIRPORT_NAME  AS SOURCE_AIRPORT_NAME,
+            SA.AIRPORT_CODE  AS SOURCE_AIRPORT_CODE,
+            SC.CITY_NAME     AS SOURCE_CITY_NAME,
+            DP.DEST_AIRPORT_ID,
+            DA.AIRPORT_NAME  AS DEST_AIRPORT_NAME,
+            DA.AIRPORT_CODE  AS DEST_AIRPORT_CODE,
+            DC.CITY_NAME     AS DEST_CITY_NAME,
+            TO_CHAR(DP.FLIGHT_DATE, 'YYYY-MM-DD') AS FLIGHT_DATE,
+            TO_CHAR(DP.DEPARTURE_TIME, 'YYYY-MM-DD HH24:MI:SS') AS DEPARTURE_TIME,
+            TO_CHAR(DP.ARRIVAL_TIME, 'YYYY-MM-DD HH24:MI:SS') AS ARRIVAL_TIME,
+            DP.TOTAL_SEATS,
+            DP.AVAILABLE_SEATS,
+            DP.CURRENT_PRICE,
+            DP.IS_ACTIVE
+        FROM AIRLINE_FLIGHT_DYNAMIC_PRICE_MSTR_TBL DP
+        LEFT JOIN AIRLINE_FLIGHT_MSTR_TBL F ON DP.FLIGHT_ID = F.FLIGHT_ID
+        LEFT JOIN AIRLINE_FLIGHT_COMPANY_MSTR_TBL C ON F.COMPANY_ID = C.COMPANY_ID
+        LEFT JOIN AIRLINE_AIRPORT_MSTR_TBL SA ON DP.SOURCE_AIRPORT_ID = SA.AIRPORT_ID
+        LEFT JOIN AIRLINE_CITY_MSTR_TBL SC ON SA.CITY_ID = SC.CITY_ID
+        LEFT JOIN AIRLINE_AIRPORT_MSTR_TBL DA ON DP.DEST_AIRPORT_ID = DA.AIRPORT_ID
+        LEFT JOIN AIRLINE_CITY_MSTR_TBL DC ON DA.CITY_ID = DC.CITY_ID
+        ORDER BY DP.DYNAMIC_PRICE_ID DESC;
+    P_DATA := 'OK';
+EXCEPTION
+    WHEN OTHERS THEN P_DATA := SQLERRM;
+END AIRLINE_GET_DYNAMIC_PRICES_USP;
+/
+
+-- -----------------------------------------------------------------------------
+-- 4.23 AIRLINE_GET_REGISTERED_PLANES_USP
+--      Registered planes board (home page).
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE PROCEDURE AIRLINE_GET_REGISTERED_PLANES_USP (
+    P_RESULT OUT SYS_REFCURSOR,
+    P_DATA   OUT VARCHAR2
+) IS
+BEGIN
+    OPEN P_RESULT FOR
+        SELECT
+            F.FLIGHT_ID,
+            F.FLIGHT_NO,
+            NVL(F.FLIGHT_NAME, 'Airbus A320') AS FLIGHT_NAME,
+            NVL(C.COMPANY_NAME, 'Air India') AS COMPANY_NAME,
+            NVL(C.COMPANY_CODE, 'AI') AS COMPANY_CODE,
+            NVL(F.TOTAL_SEATS, 180) AS TOTAL_SEATS,
+            DP.DYNAMIC_PRICE_ID,
+            NVL(SA.AIRPORT_CODE, 'DEL') AS SOURCE_CODE,
+            NVL(DA.AIRPORT_CODE, 'BOM') AS DEST_CODE,
+            NVL(DP.AVAILABLE_SEATS, 180) AS AVAILABLE_SEATS,
+            NVL(DP.CURRENT_PRICE, 3500) AS CURRENT_PRICE,
+            TO_CHAR(DP.FLIGHT_DATE, 'YYYY-MM-DD') AS FLIGHT_DATE
+        FROM AIRLINE_FLIGHT_MSTR_TBL F
+        LEFT JOIN AIRLINE_FLIGHT_COMPANY_MSTR_TBL C ON F.COMPANY_ID = C.COMPANY_ID
+        LEFT JOIN AIRLINE_FLIGHT_DYNAMIC_PRICE_MSTR_TBL DP ON F.FLIGHT_ID = DP.FLIGHT_ID
+        LEFT JOIN AIRLINE_AIRPORT_MSTR_TBL SA ON DP.SOURCE_AIRPORT_ID = SA.AIRPORT_ID
+        LEFT JOIN AIRLINE_AIRPORT_MSTR_TBL DA ON DP.DEST_AIRPORT_ID = DA.AIRPORT_ID
+        WHERE F.IS_ACTIVE = 'Y'
+        ORDER BY F.FLIGHT_ID DESC, DP.DYNAMIC_PRICE_ID DESC;
+    P_DATA := 'OK';
+EXCEPTION
+    WHEN OTHERS THEN P_DATA := SQLERRM;
+END AIRLINE_GET_REGISTERED_PLANES_USP;
+/
+
+-- -----------------------------------------------------------------------------
+-- 4.24 AIRLINE_GET_FLIGHT_SCHEDULES_USP
+--      Public flight schedules board.
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE PROCEDURE AIRLINE_GET_FLIGHT_SCHEDULES_USP (
+    P_RESULT OUT SYS_REFCURSOR,
+    P_DATA   OUT VARCHAR2
+) IS
+BEGIN
+    OPEN P_RESULT FOR
+        SELECT
+            DP.DYNAMIC_PRICE_ID,
+            F.FLIGHT_NO,
+            NVL(F.FLIGHT_NAME, 'Airbus A320') AS FLIGHT_NAME,
+            C.COMPANY_NAME,
+            SA.AIRPORT_CODE AS SOURCE_CODE,
+            DA.AIRPORT_CODE AS DEST_CODE,
+            TO_CHAR(DP.FLIGHT_DATE, 'YYYY-MM-DD') AS FLIGHT_DATE,
+            NVL(DP.AVAILABLE_SEATS, 180) AS AVAIL_SEATS,
+            NVL(DP.TOTAL_SEATS, 180) AS TOTAL_SEATS,
+            NVL(DP.CURRENT_PRICE, 3500) AS CURRENT_PRICE,
+            F.FLIGHT_ID
+        FROM AIRLINE_FLIGHT_DYNAMIC_PRICE_MSTR_TBL DP
+        LEFT JOIN AIRLINE_FLIGHT_MSTR_TBL F ON DP.FLIGHT_ID = F.FLIGHT_ID
+        LEFT JOIN AIRLINE_FLIGHT_COMPANY_MSTR_TBL C ON F.COMPANY_ID = C.COMPANY_ID
+        LEFT JOIN AIRLINE_AIRPORT_MSTR_TBL SA ON DP.SOURCE_AIRPORT_ID = SA.AIRPORT_ID
+        LEFT JOIN AIRLINE_AIRPORT_MSTR_TBL DA ON DP.DEST_AIRPORT_ID = DA.AIRPORT_ID
+        ORDER BY DP.FLIGHT_DATE DESC, DP.DYNAMIC_PRICE_ID DESC;
+    P_DATA := 'OK';
+EXCEPTION
+    WHEN OTHERS THEN P_DATA := SQLERRM;
+END AIRLINE_GET_FLIGHT_SCHEDULES_USP;
+/
+
+-- -----------------------------------------------------------------------------
+-- 4.25 AIRLINE_GET_FLIGHT_DETAILS_BY_DP_USP
+--      Fallback flight details for the seat map when the main proc is empty.
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE PROCEDURE AIRLINE_GET_FLIGHT_DETAILS_BY_DP_USP (
+    P_DYNAMIC_PRICE_ID IN NUMBER,
+    P_RESULT           OUT SYS_REFCURSOR,
+    P_DATA             OUT VARCHAR2
+) IS
+BEGIN
+    OPEN P_RESULT FOR
+        SELECT
+            DP.DYNAMIC_PRICE_ID,
+            F.FLIGHT_ID,
+            NVL(F.FLIGHT_NO, 'AI-101') AS FLIGHT_NO,
+            NVL(F.FLIGHT_NAME, 'Airbus A320 Neo') AS FLIGHT_NAME,
+            NVL(C.COMPANY_NAME, 'Air India') AS COMPANY_NAME,
+            NVL(SA.AIRPORT_CODE, 'BBI') AS SOURCE_CODE,
+            NVL(SC.CITY_NAME, 'Bhubaneswar') AS SOURCE_CITY,
+            NVL(DA.AIRPORT_CODE, 'DEL') AS DEST_CODE,
+            NVL(DC.CITY_NAME, 'Delhi') AS DEST_CITY,
+            TO_CHAR(NVL(DP.FLIGHT_DATE, SYSDATE), 'YYYY-MM-DD') AS FLIGHT_DATE,
+            '08:00' AS DEP_TIME,
+            '10:30' AS ARR_TIME,
+            NVL(DP.TOTAL_SEATS, 180) AS TOTAL_SEATS,
+            NVL(DP.AVAILABLE_SEATS, 180) AS AVAIL_SEATS,
+            NVL(DP.CURRENT_PRICE, 3500.0) AS CURRENT_PRICE
+        FROM AIRLINE_FLIGHT_DYNAMIC_PRICE_MSTR_TBL DP
+        LEFT JOIN AIRLINE_FLIGHT_MSTR_TBL F ON DP.FLIGHT_ID = F.FLIGHT_ID
+        LEFT JOIN AIRLINE_FLIGHT_COMPANY_MSTR_TBL C ON F.COMPANY_ID = C.COMPANY_ID
+        LEFT JOIN AIRLINE_AIRPORT_MSTR_TBL SA ON DP.SOURCE_AIRPORT_ID = SA.AIRPORT_ID
+        LEFT JOIN AIRLINE_CITY_MSTR_TBL SC ON SA.CITY_ID = SC.CITY_ID
+        LEFT JOIN AIRLINE_AIRPORT_MSTR_TBL DA ON DP.DEST_AIRPORT_ID = DA.AIRPORT_ID
+        LEFT JOIN AIRLINE_CITY_MSTR_TBL DC ON DA.CITY_ID = DC.CITY_ID
+        WHERE DP.DYNAMIC_PRICE_ID = P_DYNAMIC_PRICE_ID;
+    P_DATA := 'OK';
+EXCEPTION
+    WHEN OTHERS THEN P_DATA := SQLERRM;
+END AIRLINE_GET_FLIGHT_DETAILS_BY_DP_USP;
+/
+
+-- -----------------------------------------------------------------------------
+-- 4.26 AIRLINE_GET_BOOKED_SEATS_USP
+--      Union of booked seats from the seat-booking and ticket-transaction tables.
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE PROCEDURE AIRLINE_GET_BOOKED_SEATS_USP (
+    P_DYNAMIC_PRICE_ID IN NUMBER,
+    P_RESULT           OUT SYS_REFCURSOR,
+    P_DATA             OUT VARCHAR2
+) IS
+BEGIN
+    OPEN P_RESULT FOR
+        SELECT UPPER(TRIM(SEAT_NO)) AS SEAT_NO, 'BOOKED' AS STATUS
+        FROM AIRLINE_FLIGHT_SEAT_BOOKING_TBL
+        WHERE DYNAMIC_PRICE_ID = P_DYNAMIC_PRICE_ID
+          AND UPPER(NVL(STATUS, 'BOOKED')) IN ('BOOKED', 'OCCUPIED', 'PAID', 'CONFIRMED', 'RESERVED')
+        UNION
+        SELECT UPPER(TRIM(SEAT_NO)) AS SEAT_NO, 'BOOKED' AS STATUS
+        FROM AIRLINE_TICKET_BOOKING_TRANSACTION_TBL
+        WHERE DYNAMIC_PRICE_ID = P_DYNAMIC_PRICE_ID
+          AND UPPER(NVL(BOOKING_STATUS, 'CONFIRMED')) IN ('CONFIRMED', 'BOOKED', 'PAID', 'SUCCESS');
+    P_DATA := 'OK';
+EXCEPTION
+    WHEN OTHERS THEN P_DATA := SQLERRM;
+END AIRLINE_GET_BOOKED_SEATS_USP;
+/
+
+-- -----------------------------------------------------------------------------
+-- 4.27 AIRLINE_GET_PASSENGER_ID_BY_PASSPORT_USP
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE PROCEDURE AIRLINE_GET_PASSENGER_ID_BY_PASSPORT_USP (
+    P_IDENTIFIER   IN VARCHAR2,
+    P_PASSENGER_ID OUT NUMBER,
+    P_DATA         OUT VARCHAR2
+) IS
+BEGIN
+    SELECT PASSENGER_ID INTO P_PASSENGER_ID
+    FROM (
+        SELECT PASSENGER_ID
+        FROM AIRLINE_PASSENGERS_REGD_FORM_MSTR_TBL
+        WHERE UPPER(TRIM(PASSPORT_NO)) = UPPER(TRIM(P_IDENTIFIER))
+           OR TO_CHAR(MOBILE_NO) = TRIM(P_IDENTIFIER)
+        ORDER BY PASSENGER_ID
+    ) WHERE ROWNUM = 1;
+    P_DATA := 'FOUND';
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        P_PASSENGER_ID := NULL;
+        P_DATA := 'NOT FOUND';
+    WHEN OTHERS THEN
+        P_PASSENGER_ID := NULL;
+        P_DATA := SQLERRM;
+END AIRLINE_GET_PASSENGER_ID_BY_PASSPORT_USP;
+/
+
+-- -----------------------------------------------------------------------------
+-- 4.28 AIRLINE_GET_NEXT_BOOKING_ID_USP
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE PROCEDURE AIRLINE_GET_NEXT_BOOKING_ID_USP (
+    P_BOOKING_ID OUT NUMBER
+) IS
+BEGIN
+    SELECT AIRLINE_TICKET_BOOKING_TRANSACTION_SEQ.NEXTVAL INTO P_BOOKING_ID FROM DUAL;
+EXCEPTION
+    WHEN OTHERS THEN
+        SELECT NVL(MAX(BOOKING_ID), 50000000) + 1 INTO P_BOOKING_ID
+        FROM AIRLINE_TICKET_BOOKING_TRANSACTION_TBL;
+END AIRLINE_GET_NEXT_BOOKING_ID_USP;
+/
+
+-- -----------------------------------------------------------------------------
+-- 4.29 AIRLINE_INSERT_TICKET_TRANSACTION_USP
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE PROCEDURE AIRLINE_INSERT_TICKET_TRANSACTION_USP (
+    P_BOOKING_ID       IN NUMBER,
+    P_PASSENGER_ID     IN NUMBER,
+    P_DYNAMIC_PRICE_ID IN NUMBER,
+    P_PNR_NO           IN VARCHAR2,
+    P_SEAT_NO          IN VARCHAR2,
+    P_PAYMENT_STATUS   IN VARCHAR2,
+    P_AMOUNT           IN NUMBER,
+    P_PAYMENT_METHOD   IN VARCHAR2,
+    P_DATA             OUT VARCHAR2
+) IS
+BEGIN
+    INSERT INTO AIRLINE_TICKET_BOOKING_TRANSACTION_TBL (
+        BOOKING_ID, PASSENGER_ID, DYNAMIC_PRICE_ID, PNR_NO, SEAT_NO,
+        BOOKING_STATUS, PAYMENT_STATUS, BOOKING_AMOUNT, PAYMENT_METHOD, CREATED_BY
+    ) VALUES (
+        P_BOOKING_ID, P_PASSENGER_ID, P_DYNAMIC_PRICE_ID, P_PNR_NO, UPPER(P_SEAT_NO),
+        'CONFIRMED', P_PAYMENT_STATUS, P_AMOUNT, P_PAYMENT_METHOD, 'SYSTEM'
+    );
+    P_DATA := 'INSERTED';
+EXCEPTION
+    WHEN OTHERS THEN P_DATA := SQLERRM;
+END AIRLINE_INSERT_TICKET_TRANSACTION_USP;
+/
+
+-- -----------------------------------------------------------------------------
+-- 4.30 AIRLINE_MARK_SEAT_BOOKED_USP
+--      Update seat row if present (by dp/seat, then by seat), else insert new row.
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE PROCEDURE AIRLINE_MARK_SEAT_BOOKED_USP (
+    P_DYNAMIC_PRICE_ID IN NUMBER,
+    P_SEAT_NO          IN VARCHAR2,
+    P_BOOKING_ID       IN NUMBER,
+    P_PASSENGER_ID     IN NUMBER,
+    P_DATA             OUT VARCHAR2
+) IS
+    V_SB_ID  NUMBER;
+    V_COUNT  NUMBER;
+BEGIN
+    UPDATE AIRLINE_FLIGHT_SEAT_BOOKING_TBL
+    SET STATUS = 'BOOKED', BOOKING_ID = P_BOOKING_ID, BOOKED_BY_PASSENGER_ID = P_PASSENGER_ID, UPDATED_TIME = SYSTIMESTAMP
+    WHERE DYNAMIC_PRICE_ID = P_DYNAMIC_PRICE_ID AND UPPER(SEAT_NO) = UPPER(P_SEAT_NO);
+    V_COUNT := SQL%ROWCOUNT;
+
+    IF V_COUNT = 0 THEN
+        UPDATE AIRLINE_FLIGHT_SEAT_BOOKING_TBL
+        SET STATUS = 'BOOKED', BOOKING_ID = P_BOOKING_ID, BOOKED_BY_PASSENGER_ID = P_PASSENGER_ID, UPDATED_TIME = SYSTIMESTAMP
+        WHERE UPPER(SEAT_NO) = UPPER(P_SEAT_NO);
+        V_COUNT := SQL%ROWCOUNT;
+    END IF;
+
+    IF V_COUNT = 0 THEN
+        V_SB_ID := AIRLINE_FLIGHT_SEAT_BOOKING_SEQ.NEXTVAL;
+        INSERT INTO AIRLINE_FLIGHT_SEAT_BOOKING_TBL (
+            SEAT_BOOKING_ID, DYNAMIC_PRICE_ID, SEAT_NO, STATUS, BOOKING_ID, BOOKED_BY_PASSENGER_ID
+        ) VALUES (
+            V_SB_ID, P_DYNAMIC_PRICE_ID, UPPER(P_SEAT_NO), 'BOOKED', P_BOOKING_ID, P_PASSENGER_ID
+        );
+    END IF;
+
+    P_DATA := 'SEAT_BOOKED';
+EXCEPTION
+    WHEN OTHERS THEN P_DATA := SQLERRM;
+END AIRLINE_MARK_SEAT_BOOKED_USP;
+/
+
+-- -----------------------------------------------------------------------------
+-- 4.31 AIRLINE_DEDUCT_AVAILABLE_SEAT_USP
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE PROCEDURE AIRLINE_DEDUCT_AVAILABLE_SEAT_USP (
+    P_DYNAMIC_PRICE_ID IN NUMBER,
+    P_DATA             OUT VARCHAR2
+) IS
+BEGIN
+    UPDATE AIRLINE_FLIGHT_DYNAMIC_PRICE_MSTR_TBL
+    SET AVAILABLE_SEATS = GREATEST(0, AVAILABLE_SEATS - 1), UPDATED_TIME = SYSTIMESTAMP
+    WHERE DYNAMIC_PRICE_ID = P_DYNAMIC_PRICE_ID;
+    P_DATA := 'DEDUCTED';
+EXCEPTION
+    WHEN OTHERS THEN P_DATA := SQLERRM;
+END AIRLINE_DEDUCT_AVAILABLE_SEAT_USP;
+/
+
+-- -----------------------------------------------------------------------------
+-- 4.32 AIRLINE_GET_REGISTERED_PASSENGERS_USP
+--      USER_MSTR passengers (PASSENGER role) UNION legacy passenger table.
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE PROCEDURE AIRLINE_GET_REGISTERED_PASSENGERS_USP (
+    P_RESULT OUT SYS_REFCURSOR,
+    P_DATA   OUT VARCHAR2
+) IS
+BEGIN
+    OPEN P_RESULT FOR
+        SELECT * FROM (
+            SELECT U.USER_ID AS PASSENGER_ID,
+                   NVL(U.FULL_NAME, U.USERNAME) AS PASSENGER_NAME,
+                   TO_CHAR(U.MOBILENO) AS MOBILE_NO,
+                   U.USERNAME AS EMAIL_ID,
+                   NVL(U.PASSPORT_NO, 'N/A') AS PASSPORT_NO,
+                   NVL(U.GENDER, 'O') AS GENDER,
+                   NVL(U.MEMBER_TIER, 'No Membership') AS MEMBER_TIER
+            FROM AIRLINE_USER_MSTR_TBL U
+            JOIN AIRLINE_USER_ROLE_MAP_TBL URM ON U.USER_ID = URM.USER_ID AND NVL(URM.IS_ACTIVE, 'Y') = 'Y'
+            JOIN AIRLINE_ROLE_MSTR_TBL R ON URM.ROLE_ID = R.ROLE_ID
+            WHERE UPPER(R.ROLE_NAME) = 'PASSENGER'
+              AND NVL(U.IS_ACTIVE, 'Y') = 'Y'
+            UNION ALL
+            SELECT PASSENGER_ID,
+                   PASSENGER_NAME,
+                   TO_CHAR(MOBILE_NO) AS MOBILE_NO,
+                   EMAIL_ID,
+                   NVL(PASSPORT_NO, 'N/A') AS PASSPORT_NO,
+                   NVL(GENDER, 'Other') AS GENDER,
+                   NVL(MEMBER_TIER, 'VIP Platinum') AS MEMBER_TIER
+            FROM AIRLINE_PASSENGERS_REGD_FORM_MSTR_TBL
+            WHERE NVL(IS_ACTIVE, 'Y') = 'Y'
+        ) ORDER BY 1;
+    P_DATA := 'OK';
+EXCEPTION
+    WHEN OTHERS THEN P_DATA := SQLERRM;
+END AIRLINE_GET_REGISTERED_PASSENGERS_USP;
+/
+
+-- -----------------------------------------------------------------------------
+-- 4.33 AIRLINE_GET_SYSTEM_AIRPORTS_USP
+--      Small active-airport list used by the chatbot context.
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE PROCEDURE AIRLINE_GET_SYSTEM_AIRPORTS_USP (
+    P_RESULT OUT SYS_REFCURSOR,
+    P_DATA   OUT VARCHAR2
+) IS
+BEGIN
+    OPEN P_RESULT FOR
+        SELECT A.AIRPORT_NAME, A.AIRPORT_CODE, C.CITY_NAME
+        FROM AIRLINE_AIRPORT_MSTR_TBL A
+        LEFT JOIN AIRLINE_CITY_MSTR_TBL C ON A.CITY_ID = C.CITY_ID
+        WHERE A.IS_ACTIVE = 'Y' AND ROWNUM <= 15;
+    P_DATA := 'OK';
+EXCEPTION
+    WHEN OTHERS THEN P_DATA := SQLERRM;
+END AIRLINE_GET_SYSTEM_AIRPORTS_USP;
+/
+
+-- -----------------------------------------------------------------------------
+-- 4.34 AIRLINE_GET_MESSAGE_ROLES_USP
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE PROCEDURE AIRLINE_GET_MESSAGE_ROLES_USP (
+    P_RESULT OUT SYS_REFCURSOR,
+    P_DATA   OUT VARCHAR2
+) IS
+BEGIN
+    OPEN P_RESULT FOR
+        SELECT ROLE_ID, ROLE_NAME FROM AIRLINE_ROLE_MSTR_TBL
+        WHERE IS_ACTIVE = 'Y' ORDER BY ROLE_NAME;
+    P_DATA := 'OK';
+EXCEPTION
+    WHEN OTHERS THEN P_DATA := SQLERRM;
+END AIRLINE_GET_MESSAGE_ROLES_USP;
+/
+
+-- -----------------------------------------------------------------------------
+-- 4.35 AIRLINE_PURGE_OLD_MESSAGES_USP
+--      Midnight purge of previous days' messages.
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE PROCEDURE AIRLINE_PURGE_OLD_MESSAGES_USP (
+    P_DATA OUT VARCHAR2
+) IS
+BEGIN
+    DELETE FROM AIRLINE_MESSAGE_MSTR_TBL WHERE TRUNC(CREATED_TIME) < TRUNC(CURRENT_TIMESTAMP);
+    P_DATA := 'PURGED ' || TO_CHAR(SQL%ROWCOUNT) || ' MESSAGES';
+EXCEPTION
+    WHEN OTHERS THEN P_DATA := SQLERRM;
+END AIRLINE_PURGE_OLD_MESSAGES_USP;
+/
+
+-- -----------------------------------------------------------------------------
+-- 4.36 AIRLINE_MESSAGE_SEND_DIRECT_USP
+--      Fallback direct insert if AIRLINE_MESSAGE_SEND_USP fails.
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE PROCEDURE AIRLINE_MESSAGE_SEND_DIRECT_USP (
+    P_SENDER_USER_ID   IN NUMBER,
+    P_SENDER_USERNAME  IN VARCHAR2,
+    P_TARGET_ROLE_NAME IN VARCHAR2,
+    P_MESSAGE_TITLE    IN VARCHAR2,
+    P_MESSAGE_BODY     IN VARCHAR2,
+    P_PRIORITY         IN VARCHAR2,
+    P_CREATED_BY       IN VARCHAR2,
+    P_CREATED_IP       IN VARCHAR2,
+    P_DATA             OUT VARCHAR2
+) IS
+BEGIN
+    INSERT INTO AIRLINE_MESSAGE_MSTR_TBL (
+        MESSAGE_ID, SENDER_USER_ID, SENDER_USERNAME, TARGET_ROLE_NAME,
+        MESSAGE_TITLE, MESSAGE_BODY, PRIORITY, IS_ACTIVE,
+        CREATED_TIME, CREATED_BY, CREATED_IP
+    ) VALUES (
+        AIRLINE_MESSAGE_MSTR_SEQ.NEXTVAL,
+        P_SENDER_USER_ID, P_SENDER_USERNAME, P_TARGET_ROLE_NAME,
+        P_MESSAGE_TITLE, P_MESSAGE_BODY, P_PRIORITY, 'Y',
+        CURRENT_TIMESTAMP, P_CREATED_BY, P_CREATED_IP
+    );
+    COMMIT;
+    P_DATA := 'SENT';
+EXCEPTION
+    WHEN OTHERS THEN P_DATA := SQLERRM;
+END AIRLINE_MESSAGE_SEND_DIRECT_USP;
+/
+
+-- -----------------------------------------------------------------------------
+-- 4.37 AIRLINE_MESSAGE_LIST_DIRECT_USP
+--      Fallback message list if AIRLINE_MESSAGE_GET_TODAY_USP fails.
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE PROCEDURE AIRLINE_MESSAGE_LIST_DIRECT_USP (
+    P_ROLE_NAME IN VARCHAR2,
+    P_RESULT    OUT SYS_REFCURSOR,
+    P_DATA      OUT VARCHAR2
+) IS
+BEGIN
+    OPEN P_RESULT FOR
+        SELECT
+            MESSAGE_ID,
+            SENDER_USERNAME,
+            TARGET_ROLE_NAME,
+            MESSAGE_TITLE,
+            MESSAGE_BODY,
+            PRIORITY,
+            TO_CHAR(CREATED_TIME, 'DD-MON-YYYY HH24:MI:SS'),
+            CREATED_BY
+        FROM AIRLINE_MESSAGE_MSTR_TBL
+        WHERE IS_ACTIVE = 'Y'
+          AND TRUNC(CREATED_TIME) = TRUNC(CURRENT_TIMESTAMP)
+          AND (UPPER(TARGET_ROLE_NAME) = 'ALL'
+               OR UPPER(TARGET_ROLE_NAME) = 'ALL ROLES'
+               OR UPPER(TARGET_ROLE_NAME) = UPPER(P_ROLE_NAME)
+               OR UPPER(P_ROLE_NAME) = 'ADMIN')
+        ORDER BY MESSAGE_ID DESC;
+    P_DATA := 'OK';
+EXCEPTION
+    WHEN OTHERS THEN P_DATA := SQLERRM;
+END AIRLINE_MESSAGE_LIST_DIRECT_USP;
+/
+
+-- -----------------------------------------------------------------------------
+-- 4.38 AIRLINE_GET_TODAY_MESSAGE_COUNT_USP
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE PROCEDURE AIRLINE_GET_TODAY_MESSAGE_COUNT_USP (
+    P_ROLE_NAME IN VARCHAR2,
+    P_COUNT     OUT NUMBER
+) IS
+BEGIN
+    SELECT COUNT(*) INTO P_COUNT
+    FROM AIRLINE_MESSAGE_MSTR_TBL
+    WHERE IS_ACTIVE = 'Y'
+      AND TRUNC(CREATED_TIME) = TRUNC(CURRENT_TIMESTAMP)
+      AND (UPPER(TARGET_ROLE_NAME) = 'ALL'
+           OR UPPER(TARGET_ROLE_NAME) = 'ALL ROLES'
+           OR UPPER(TARGET_ROLE_NAME) = UPPER(P_ROLE_NAME)
+           OR UPPER(P_ROLE_NAME) = 'ADMIN');
+EXCEPTION
+    WHEN OTHERS THEN P_COUNT := 0;
+END AIRLINE_GET_TODAY_MESSAGE_COUNT_USP;
+/
+
+-- -----------------------------------------------------------------------------
+-- 4.39 AIRLINE_MESSAGE_DELETE_USP
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE PROCEDURE AIRLINE_MESSAGE_DELETE_USP (
+    P_MESSAGE_ID IN NUMBER,
+    P_DATA       OUT VARCHAR2
+) IS
+BEGIN
+    UPDATE AIRLINE_MESSAGE_MSTR_TBL SET IS_ACTIVE = 'N' WHERE MESSAGE_ID = P_MESSAGE_ID;
+    P_DATA := 'DELETED';
+EXCEPTION
+    WHEN OTHERS THEN P_DATA := SQLERRM;
+END AIRLINE_MESSAGE_DELETE_USP;
+/
+
+-- =============================================================================
+-- 5) AIRLINE_FLIGHT_DYNAMIC_PRICE_CREATE_USP
+--    The OLD version in the live DB was INVALID (PLS-00103 syntax error at
+--    CREATE/INSERT). Replace it with the correct schema.sql version (11 args)
+--    so /api/admin/create-dynamic-price POST works.
+-- =============================================================================
+CREATE OR REPLACE PROCEDURE AIRLINE_FLIGHT_DYNAMIC_PRICE_CREATE_USP (
+    P_FLIGHT_ID         IN NUMBER,
+    P_SOURCE_AIRPORT_ID IN NUMBER,
+    P_DEST_AIRPORT_ID   IN NUMBER,
+    P_FLIGHT_DATE       IN DATE,
+    P_DEPARTURE_TIME    IN DATE,
+    P_ARRIVAL_TIME      IN DATE,
+    P_TOTAL_SEATS       IN NUMBER,
+    P_AVAILABLE_SEATS   IN NUMBER,
+    P_CURRENT_PRICE     IN NUMBER,
+    P_CURSOR            OUT SYS_REFCURSOR,
+    P_DATA              OUT VARCHAR2
+)
+IS
+    V_COUNT NUMBER;
+    V_NEW_ID NUMBER;
+BEGIN
+    SELECT COUNT(*) INTO V_COUNT
+    FROM AIRLINE_FLIGHT_DYNAMIC_PRICE_MSTR_TBL
+    WHERE FLIGHT_ID = P_FLIGHT_ID
+      AND TRUNC(FLIGHT_DATE) = TRUNC(P_FLIGHT_DATE)
+      AND SOURCE_AIRPORT_ID = P_SOURCE_AIRPORT_ID
+      AND DEST_AIRPORT_ID = P_DEST_AIRPORT_ID;
+
+    IF V_COUNT > 0 THEN
+        UPDATE AIRLINE_FLIGHT_DYNAMIC_PRICE_MSTR_TBL
+        SET CURRENT_PRICE = P_CURRENT_PRICE,
+            TOTAL_SEATS = P_TOTAL_SEATS,
+            AVAILABLE_SEATS = P_AVAILABLE_SEATS,
+            DEPARTURE_TIME = P_DEPARTURE_TIME,
+            ARRIVAL_TIME = P_ARRIVAL_TIME,
+            UPDATED_TIME = SYSTIMESTAMP
+        WHERE FLIGHT_ID = P_FLIGHT_ID
+          AND TRUNC(FLIGHT_DATE) = TRUNC(P_FLIGHT_DATE)
+          AND SOURCE_AIRPORT_ID = P_SOURCE_AIRPORT_ID
+          AND DEST_AIRPORT_ID = P_DEST_AIRPORT_ID;
+
+        P_DATA := 'Dynamic price rate updated successfully';
+    ELSE
+        SELECT NVL(MAX(DYNAMIC_PRICE_ID), 16000000) + 1 INTO V_NEW_ID
+        FROM AIRLINE_FLIGHT_DYNAMIC_PRICE_MSTR_TBL;
+
+        INSERT INTO AIRLINE_FLIGHT_DYNAMIC_PRICE_MSTR_TBL (
+            DYNAMIC_PRICE_ID, FLIGHT_ID, SOURCE_AIRPORT_ID, DEST_AIRPORT_ID,
+            FLIGHT_DATE, DEPARTURE_TIME, ARRIVAL_TIME, TOTAL_SEATS, AVAILABLE_SEATS,
+            CURRENT_PRICE, IS_ACTIVE, CREATED_BY
+        ) VALUES (
+            V_NEW_ID, P_FLIGHT_ID, P_SOURCE_AIRPORT_ID, P_DEST_AIRPORT_ID,
+            P_FLIGHT_DATE, P_DEPARTURE_TIME, P_ARRIVAL_TIME, P_TOTAL_SEATS, P_AVAILABLE_SEATS,
+            P_CURRENT_PRICE, 'Y', 'SYSTEM'
+        );
+
+        P_DATA := 'Dynamic price rate created successfully';
+    END IF;
+    COMMIT;
+
+    OPEN P_CURSOR FOR
+        SELECT
+            DP.DYNAMIC_PRICE_ID,
+            DP.FLIGHT_ID,
+            F.FLIGHT_NO,
+            F.FLIGHT_NAME,
+            C.COMPANY_NAME,
+            C.COMPANY_CODE,
+            DP.SOURCE_AIRPORT_ID,
+            SA.AIRPORT_NAME AS SOURCE_AIRPORT_NAME,
+            SA.AIRPORT_CODE AS SOURCE_AIRPORT_CODE,
+            SC.CITY_NAME AS SOURCE_CITY_NAME,
+            DP.DEST_AIRPORT_ID,
+            DA.AIRPORT_NAME AS DEST_AIRPORT_NAME,
+            DA.AIRPORT_CODE AS DEST_AIRPORT_CODE,
+            DC.CITY_NAME AS DEST_CITY_NAME,
+            TO_CHAR(DP.FLIGHT_DATE, 'YYYY-MM-DD') AS FLIGHT_DATE,
+            TO_CHAR(DP.DEPARTURE_TIME, 'YYYY-MM-DD HH24:MI:SS') AS DEPARTURE_TIME,
+            TO_CHAR(DP.ARRIVAL_TIME, 'YYYY-MM-DD HH24:MI:SS') AS ARRIVAL_TIME,
+            DP.TOTAL_SEATS,
+            DP.AVAILABLE_SEATS,
+            DP.CURRENT_PRICE,
+            DP.IS_ACTIVE
+        FROM AIRLINE_FLIGHT_DYNAMIC_PRICE_MSTR_TBL DP
+        LEFT JOIN AIRLINE_FLIGHT_MSTR_TBL F ON DP.FLIGHT_ID = F.FLIGHT_ID
+        LEFT JOIN AIRLINE_FLIGHT_COMPANY_MSTR_TBL C ON F.COMPANY_ID = C.COMPANY_ID
+        LEFT JOIN AIRLINE_AIRPORT_MSTR_TBL SA ON DP.SOURCE_AIRPORT_ID = SA.AIRPORT_ID
+        LEFT JOIN AIRLINE_CITY_MSTR_TBL SC ON SA.CITY_ID = SC.CITY_ID
+        LEFT JOIN AIRLINE_AIRPORT_MSTR_TBL DA ON DP.DEST_AIRPORT_ID = DA.AIRPORT_ID
+        LEFT JOIN AIRLINE_CITY_MSTR_TBL DC ON DA.CITY_ID = DC.CITY_ID
+        ORDER BY DP.DYNAMIC_PRICE_ID DESC;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        ROLLBACK;
+        P_DATA := SQLERRM;
+END AIRLINE_FLIGHT_DYNAMIC_PRICE_CREATE_USP;
+/
+
+-- =============================================================================
+-- END OF ao_sync_procs.sql
+-- =============================================================================
+
+-- VERIFY: total procedures should now be >= 80.
+-- SELECT COUNT(*) FROM ALL_PROCEDURES WHERE OWNER = 'AIRLINE';
