@@ -7,7 +7,13 @@ import urllib.request
 import urllib.parse
 import base64
 import json
+import hmac
+import hashlib
 from dotenv import load_dotenv
+try:
+    import razorpay
+except ImportError:
+    razorpay = None
 
 # New Chatbot Pipeline Imports
 from langchain_community.vectorstores import Chroma
@@ -68,10 +74,11 @@ def get_db_config(key):
     try:
         conn = get_conn()
         cur = conn.cursor()
-        cur.execute("SELECT CONFIG_VALUE FROM AIRLINE_SYSTEM_CONFIG WHERE CONFIG_KEY = :1", [key])
-        row = cur.fetchone()
-        if row and row[0]:
-            return row[0].strip()
+        v_config_value = cur.var(str)
+        cur.callproc("AIRLINE_GET_CONFIG_VALUE_USP", [str(key), v_config_value])
+        row_value = v_config_value.getvalue()
+        if row_value:
+            return row_value.strip()
     except Exception:
         pass
     finally:
@@ -223,6 +230,68 @@ def get_client_ip():
     if request.headers.get("X-Forwarded-For"):
         return request.headers.get("X-Forwarded-For").split(",")[0].strip()
     return request.remote_addr or "127.0.0.1"
+
+
+# =========================
+# RAZORPAY PAYMENT GATEWAY
+# =========================
+
+_razorpay_client = None
+
+def _razorpay_key_id():
+    return os.environ.get("RAZORPAY_KEY_ID") or get_db_config("RAZORPAY_KEY_ID")
+
+def _razorpay_key_secret():
+    return os.environ.get("RAZORPAY_KEY_SECRET") or get_db_config("RAZORPAY_KEY_SECRET")
+
+def get_razorpay_client():
+    global _razorpay_client
+    if razorpay is None:
+        raise RuntimeError("razorpay package is not installed. Run: pip install razorpay")
+    if _razorpay_client is None:
+        _razorpay_client = razorpay.Client(
+            auth=(_razorpay_key_id() or "", _razorpay_key_secret() or "")
+        )
+    return _razorpay_client
+
+def razorpay_config_ready():
+    return bool(razorpay and _razorpay_key_id() and _razorpay_key_secret())
+
+def create_razorpay_order(amount_inr, receipt, notes=None):
+    """Create a Razorpay order. amount_inr is in Rupees (float/int)."""
+    client = get_razorpay_client()
+    try:
+        # Convert Rupees to paise (integer)
+        amount_paise = int(round(float(amount_inr) * 100))
+        order_data = {
+            "amount": amount_paise,
+            "currency": "INR",
+            "receipt": receipt,
+        }
+        if notes:
+            order_data["notes"] = notes
+        order = client.order.create(data=order_data)
+        return order, None
+    except Exception as e:
+        print(f"[RAZORPAY ORDER ERROR] {e}")
+        return None, str(e)
+
+def verify_razorpay_payment(order_id, payment_id, signature):
+    """Verify Razorpay webhook/checkout signature. Returns (bool, error)."""
+    if not (_razorpay_key_id() and _razorpay_key_secret()):
+        return False, "Razorpay not configured."
+    try:
+        params_dict = {
+            "razorpay_order_id": order_id,
+            "razorpay_payment_id": payment_id,
+            "razorpay_signature": signature,
+        }
+        client = get_razorpay_client()
+        client.utility.verify_payment_signature(params_dict)
+        return True, None
+    except Exception as e:
+        print(f"[RAZORPAY VERIFY ERROR] {e}")
+        return False, str(e)
 
 
 @app.route("/")
@@ -2676,12 +2745,102 @@ def get_booked_seat_list(dynamic_price_id):
     return jsonify({"bookedSeats": sorted(list(booked))})
 
 
+# =========================
+# RAZORPAY PAYMENT ENDPOINTS
+# =========================
+
+@app.route("/api/payment/config", methods=["GET"])
+def payment_config():
+    return jsonify({
+        "ready": razorpay_config_ready(),
+        "keyId": _razorpay_key_id() or ""
+    }), 200
+
+
+@app.route("/api/payment/create-order", methods=["POST"])
+def create_payment_order():
+    if not razorpay_config_ready():
+        return jsonify({"message": "Razorpay is not configured. Add RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET to .env"}), 503
+
+    data = request.get_json() or {}
+    amount = data.get("amount")
+    purpose = str(data.get("purpose", "payment")).strip()
+    ref_id = str(data.get("referenceId", "")).strip()
+
+    if amount is None:
+        return jsonify({"message": "Amount is required."}), 400
+
+    try:
+        amount = float(amount)
+    except (TypeError, ValueError):
+        return jsonify({"message": "Invalid amount."}), 400
+
+    if amount <= 0:
+        return jsonify({"message": "Amount must be greater than zero."}), 400
+
+    receipt = f"{(purpose[:10] or 'pay')}_{ref_id or str(random.randint(100000, 999999))}"
+
+    order, err = create_razorpay_order(
+        amount,
+        receipt,
+        notes={
+            "purpose": purpose,
+            "referenceId": ref_id or "",
+        }
+    )
+
+    if err:
+        return jsonify({"message": f"Failed to create payment order: {err}"}), 500
+
+    return jsonify({
+        "orderId": order["id"],
+        "amount": amount,
+        "amountPaise": int(round(amount * 100)),
+        "currency": order.get("currency", "INR"),
+        "keyId": _razorpay_key_id(),
+        "receipt": receipt
+    }), 200
+
+
+@app.route("/api/payment/verify", methods=["POST"])
+def verify_payment():
+    data = request.get_json() or {}
+    order_id = data.get("razorpayOrderId") or data.get("orderId")
+    payment_id = data.get("razorpayPaymentId") or data.get("paymentId")
+    signature = data.get("razorpaySignature") or data.get("signature")
+
+    if not (order_id and payment_id and signature):
+        return jsonify({"message": "Payment verification fields missing."}), 400
+
+    valid, err = verify_razorpay_payment(order_id, payment_id, signature)
+    if not valid:
+        return jsonify({"message": f"Payment verification failed: {err}"}), 400
+
+    return jsonify({
+        "message": "Payment verified successfully",
+        "orderId": order_id,
+        "paymentId": payment_id,
+        "status": "paid"
+    }), 200
+
+
 @app.route("/api/ticket-booking/book-seat", methods=["POST"])
 def book_ticket_seat():
     data = request.get_json() or {}
     dynamic_price_id = data.get("dynamicPriceId")
     passenger_id = data.get("passengerId")
     seat_no = str(data.get("seatNo", "")).strip().upper()
+
+    # Payment information (from Razorpay checkout)
+    final_price = data.get("finalSeatPrice", data.get("amount", 4500.0))
+    try:
+        final_price = float(final_price)
+    except (TypeError, ValueError):
+        final_price = 0.0
+    payment_method = str(data.get("paymentMethod", "ONLINE")).strip().upper()
+    payment_status = str(data.get("paymentStatus", "PAID")).strip().upper()
+    razorpay_order_id = str(data.get("orderId") or data.get("razorpayOrderId") or "")
+    razorpay_payment_id = str(data.get("paymentId") or data.get("razorpayPaymentId") or "")
 
     if not all([dynamic_price_id, passenger_id, seat_no]):
         return jsonify({"message": "Dynamic Price ID, Passenger ID, and Seat Number are required."}), 400
@@ -2727,13 +2886,23 @@ def book_ticket_seat():
 
         # 2. Insert into transaction table
         try:
+            if payment_status not in ("PAID", "SUCCESS", "CONFIRMED"):
+                payment_status = "PAID"
             cur.execute("""
                 INSERT INTO AIRLINE_TICKET_BOOKING_TRANSACTION_TBL
-                (BOOKING_ID, PASSENGER_ID, DYNAMIC_PRICE_ID, PNR_NO, SEAT_NO, BOOKING_STATUS, PAYMENT_STATUS, BOOKING_AMOUNT, CREATED_BY)
-                VALUES (:1, :2, :3, :4, :5, 'CONFIRMED', 'PAID', 4500.0, 'SYSTEM')
-            """, [booking_id, passenger_id, dynamic_price_id, pnr_no, seat_no])
+                (BOOKING_ID, PASSENGER_ID, DYNAMIC_PRICE_ID, PNR_NO, SEAT_NO, BOOKING_STATUS, PAYMENT_STATUS, BOOKING_AMOUNT, PAYMENT_METHOD, CREATED_BY)
+                VALUES (:1, :2, :3, :4, :5, 'CONFIRMED', :6, :7, :8, 'SYSTEM')
+            """, [booking_id, passenger_id, dynamic_price_id, pnr_no, seat_no, payment_status, final_price, payment_method])
         except Exception as tr_err:
             print(f"[WARN insert transaction tbl]: {tr_err}")
+            try:
+                cur.execute("""
+                    INSERT INTO AIRLINE_TICKET_BOOKING_TRANSACTION_TBL
+                    (BOOKING_ID, PASSENGER_ID, DYNAMIC_PRICE_ID, PNR_NO, SEAT_NO, BOOKING_STATUS, PAYMENT_STATUS, BOOKING_AMOUNT, CREATED_BY)
+                    VALUES (:1, :2, :3, :4, :5, 'CONFIRMED', :6, :7, 'SYSTEM')
+                """, [booking_id, passenger_id, dynamic_price_id, pnr_no, seat_no, payment_status, final_price])
+            except Exception as tr_err2:
+                print(f"[WARN insert transaction tbl (cols fallback)]: {tr_err2}")
 
         # 3. Lock seat permanently in seat booking table with STATUS = 'BOOKED'
         try:
@@ -2781,7 +2950,12 @@ def book_ticket_seat():
             "message": "Ticket booked successfully!",
             "pnrNo": pnr_no,
             "bookingId": booking_id,
-            "seatNo": seat_no
+            "seatNo": seat_no,
+            "amount": final_price,
+            "paymentMethod": payment_method,
+            "paymentStatus": payment_status,
+            "razorpayOrderId": razorpay_order_id,
+            "razorpayPaymentId": razorpay_payment_id
         }), 200
 
     except Exception as e:
@@ -2803,34 +2977,72 @@ def get_registered_passengers():
         
         passengers = []
         cur.execute("""
-            SELECT 
-                PASSENGER_ID,
-                PASSENGER_NAME,
-                TO_CHAR(MOBILE_NO) AS MOBILE_NO,
-                EMAIL_ID,
-                NVL(PASSPORT_NO, 'N/A') AS PASSPORT_NO,
-                NVL(GENDER, 'Other') AS GENDER,
-                'Indian' AS NATIONALITY,
-                NVL(MEMBER_TIER, 'VIP Platinum') AS MEMBER_TIER
-            FROM AIRLINE_PASSENGERS_REGD_FORM_MSTR_TBL
-            WHERE NVL(IS_ACTIVE, 'Y') = 'Y'
-            ORDER BY PASSENGER_ID ASC
+            SELECT
+                U.USER_ID AS PASSENGER_ID,
+                NVL(U.FULL_NAME, U.USERNAME) AS PASSENGER_NAME,
+                TO_CHAR(U.MOBILENO) AS MOBILE_NO,
+                U.USERNAME AS EMAIL_ID,
+                NVL(U.PASSPORT_NO, 'N/A') AS PASSPORT_NO,
+                NVL(U.GENDER, 'O') AS GENDER,
+                NVL(U.MEMBER_TIER, 'No Membership') AS MEMBER_TIER
+            FROM AIRLINE_USER_MSTR_TBL U
+            JOIN AIRLINE_USER_ROLE_MAP_TBL URM ON U.USER_ID = URM.USER_ID AND NVL(URM.IS_ACTIVE, 'Y') = 'Y'
+            JOIN AIRLINE_ROLE_MSTR_TBL R ON URM.ROLE_ID = R.ROLE_ID
+            WHERE UPPER(R.ROLE_NAME) = 'PASSENGER'
+              AND NVL(U.IS_ACTIVE, 'Y') = 'Y'
+            ORDER BY U.USER_ID ASC
         """)
+        seen_ids = set()
         for r in cur.fetchall():
+            pid = int(r[0])
+            seen_ids.add(pid)
             passengers.append({
-                "passengerId": int(r[0]),
+                "passengerId": pid,
                 "passengerName": str(r[1] or "Passenger"),
                 "mobileNo": str(r[2] or ""),
                 "emailId": str(r[3] or ""),
                 "passportNo": str(r[4] or "N/A"),
                 "gender": str(r[5] or "Other"),
-                "nationality": str(r[6] or "Indian"),
-                "memberTier": str(r[7] or "VIP Platinum")
+                "nationality": "Indian",
+                "memberTier": str(r[6] or "No Membership")
             })
+
+        # Legacy passenger-table rows not already present in USER_MSTR (backwards compat)
+        try:
+            cur.execute("""
+                SELECT
+                    PASSENGER_ID,
+                    PASSENGER_NAME,
+                    TO_CHAR(MOBILE_NO) AS MOBILE_NO,
+                    EMAIL_ID,
+                    NVL(PASSPORT_NO, 'N/A') AS PASSPORT_NO,
+                    NVL(GENDER, 'Other') AS GENDER,
+                    NVL(MEMBER_TIER, 'VIP Platinum') AS MEMBER_TIER
+                FROM AIRLINE_PASSENGERS_REGD_FORM_MSTR_TBL
+                WHERE NVL(IS_ACTIVE, 'Y') = 'Y'
+                ORDER BY PASSENGER_ID ASC
+            """)
+            for r in cur.fetchall():
+                pid = int(r[0])
+                if pid in seen_ids:
+                    continue
+                seen_ids.add(pid)
+                passengers.append({
+                    "passengerId": pid,
+                    "passengerName": str(r[1] or "Passenger"),
+                    "mobileNo": str(r[2] or ""),
+                    "emailId": str(r[3] or ""),
+                    "passportNo": str(r[4] or "N/A"),
+                    "gender": str(r[5] or "Other"),
+                    "nationality": "Indian",
+                    "memberTier": str(r[6] or "VIP Platinum")
+                })
+        except Exception as legacy_err:
+            print(f"[WARN get_registered_passengers legacy table]: {legacy_err}")
 
         return jsonify({
             "source": "ORACLE_DATABASE",
-            "table": "AIRLINE_PASSENGERS_REGD_FORM_MSTR_TBL",
+            "table": "AIRLINE_USER_MSTR_TBL",
             "passengers": passengers
         }), 200
 
@@ -2856,6 +3068,14 @@ def register_new_passenger():
         gender_code = gender[0] if gender else 'M'
         dob_str = data.get("dob", "1995-05-15").strip()
         member_tier = data.get("memberTier", "No Membership").strip()
+        password = str(data.get("password", "pass@123") or "pass@123").strip()
+        mpin_val = int(data.get("mpin", 1234) or 1234)
+
+        # Payment info (from Razorpay checkout for paid tiers)
+        payment_method = str(data.get("paymentMethod", "ONLINE")).strip().upper()
+        payment_status = str(data.get("paymentStatus", "PAID")).strip().upper()
+        razorpay_order_id = str(data.get("orderId") or data.get("razorpayOrderId") or "")
+        razorpay_payment_id = str(data.get("paymentId") or data.get("razorpayPaymentId") or "")
 
         if not passenger_name or not mobile_no:
             return jsonify({"message": "Passenger name and mobile number are required!"}), 400
@@ -2873,119 +3093,58 @@ def register_new_passenger():
         conn = get_conn()
         cur = conn.cursor()
 
-        new_id = 0
-        # Fast search for existing customer by mobile or email
-        cur.execute("""
-            SELECT PASSENGER_ID FROM AIRLINE_PASSENGERS_REGD_FORM_MSTR_TBL 
-            WHERE MOBILE_NO = :1 OR (EMAIL_ID = :2 AND EMAIL_ID != 'customer@example.com')
-        """, [mobile_int, email_id])
-        existing_row = cur.fetchone()
+        # Registration handled entirely inside the Oracle stored procedure:
+        #  1. Insert customer into AIRLINE_USER_MSTR_TBL (PASSENGER user)
+        #  2. Assign PASSENGER role in AIRLINE_ROLE_MSTR_TBL / AIRLINE_USER_ROLE_MAP_TBL
+        #  3. Record membership in AIRLINE_PASSENGER_MEMBERSHIP_MAP_TBL
+        v_user_id = cur.var(int)
+        v_status = cur.var(str)
+        cur.callproc(
+            "AIRLINE_CUSTOMER_REGD_USER_USP",
+            [
+                passenger_name,
+                gender_code,
+                dob_obj,
+                mobile_int,
+                email_id,
+                passport_no,
+                member_tier,
+                password,
+                mpin_val,
+                payment_method,
+                payment_status,
+                razorpay_order_id,
+                razorpay_payment_id,
+                v_user_id,
+                v_status
+            ]
+        )
+        conn.commit()
 
-        if existing_row:
-            new_id = existing_row[0]
-            cur.execute("""
-                UPDATE AIRLINE_PASSENGERS_REGD_FORM_MSTR_TBL
-                SET PASSENGER_NAME = :1, GENDER = :2, MEMBER_TIER = :3, PASSPORT_NO = :4, IS_ACTIVE = 'Y'
-                WHERE PASSENGER_ID = :5
-            """, [passenger_name, gender_code, member_tier, passport_no, new_id])
-        else:
-            try:
-                cur.execute("SELECT AIRLINE_PASSENGERS_REGD_FORM_MSTR_SEQ.NEXTVAL FROM DUAL")
-                new_id = cur.fetchone()[0]
-            except Exception:
-                cur.execute("SELECT NVL(MAX(PASSENGER_ID), 10000000) + 1 FROM AIRLINE_PASSENGERS_REGD_FORM_MSTR_TBL")
-                new_id = cur.fetchone()[0]
+        new_id = v_user_id.getvalue()
+        status_msg = (v_status.getvalue() or "").strip()
 
-            cur.execute("""
-                INSERT INTO AIRLINE_PASSENGERS_REGD_FORM_MSTR_TBL
-                (PASSENGER_ID, PASSENGER_NAME, GENDER, DOB, MOBILE_NO, EMAIL_ID, PASSPORT_NO, MEMBER_TIER, IS_ACTIVE, CREATED_BY)
-                VALUES (:1, :2, :3, :4, :5, :6, :7, :8, 'Y', 'SYSTEM')
-            """, [new_id, passenger_name, gender_code, dob_obj, mobile_int, email_id, passport_no, member_tier])
+        if new_id is None or new_id == 0:
+            return jsonify({
+                "message": status_msg or "Customer could not be registered (already registered or DB error)."
+            }), 409
 
-        # Calculate Membership Fee & Discount Percentage according to selected tier
+        # Compute fee/discount for the response (same rules as the procedure)
         tier_upper = member_tier.upper()
         if "EXECUTIVE" in tier_upper or "PLATINUM" in tier_upper:
-            membership_fee = 1500.0
-            discount_pct = 15.0
+            membership_fee, discount_pct = 1500.0, 15.0
         elif "GOLD" in tier_upper:
-            membership_fee = 1000.0
-            discount_pct = 10.0
+            membership_fee, discount_pct = 1000.0, 10.0
         elif "SILVER" in tier_upper:
-            membership_fee = 500.0
-            discount_pct = 5.0
+            membership_fee, discount_pct = 500.0, 5.0
         else:
-            membership_fee = 0.0
-            discount_pct = 0.0
-
-        # Save membership transaction in AIRLINE_PASSENGER_MEMBERSHIP_MAP_TBL quickly without DDL overhead
-        try:
-            cur.execute("""
-                INSERT INTO AIRLINE_PASSENGER_MEMBERSHIP_MAP_TBL
-                (MAP_ID, PASSENGER_ID, MEMBER_TIER, MEMBERSHIP_FEE, DISCOUNT_PCT, START_DATE, EXPIRY_DATE, STATUS, CREATED_BY)
-                VALUES (
-                    (SELECT NVL(MAX(MAP_ID), 20000000) + 1 FROM AIRLINE_PASSENGER_MEMBERSHIP_MAP_TBL),
-                    :1, :2, :3, :4, SYSDATE, SYSDATE + 365, 'ACTIVE', 'SYSTEM'
-                )
-            """, [new_id, member_tier, membership_fee, discount_pct])
-        except Exception as map_err:
-            if "ORA-00942" in str(map_err):
-                try:
-                    cur.execute("""
-                        CREATE TABLE AIRLINE_PASSENGER_MEMBERSHIP_MAP_TBL (
-                            MAP_ID NUMBER PRIMARY KEY,
-                            PASSENGER_ID NUMBER REFERENCES AIRLINE_PASSENGERS_REGD_FORM_MSTR_TBL(PASSENGER_ID),
-                            MEMBER_TIER VARCHAR2(50),
-                            MEMBERSHIP_FEE NUMBER(10,2),
-                            DISCOUNT_PCT NUMBER(5,2),
-                            START_DATE DATE DEFAULT SYSDATE,
-                            EXPIRY_DATE DATE DEFAULT SYSDATE + 365,
-                            STATUS VARCHAR2(20) DEFAULT 'ACTIVE',
-                            CREATED_BY VARCHAR2(50) DEFAULT 'SYSTEM'
-                        )
-                    """)
-                    cur.execute("""
-                        INSERT INTO AIRLINE_PASSENGER_MEMBERSHIP_MAP_TBL
-                        (MAP_ID, PASSENGER_ID, MEMBER_TIER, MEMBERSHIP_FEE, DISCOUNT_PCT, START_DATE, EXPIRY_DATE, STATUS, CREATED_BY)
-                        VALUES (20000001, :1, :2, :3, :4, SYSDATE, SYSDATE + 365, 'ACTIVE', 'SYSTEM')
-                    """, [new_id, member_tier, membership_fee, discount_pct])
-                except Exception as inner_err:
-                    print(f"[WARN AIRLINE_PASSENGER_MEMBERSHIP_MAP_TBL create/insert]: {inner_err}")
-            else:
-                print(f"[WARN AIRLINE_PASSENGER_MEMBERSHIP_MAP_TBL insert]: {map_err}")
-
-        password = str(data.get("password", "pass@123") or "pass@123").strip()
-        mpin_val = int(data.get("mpin", 1234) or 1234)
-
-        # Auto-create or update login user credentials in AIRLINE_USER_MSTR_TBL with PASSENGER role
-        try:
-            cur.execute("""
-                MERGE INTO AIRLINE_USER_MSTR_TBL target
-                USING (
-                    SELECT :1 AS USER_ID, :2 AS USERNAME, :3 AS MOBILENO, :4 AS PASSWD, :5 AS MPIN FROM DUAL
-                ) source ON (target.USER_ID = source.USER_ID OR target.MOBILENO = source.MOBILENO OR LOWER(target.USERNAME) = LOWER(source.USERNAME))
-                WHEN NOT MATCHED THEN
-                    INSERT (USER_ID, USERNAME, MOBILENO, PASSWD, MPIN, IS_ACTIVE, CREATED_BY, CREATED_IP)
-                    VALUES (source.USER_ID, source.USERNAME, source.MOBILENO, source.PASSWD, source.MPIN, 'Y', 'SYSTEM', '127.0.0.1')
-            """, [new_id, email_id, mobile_int, password, mpin_val])
-
-            cur.execute("""
-                MERGE INTO AIRLINE_USER_ROLE_MAP_TBL target
-                USING (
-                    SELECT :1 AS USER_ID, (SELECT ROLE_ID FROM AIRLINE_ROLE_MSTR_TBL WHERE UPPER(ROLE_NAME) = 'PASSENGER' AND ROWNUM = 1) AS ROLE_ID FROM DUAL
-                ) source ON (target.USER_ID = source.USER_ID AND target.ROLE_ID = source.ROLE_ID)
-                WHEN NOT MATCHED THEN
-                    INSERT (USER_ID, ROLE_ID, IS_ACTIVE, CREATED_BY, CREATED_IP)
-                    VALUES (source.USER_ID, source.ROLE_ID, 'Y', 'SYSTEM', '127.0.0.1')
-            """, [new_id])
-        except Exception as u_err:
-            print(f"[WARN passenger user/role auto-link]: {u_err}")
-
-        conn.commit()
+            membership_fee, discount_pct = 0.0, 0.0
 
         return jsonify({
             "message": f"Successfully registered member '{passenger_name}' with {member_tier} (\u20B9{membership_fee:,.2f} membership fee) in Oracle DB!",
             "passenger": {
                 "passengerId": new_id,
+                "userId": new_id,
                 "passengerName": passenger_name,
                 "mobileNo": str(mobile_int),
                 "emailId": email_id,
@@ -2995,7 +3154,11 @@ def register_new_passenger():
                 "nationality": "Indian",
                 "memberTier": member_tier,
                 "membershipFee": membership_fee,
-                "discountPct": discount_pct
+                "discountPct": discount_pct,
+                "paymentMethod": payment_method,
+                "paymentStatus": payment_status,
+                "razorpayOrderId": razorpay_order_id,
+                "razorpayPaymentId": razorpay_payment_id
             }
         }), 201
 
@@ -3006,6 +3169,7 @@ def register_new_passenger():
     finally:
         if cur: cur.close()
         if conn: conn.close()
+
 
 
 

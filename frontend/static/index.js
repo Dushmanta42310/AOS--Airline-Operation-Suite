@@ -383,6 +383,39 @@ if (passengerRegisterForm) {
       passengerRegSubmitBtn.disabled = true;
       passengerRegSubmitBtn.textContent = "Registering & Logging In...";
 
+      // ---- Online payment for paid membership tiers (via Razorpay) ----
+      let paymentInfo = { paymentMethod: "ONLINE", paymentStatus: "PAID" };
+      if (window.AOSRazorpay) {
+        const fee = window.AOSRazorpay.membershipFeeFor(memberTier);
+        if (fee > 0) {
+          try {
+            const paymentResult = await window.AOSRazorpay.openCheckout({
+              amount: fee,
+              purpose: "membership",
+              referenceId: "passenger-" + mobileNo,
+              prefill: { name: passengerName, email: emailId, contact: mobileNo }
+            });
+            paymentInfo = {
+              paymentMethod: "ONLINE",
+              paymentStatus: "PAID",
+              orderId: paymentResult.orderId,
+              paymentId: paymentResult.paymentId
+            };
+          } catch (payErr) {
+            const cancelled = payErr && String(payErr.message).indexOf("CANCELLED") !== -1;
+            showPassRegMessage(
+              "error",
+              cancelled
+                ? "Membership payment was cancelled. Registration not completed."
+                : "Payment failed. Please try again. (" + (payErr.message || "error") + ")"
+            );
+            passengerRegSubmitBtn.disabled = false;
+            passengerRegSubmitBtn.textContent = "Register & Pay";
+            return;
+          }
+        }
+      }
+
       const res = await fetch(`${API_BASE}/registered-passengers/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -394,7 +427,8 @@ if (passengerRegisterForm) {
           password,
           mpin,
           passportNo,
-          memberTier
+          memberTier,
+          ...paymentInfo
         })
       });
 

@@ -2220,15 +2220,37 @@ async function initDashboard() {
 
             const formData = new FormData(form);
             const tierVal = formData.get("memberTier") || "Executive Platinum";
-            const tierFees = {
-                "Executive Platinum": 1500,
-                "Gold Elite": 1000,
-                "Silver Preferred": 500
-            };
-            const fee = tierFees[tierVal] || 0;
+            const fee = window.AOSRazorpay ? window.AOSRazorpay.membershipFeeFor(tierVal) : 0;
+
+            let paymentInfo = { paymentMethod: "ONLINE", paymentStatus: "PAID" };
             if (fee > 0) {
-                const confirmPay = confirm(`Membership Fee Confirmation:\n\nThe selected membership tier '${tierVal}' is not assigned for free. An annual membership fee of \u20B9${fee.toLocaleString('en-IN')} is required.\n\nDo you want to collect cash payment of \u20B9${fee.toLocaleString('en-IN')} and activate this membership?`);
-                if (!confirmPay) {
+                if (!window.AOSRazorpay) {
+                    alert("Membership payment cannot be processed. Razorpay is not configured.");
+                    return;
+                }
+                try {
+                    const paymentResult = await window.AOSRazorpay.openCheckout({
+                        amount: fee,
+                        purpose: "membership",
+                        referenceId: "customer-" + (formData.get("mobileNo") || ""),
+                        prefill: {
+                            name: formData.get("passengerName") || "",
+                            email: formData.get("emailId") || "",
+                            contact: formData.get("mobileNo") || ""
+                        }
+                    });
+                    paymentInfo = {
+                        paymentMethod: "ONLINE",
+                        paymentStatus: "PAID",
+                        orderId: paymentResult.orderId,
+                        paymentId: paymentResult.paymentId
+                    };
+                } catch (payErr) {
+                    const cancelled = payErr && String(payErr.message).indexOf("CANCELLED") !== -1;
+                    msgDiv.innerHTML = "&times; " + (cancelled
+                        ? "Membership payment cancelled. Customer was not registered."
+                        : "Membership payment failed: " + (payErr.message || "error"));
+                    msgDiv.className = "form-message error";
                     return;
                 }
             }
@@ -2240,14 +2262,15 @@ async function initDashboard() {
                 mobileNo: formData.get("mobileNo"),
                 emailId: formData.get("emailId"),
                 passportNo: formData.get("passportNo"),
-                memberTier: tierVal
+                memberTier: tierVal,
+                ...paymentInfo
             };
 
             msgDiv.textContent = "Registering customer...";
             msgDiv.className = "form-message info";
 
             try {
-                const res = await fetch("/api/passenger/register", {
+                const res = await fetch("/api/registered-passengers/register", {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json"
@@ -3197,13 +3220,42 @@ async function initDashboard() {
 
                     if (cashPaidInput) cashPaidInput.addEventListener("input", updateCashReturn);
 
-                    // WHEN PAID BUTTON IS CLICKED -> SET STATUS TO PAID AND GENERATE TICKET PDF
+                    // WHEN PAID BUTTON IS CLICKED -> COLLECT ONLINE PAYMENT, RESERVE SEATS & GENERATE TICKET PDF
                     if (paidSubmitBtn) {
                         paidSubmitBtn.addEventListener("click", async () => {
-                            const howMuchPaid = parseFloat(cashPaidInput ? cashPaidInput.value : currentNetPayable) || currentNetPayable;
-                            if (howMuchPaid < currentNetPayable) {
-                                alert(`Paid amount (₹${howMuchPaid}) cannot be less than Net Payable Fare (₹${currentNetPayable})!`);
-                                return;
+                            const howMuchPaid = currentNetPayable;
+
+                            // ---- Online payment via Razorpay for the whole booking ----
+                            let paymentInfo = { paymentMethod: "ONLINE", paymentStatus: "PAID" };
+                            if (currentNetPayable > 0 && window.AOSRazorpay) {
+                                paidSubmitBtn.disabled = true;
+                                paidSubmitBtn.textContent = "\u23F3 Processing Online Payment...";
+                                try {
+                                    const paymentResult = await window.AOSRazorpay.openCheckout({
+                                        amount: currentNetPayable,
+                                        purpose: "ticket",
+                                        referenceId: "flight-" + targetId,
+                                        prefill: {
+                                            name: (Array.from(seatPassengerMap.values())[0] || {}).passengerName || "",
+                                            email: "",
+                                            contact: (Array.from(seatPassengerMap.values())[0] || {}).mobileNo || ""
+                                        }
+                                    });
+                                    paymentInfo = {
+                                        paymentMethod: "ONLINE",
+                                        paymentStatus: "PAID",
+                                        orderId: paymentResult.orderId,
+                                        paymentId: paymentResult.paymentId
+                                    };
+                                } catch (payErr) {
+                                    paidSubmitBtn.disabled = false;
+                                    paidSubmitBtn.innerHTML = `Paid & Generate Ticket PDF <svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v2z"/></svg>`;
+                                    const cancelled = payErr && String(payErr.message).indexOf("CANCELLED") !== -1;
+                                    alert(cancelled
+                                        ? "Payment cancelled. No seats were booked."
+                                        : "Payment failed: " + (payErr.message || "Please try again."));
+                                    return;
+                                }
                             }
 
                             paidSubmitBtn.disabled = true;
@@ -3231,7 +3283,10 @@ async function initDashboard() {
                                             finalSeatPrice: seatNetPrice,
                                             discountAmount: seatDiscount,
                                             memberTier: pass.memberTier || "Standard",
-                                            paymentMethod: "CASH",
+                                            paymentMethod: paymentInfo.paymentMethod,
+                                            paymentStatus: paymentInfo.paymentStatus,
+                                            orderId: paymentInfo.orderId || "",
+                                            paymentId: paymentInfo.paymentId || "",
                                             amountPaid: howMuchPaid,
                                             bookingTimestamp: liveBookingTimeStr
                                         }),
@@ -3305,7 +3360,8 @@ async function initDashboard() {
                                     discountVal: baseTotal - currentNetPayable,
                                     netPayable: currentNetPayable,
                                     howMuchPaid: howMuchPaid,
-                                    paymentMethod: "CASH",
+                                    paymentMethod: paymentInfo.paymentMethod,
+                                    paymentId: paymentInfo.paymentId || "",
                                     paymentStatus: "PAID"
                                 });
 
