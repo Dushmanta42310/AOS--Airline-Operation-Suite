@@ -3,6 +3,10 @@
 (function () {
     if (window.AOSRazorpay) return;
 
+    // Flip to true (and add RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET to .env)
+    // when you want to enable real online payments again.
+    const RAZORPAY_ENABLED = false;
+
     const PAYMENT_CONFIG_URL = "/api/payment/config";
     const CREATE_ORDER_URL = "/api/payment/create-order";
     const VERIFY_URL = "/api/payment/verify";
@@ -53,6 +57,11 @@
      * @param {object} [opts.prefill] - {name, email, contact}
      */
     async function openCheckout(opts) {
+        if (!RAZORPAY_ENABLED) {
+            console.info("[AOS] Razorpay is disabled - bypassing online payment for", opts && opts.purpose);
+            return { orderId: "", paymentId: "", signature: "", bypassed: true };
+        }
+
         const config = await getConfig();
         if (!config.ready || !config.keyId) {
             throw new Error("Razorpay is not configured. Please contact administrator.");
